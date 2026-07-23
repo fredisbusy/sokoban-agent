@@ -9,7 +9,14 @@ test("partial LangGraph updates accumulate into one view event", () => {
       observation: [[1, 1, 1], [1, 4, 1], [1, 2, 1]],
       max_steps: 15,
       info: { steps: 0 },
-      strategy_hypothesis: { summary: "상자를 목표로 보낸다" },
+      strategy_hypothesis: {
+        summary: "상자를 목표로 보낸다",
+        assignments: [{
+          box_id: "B1",
+          target_id: "T1",
+          reason: "통로를 먼저 연다",
+        }],
+      },
     },
   });
   const second = applyUpdate(first.state, {
@@ -18,6 +25,7 @@ test("partial LangGraph updates accumulate into one view event", () => {
       info: { steps: 3, success: true },
       action_history: ["DOWN", "DOWN", "UP"],
       execution_result: { actions_executed: ["UP"], push_count: 1 },
+      push_count: 2,
       status: "success",
     },
   });
@@ -33,6 +41,8 @@ test("partial LangGraph updates accumulate into one view event", () => {
   assert.equal(event.step, 3);
   assert.equal(event.phase, "success");
   assert.equal(event.strategy.hypothesis, "상자를 목표로 보낸다");
+  assert.equal(event.strategy.assignment, "B1 → T1 · 통로를 먼저 연다");
+  assert.equal(event.pushCount, 2);
 });
 
 test("baseline board and summaries remain supported", () => {

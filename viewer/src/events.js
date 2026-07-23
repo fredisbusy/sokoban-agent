@@ -41,14 +41,18 @@ export function normalizeEvent({ id, threadId, node, state }) {
     board,
     action: actions.at(-1) ?? history.at(-1) ?? null,
     actionCount: integer(state.action_count, history.length),
-    pushCount: integer(execution.push_count, integer(info.push_count, null)),
+    pushCount: integer(state.push_count, integer(execution.push_count, null)),
     status,
     success: Boolean(state.success ?? info.success),
     deadlock: Boolean(state.deadlock ?? info.deadlock),
     truncated: Boolean(state.truncated ?? execution.truncated),
     strategy: {
       hypothesis: displayValue(hypothesis.summary ?? hypothesis.hypothesis ?? state.planner_goal),
-      assignment: displayValue(hypothesis.assignment ?? hypothesis.box_goal_assignment),
+      assignment: displayAssignments(
+        hypothesis.assignments
+          ?? hypothesis.assignment
+          ?? hypothesis.box_goal_assignment,
+      ),
       subgoal: displayValue(subgoal.summary ?? subgoal.description ?? subgoal),
       protectedCells: arrayOrEmpty(state.protected_constraints).map(displayValue),
       risk: displayValue(hypothesis.risk ?? state.risk ?? state.guard_summary),
@@ -91,6 +95,20 @@ function displayValue(value) {
       .join(" · ");
   }
   return String(value);
+}
+
+function displayAssignments(value) {
+  if (!Array.isArray(value)) return displayValue(value);
+  return value.map((assignment) => {
+    if (!assignment || typeof assignment !== "object") {
+      return displayValue(assignment);
+    }
+    const boxId = displayValue(assignment.box_id);
+    const targetId = displayValue(assignment.target_id);
+    const reason = displayValue(assignment.reason);
+    const pair = boxId && targetId ? `${boxId} → ${targetId}` : null;
+    return [pair, reason].filter(Boolean).join(" · ");
+  }).filter(Boolean).join(", ");
 }
 
 function objectOrEmpty(value) {

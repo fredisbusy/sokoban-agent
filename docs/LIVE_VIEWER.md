@@ -15,7 +15,9 @@ LangGraph state update를 유일한 표시 기준으로 사용한다. 따라서 
 로컬 관찰 화면은 `viewer/`에 구현되어 있다. `make studio`와 `make viewer`를
 각각 실행한 뒤 <http://127.0.0.1:4173>에서 사용할 수 있다. 별도 프런트엔드
 framework나 event broker 없이 Agent Server REST·SSE 계약과 브라우저
-CSS Grid를 사용한다.
+CSS Grid를 사용한다. 모의 SSE·상태 정규화·표시 queue·reduced-motion과
+반응형 화면은 검증했으며, 실제 `tiny-walk` run의 종단간 완료 조건은
+LangSmith prompt commit을 만든 뒤 검증한다.
 
 ## 범위
 
