@@ -15,8 +15,13 @@ uv run jupyter lab
 `notebooks/`에 둡니다. 반복 가능한 실험 설정은 `configs/`, 실행 진입점은
 `scripts/`, 검증 코드는 `tests/`에 둡니다.
 
-현재는 라이브러리와 폴더 구조만 준비되어 있으며 Sokoban 환경이나 에이전트
-구현은 포함하지 않습니다.
+현재는 LiteLLM/Ollama 연결만 구현되어 있으며 Sokoban 환경과 플레이
+에이전트는 아직 구현되지 않았습니다.
+
+## 프로젝트 문서
+
+- [목표와 범위](docs/PROJECT.md)
+- [현재 작업과 우선순위](TODO.md)
 
 ## Ollama 연결
 

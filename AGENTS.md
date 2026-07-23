@@ -1,5 +1,19 @@
 # Project Guidance
 
+## 작업 시작
+
+- 먼저 `docs/PROJECT.md`에서 목표와 범위를, `TODO.md`에서 현재 우선순위와
+  완료 조건을 확인한다.
+- 사용자의 명시적 요청이 항상 TODO보다 우선한다. 다음 작업을 자율적으로
+  선택해야 할 때만 `TODO.md`의 `지금`에서 첫 미완료 항목을 고른다.
+- 완료한 작업은 검증이 통과한 뒤에만 `TODO.md`에 반영한다.
+
+## 필수 검증
+
+- 테스트: `uv run pytest`
+- 린트: `uv run ruff check .`
+- 타입 검사: `uv run mypy`
+
 ## 커밋 메시지
 
 - 모든 커밋은 Conventional Commits 형식을 사용한다.
