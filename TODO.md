@@ -182,13 +182,16 @@ checkpoint history를 사용한다.
 - [x] 재현 가능한 비교 노트북과 trajectory를 만든다.
 - [x] Boxoban 공식 `unfiltered`, `medium`, `hard`에서 결정적으로 5개씩
   선정하고 원본 commit·파일 checksum·bounded A* reference를 고정한다.
+- [x] immutable LangSmith prompt commit을 고정한 공식 Medium 1개 맵의
+  실제 모델 6정책 smoke artifact와 원본 SHA-256을 기록한다.
 
 완료 조건: test 코호트가 prompt와 개발 fixture에서 격리되고, 모든 정책의
 성공·비용·일반화·수정 능력을 같은 표에서 비교한다.
 
 구현 계약은 고정 prompt/model fixture의 6정책 비교로 검증한다. 실제 모델
 결과 artifact는 검증된 immutable LangSmith prompt commit을 고정해 같은
-runner로 기록한다.
+runner로 기록한다. 1개 맵 smoke는 실행·계측 검증에만 사용하며 정책 성능
+결론은 15개 전체 코호트와 반복 seed 결과로 판단한다.
 
 ## 보류
 

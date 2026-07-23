@@ -1,0 +1,113 @@
+{
+  "artifact_kind": "actual-model-smoke-summary",
+  "conclusion_scope": "pipeline validation only; not a policy performance conclusion",
+  "source_artifact": "_workspace/benchmarks/boxoban_medium_smoke_v1.json",
+  "source_artifact_sha256": "2368d3971c76304b0795be8718a651cdca1cbe5c1b954d83a8344dae3dc34535",
+  "run_manifest": {
+    "cohort_version": "boxoban-research-v1",
+    "cohort_sha256": "e108b5555736a8064e001bb2a941b178efcf8746882499d2e7421288e82eedf4",
+    "level_ids": [
+      "boxoban-medium-564"
+    ],
+    "policies": [
+      "primitive-llm",
+      "structured-llm",
+      "structured-local-search",
+      "structured-no-rationale",
+      "current-full-guard",
+      "astar-oracle"
+    ],
+    "prompt_name": "sokoban-strategy",
+    "prompt_commit": "260e758c4cf715223b40ea1b40235a8b864164c146dc8efc652bdcb13471562a",
+    "graph_id": "sokoban_agent",
+    "graph_revision": "fca92b66f93e0df8faa23671475b831584612642",
+    "model_name": "qwen3.6:27b-mlx",
+    "seeds": [
+      0
+    ],
+    "max_steps": 50,
+    "max_planning_attempts": 2,
+    "oracle_max_expanded_states": 200000,
+    "model_config": {
+      "temperature": 0,
+      "num_ctx": 4096,
+      "max_output_tokens": 512,
+      "think": false
+    },
+    "dirty_worktree": false
+  },
+  "outcomes": [
+    {
+      "policy_name": "primitive-llm",
+      "status": "blocked_plan_action",
+      "success": false,
+      "action_count": 2,
+      "push_count": 0,
+      "llm_calls": 5,
+      "total_llm_tokens": 1847,
+      "algorithm_calls": 0
+    },
+    {
+      "policy_name": "structured-llm",
+      "status": "strategy_schema_error",
+      "success": false,
+      "action_count": 0,
+      "push_count": 0,
+      "llm_calls": 3,
+      "total_llm_tokens": 7742,
+      "algorithm_calls": 0
+    },
+    {
+      "policy_name": "structured-local-search",
+      "status": "strategy_schema_error",
+      "success": false,
+      "action_count": 20,
+      "push_count": 5,
+      "llm_calls": 10,
+      "total_llm_tokens": 24455,
+      "local_search_calls": 5,
+      "local_expanded_states": 96,
+      "algorithm_calls": 0
+    },
+    {
+      "policy_name": "structured-no-rationale",
+      "status": "cycle_detected",
+      "success": false,
+      "action_count": 41,
+      "push_count": 9,
+      "llm_calls": 10,
+      "total_llm_tokens": 23098,
+      "local_search_calls": 9,
+      "local_expanded_states": 180,
+      "algorithm_calls": 0
+    },
+    {
+      "policy_name": "current-full-guard",
+      "status": "success",
+      "success": true,
+      "action_count": 32,
+      "push_count": 12,
+      "llm_calls": 1,
+      "total_llm_tokens": 384,
+      "algorithm_calls": 1,
+      "algorithm_expanded_states": 52
+    },
+    {
+      "policy_name": "astar-oracle",
+      "status": "solved",
+      "success": true,
+      "action_count": 32,
+      "push_count": 12,
+      "llm_calls": 0,
+      "total_llm_tokens": 0,
+      "algorithm_calls": 1,
+      "algorithm_expanded_states": 52
+    }
+  ],
+  "observations": [
+    "The immutable prompt and graph pipeline completed all six policies.",
+    "The structured policies exercised rule, reachability, and local-search instrumentation without global A-star fallback.",
+    "Schema failures and a detected cycle are follow-up signals, not evidence from a sufficiently sized evaluation cohort.",
+    "A full comparison still requires the pinned 15-level cohort and repeated seeds."
+  ]
+}

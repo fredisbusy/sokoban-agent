@@ -46,3 +46,15 @@ uv run python scripts/run_agentic_research.py \
 15개 보드만 웹 선택과 정확한 실행 입력을 위해 출처·commit·Apache-2.0
 라이선스와 함께 저장한다. bounded A* reference는 보드 무결성 및 사후 비교
 기준이며 구조화 정책에 정답 경로로 전달하지 않는다.
+
+## 실제 모델 스모크 결과
+
+`results/boxoban_medium_smoke_v1.summary.json`은 immutable LangSmith prompt
+commit과 graph commit을 고정한 실제 모델 6정책 end-to-end 실행 기록이다.
+공식 Medium 맵 1개와 seed 1개만 사용하므로 파이프라인·계측 검증 자료이며,
+정책 성능 결론에는 사용하지 않는다. Git에서 제외한 전체 원본 artifact는
+요약 파일에 경로와 SHA-256을 기록해 로컬에서 무결성을 확인할 수 있다.
+
+이 실행에서는 `current-full-guard`와 `astar-oracle`이 성공했고, LLM 중심
+정책에서는 막힌 행동, 전략 schema 오류와 cycle 탐지가 관찰됐다. 후속 비교는
+고정된 15개 전체 코호트와 반복 seed로 수행한다.
