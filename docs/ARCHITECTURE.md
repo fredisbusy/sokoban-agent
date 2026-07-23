@@ -61,20 +61,30 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-    S["START"] --> O["observe"]
-    O --> A["analyze"]
-    A --> L["resolve_prompt"]
-    L --> C["compose_strategy_input"]
-    C --> P["propose_strategy"]
+    S["START"] --> I["initialize"]
+    I --> A["analyze"]
+    A -->|"최초"| L["resolve_prompt"]
+    A -->|"고정 commit 재사용"| F["recall_failures"]
+    L --> F
+    F --> C["compose_strategy_input"]
+    C --> RS["recall_strategy"]
+    RS -->|"miss"| P["propose_strategy"]
+    RS -->|"hit"| V["verify_strategy"]
     P --> V["verify_strategy"]
-    V -->|"수정 가능 오류"| P
-    V -->|"유효"| G["ground_subgoal"]
-    G -->|"접근 불가·제약 위반"| P
+    V -->|"거절"| RF["remember_failure"]
+    RF -->|"수정 가능"| C
+    V -->|"유효"| D["detect_repetition"]
+    D --> RG["recall_grounding"]
+    RG -->|"miss"| G["ground_subgoal"]
+    RG -->|"hit"| X["execute_until_push"]
+    G -->|"접근 불가·제약 위반"| RF
     G -->|"실행 가능"| X["execute_until_push"]
+    X -->|"push 전"| X
     X --> R["reflect"]
-    R -->|"계속"| O
-    R -->|"가설 수정"| P
-    R -->|"성공·제한"| E["END"]
+    R --> M["remember_outcome"]
+    M -->|"계속"| O["observe"]
+    O --> A
+    M -->|"성공·제한"| E["END"]
 ```
 
 이 흐름은 Python 루프로 감싼 자체 workflow가 아니라 하나의 컴파일된
@@ -119,6 +129,28 @@ Implementation만 제공한다.
 
 전역 A*는 이 StateGraph에 node나 tool로 연결하지 않는다. 에피소드 종료 후
 평가 Module이 별도의 oracle Adapter로 호출한다.
+
+## LangGraph 메모리
+
+thread 단기 기억은 checkpointer가 저장하는 graph state가 소유한다.
+`rejected_pushes`는 현재 보드 추상화에서 검증·접지에 실패한 push를 기록하고,
+`compose_strategy_input`이 다음 모델 호출 전에 해당 후보를 제거한다.
+
+공유 기억은 graph에 주입한 LangGraph Store가 소유한다.
+
+- `analyze`는 topology checksum으로 정적 dead square와 reverse-pull 사실을
+  재사용한다.
+- `recall_strategy`는 prompt commit, model, rationale·grounding mode와 정확한
+  전략 입력이 모두 같은 경우에만 검증된 전략을 복원한다.
+- `recall_grounding`은 observation, 하위 목표와 보호 제약이 정확히 같은
+  경로를 복원하고, 원시 행동을 선형 시뮬레이션해 다시 검증한다.
+- `remember_outcome`은 실제 환경 효과가 일치한 전략과 경로만 Store에 쓴다.
+- `remember_failure`은 실패 push와 구조화된 이유를 단기 state와 선택적인
+  공유 Store에 남긴다.
+
+`memory_mode`는 `off`, `episode`, `shared`로 구분한다. held-out 연구 runner는
+정책 간 정보 누설을 막기 위해 `off`를 명시한다. 요청·적중·쓰기, 전략·접지·
+분석 cache hit, 절감한 LLM 호출과 필터링한 push 수를 각각 계측한다.
 
 ## prompt 관리
 

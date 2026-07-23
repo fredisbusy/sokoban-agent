@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from typing import cast
 
 from sokoban_agent.env.levels import Position
@@ -27,10 +28,30 @@ from sokoban_agent.planning.strategy import (
 )
 
 
+@dataclass(frozen=True, slots=True)
+class StaticBoardFacts:
+    """Topology-only spatial facts reusable across dynamic observations."""
+
+    dead_squares: frozenset[Position]
+    pull_distances: dict[Position, dict[Position, int]]
+
+
+def analyze_static_board(observation: Observation) -> StaticBoardFacts:
+    """Compute facts that depend only on walls, targets, and board shape."""
+
+    level, _ = decode_observation(observation)
+    pull_distances = target_pull_distances(level)
+    return StaticBoardFacts(
+        dead_squares=static_dead_squares(level, pull_distances),
+        pull_distances=pull_distances,
+    )
+
+
 def analyze_board(
     observation: Observation,
     *,
     previous: BoardAnalysis | None = None,
+    static_facts: StaticBoardFacts | None = None,
 ) -> BoardAnalysis:
     """Return deterministic spatial facts with stable logical identities."""
 
@@ -39,8 +60,9 @@ def analyze_board(
     targets = _target_facts(level.targets, previous)
     box_ids = {box.position: box.box_id for box in boxes}
     reachable, _ = reachable_paths(level, state)
-    pull_distances = target_pull_distances(level)
-    dead_squares = static_dead_squares(level, pull_distances)
+    static = static_facts or analyze_static_board(observation)
+    pull_distances = static.pull_distances
+    dead_squares = static.dead_squares
 
     push_options: list[PushOption] = []
     for position in sorted(state.boxes):
@@ -85,6 +107,62 @@ def analyze_board(
         reachable_cells=tuple(_cell(position) for position in sorted(reachable)),
         push_options=tuple(push_options),
         reverse_pull_distances=tuple(distances),
+    )
+
+
+def dump_static_board_facts(
+    facts: StaticBoardFacts,
+) -> dict[str, object]:
+    """Serialize topology facts for a LangGraph Store value."""
+
+    return {
+        "dead_squares": [list(position) for position in sorted(facts.dead_squares)],
+        "pull_distances": [
+            {
+                "target": list(target),
+                "distances": [
+                    [position[0], position[1], distance]
+                    for position, distance in sorted(distances.items())
+                ],
+            }
+            for target, distances in sorted(facts.pull_distances.items())
+        ],
+    }
+
+
+def load_static_board_facts(
+    payload: dict[str, object],
+) -> StaticBoardFacts:
+    """Validate and deserialize topology facts from a LangGraph Store."""
+
+    raw_dead_squares = payload.get("dead_squares")
+    raw_pull_distances = payload.get("pull_distances")
+    if not isinstance(raw_dead_squares, list) or not isinstance(
+        raw_pull_distances, list
+    ):
+        raise ValueError("stored static board facts have an invalid shape")
+    dead_squares = frozenset(_stored_position(item) for item in raw_dead_squares)
+    pull_distances: dict[Position, dict[Position, int]] = {}
+    for item in raw_pull_distances:
+        if not isinstance(item, dict):
+            raise ValueError("stored pull distance entry must be an object")
+        target = _stored_position(item.get("target"))
+        raw_distances = item.get("distances")
+        if not isinstance(raw_distances, list):
+            raise ValueError("stored pull distances must be a list")
+        distances: dict[Position, int] = {}
+        for raw_distance in raw_distances:
+            if (
+                not isinstance(raw_distance, list)
+                or len(raw_distance) != 3
+                or not all(isinstance(value, int) for value in raw_distance)
+            ):
+                raise ValueError("stored pull distance must be [row, col, distance]")
+            distances[(raw_distance[0], raw_distance[1])] = raw_distance[2]
+        pull_distances[target] = distances
+    return StaticBoardFacts(
+        dead_squares=dead_squares,
+        pull_distances=pull_distances,
     )
 
 
@@ -148,3 +226,13 @@ def _cell(position: Position) -> Cell:
 
 def _position(cell: Cell) -> Position:
     return cell.row, cell.col
+
+
+def _stored_position(value: object) -> Position:
+    if (
+        not isinstance(value, list)
+        or len(value) != 2
+        or not all(isinstance(part, int) for part in value)
+    ):
+        raise ValueError("stored position must be [row, col]")
+    return value[0], value[1]

@@ -6,6 +6,8 @@ from typing import Any, cast
 from uuid import uuid4
 
 from langgraph.checkpoint.memory import InMemorySaver
+from langgraph.store.base import BaseStore
+from langgraph.store.memory import InMemoryStore
 
 from sokoban_agent.graph.agentic import build_agentic_graph
 from sokoban_agent.graph.agentic_state import (
@@ -28,10 +30,13 @@ class AgenticGraphRunner:
         prompt_source: PromptSource | None = None,
         strategy_generator: StrategyGenerator | None = None,
         checkpointer: InMemorySaver | None = None,
+        store: BaseStore | None = None,
     ) -> None:
         self.checkpointer = checkpointer or InMemorySaver()
+        self.store = store or InMemoryStore()
         self.graph: Any = build_agentic_graph(
             checkpointer=self.checkpointer,
+            store=self.store,
             prompt_source=prompt_source,
             strategy_generator=strategy_generator,
         )

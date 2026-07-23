@@ -132,8 +132,18 @@ def test_agentic_graph_initializes_json_safe_checkpoint_state() -> None:
         },
         {
             "step": 0,
+            "stage": "recall_failures",
+            "summary": "현재 보드의 제외 push 0개를 불러왔습니다",
+        },
+        {
+            "step": 0,
             "stage": "compose_strategy_input",
             "summary": "BoardAnalysis에서 전략 입력을 구성했습니다",
+        },
+        {
+            "step": 0,
+            "stage": "recall_strategy",
+            "summary": "재사용할 검증 전략이 없습니다",
         },
         {
             "step": 0,
@@ -152,6 +162,11 @@ def test_agentic_graph_initializes_json_safe_checkpoint_state() -> None:
         },
         {
             "step": 0,
+            "stage": "recall_grounding",
+            "summary": "재사용할 접지 경로가 없습니다",
+        },
+        {
+            "step": 0,
             "stage": "ground_subgoal",
             "summary": "플레이어 이동 0회와 push 1회를 접지했습니다",
         },
@@ -166,6 +181,11 @@ def test_agentic_graph_initializes_json_safe_checkpoint_state() -> None:
             "step": 1,
             "stage": "reflect",
             "summary": "퍼즐을 해결했습니다",
+        },
+        {
+            "step": 1,
+            "stage": "remember_outcome",
+            "summary": "성공 결과를 에피소드 메모리에 유지했습니다",
         },
     ]
     assert graph.get_state(config).values["board_analysis"] == result[
@@ -191,23 +211,31 @@ def test_agentic_graph_reducer_accumulates_decision_events_per_thread() -> None:
         "initialize",
         "analyze",
         "resolve_prompt",
+        "recall_failures",
         "compose_strategy_input",
+        "recall_strategy",
         "propose_strategy",
         "verify_strategy",
         "detect_repetition",
+        "recall_grounding",
         "ground_subgoal",
         "execute_until_push",
         "reflect",
+        "remember_outcome",
         "initialize",
         "analyze",
         "resolve_prompt",
+        "recall_failures",
         "compose_strategy_input",
+        "recall_strategy",
         "propose_strategy",
         "verify_strategy",
         "detect_repetition",
+        "recall_grounding",
         "ground_subgoal",
         "execute_until_push",
         "reflect",
+        "remember_outcome",
     ]
 
 

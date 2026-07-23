@@ -38,6 +38,17 @@ def build_parser() -> argparse.ArgumentParser:
         choices=("direct", "local-search"),
         default="local-search",
     )
+    parser.add_argument(
+        "--memory-mode",
+        choices=("off", "episode", "shared"),
+        default="episode",
+        help="episode은 실패 후보만, shared는 검증된 전략·접지 캐시도 재사용",
+    )
+    parser.add_argument(
+        "--memory-namespace",
+        default="default",
+        help="shared 메모리를 분리할 실험 또는 사용자 namespace",
+    )
     return parser
 
 
@@ -59,6 +70,8 @@ def main(argv: Sequence[str] | None = None) -> int:
             "model_name": model_name,
             "rationale_mode": args.rationale_mode,
             "grounding_mode": args.grounding_mode,
+            "memory_mode": args.memory_mode,
+            "memory_namespace": args.memory_namespace,
         },
     )
     print(
@@ -71,6 +84,13 @@ def main(argv: Sequence[str] | None = None) -> int:
                 "push_count": state["push_count"],
                 "prompt": state["prompt"],
                 "model_name": state["model_name"],
+                "memory": {
+                    "mode": state["memory_mode"],
+                    "requests": state["memory_requests"],
+                    "hits": state["memory_hits"],
+                    "writes": state["memory_writes"],
+                    "llm_calls_saved": state["llm_calls_saved"],
+                },
             },
             ensure_ascii=False,
         )

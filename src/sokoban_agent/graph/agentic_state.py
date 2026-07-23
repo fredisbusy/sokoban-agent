@@ -68,6 +68,8 @@ class AgenticState(TypedDict):
     model_name: str
     rationale_mode: Literal["on", "off"]
     grounding_mode: Literal["direct", "local-search"]
+    memory_mode: Literal["off", "episode", "shared"]
+    memory_namespace: str
     status: str
     board_analysis: dict[str, object] | None
     strategy_hypothesis: dict[str, object] | None
@@ -87,6 +89,18 @@ class AgenticState(TypedDict):
     completed_subgoals: list[dict[str, object]]
     attempt_keys: list[str]
     cycle_detected: bool
+    rejected_pushes: dict[str, list[str]]
+    strategy_memory_hit: bool
+    grounding_memory_hit: bool
+    grounding_cache_key: str | None
+    memory_requests: int
+    memory_hits: int
+    memory_writes: int
+    strategy_cache_hits: int
+    grounding_cache_hits: int
+    analysis_cache_hits: int
+    llm_calls_saved: int
+    rejected_pushes_filtered: int
     strategy_proposals: int
     strategy_schema_rejections: int
     strategy_semantic_rejections: int
@@ -120,3 +134,5 @@ class AgenticRuntimeContext(TypedDict, total=False):
     model_name: str
     rationale_mode: Literal["on", "off"]
     grounding_mode: Literal["direct", "local-search"]
+    memory_mode: Literal["off", "episode", "shared"]
+    memory_namespace: str

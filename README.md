@@ -198,11 +198,13 @@ print(state["algorithm_calls"], state["algorithm_fallbacks"])
 ## LangGraph Studio
 
 로컬 Studio에서는 `initialize`, `analyze`, `resolve_prompt`,
-`compose_strategy_input`, `propose_strategy`, `verify_strategy`,
-`detect_repetition`, `ground_subgoal`, `execute_until_push`, `reflect`,
-`observe` 노드를 단계별로 살펴볼 수 있습니다. 각 실행 node는 첫 push에서
-멈춘 뒤 실행 효과를 성찰하며, 미해결이면 새 관찰로 돌아갑니다. 전역 A*
-정답 경로나 전체 계획 대체는 이 주 그래프에 연결하지 않습니다.
+`recall_failures`, `compose_strategy_input`, `recall_strategy`,
+`propose_strategy`, `verify_strategy`, `remember_failure`,
+`detect_repetition`, `recall_grounding`, `ground_subgoal`,
+`execute_until_push`, `reflect`, `remember_outcome`, `observe` 노드를 단계별로
+살펴볼 수 있습니다. 각 실행 node는 첫 push에서 멈춘 뒤 실행 효과를
+성찰하며, 미해결이면 새 관찰로 돌아갑니다. 전역 A* 정답 경로나 전체 계획
+대체는 이 주 그래프에 연결하지 않습니다.
 Studio용 의존성 설치와 개발 서버 실행은 다음 명령으로 한 번에 처리합니다.
 
 ```bash
@@ -230,9 +232,18 @@ Studio의 **Manage Assistants**에서 다음 context를 설정합니다. `prompt
   "prompt_commit": "731d3f516b225cc0e1d11b87cfc5abe45c1a92ed63b41ef3e23796e805006b77",
   "model_name": "qwen3.6:27b-mlx",
   "rationale_mode": "on",
-  "grounding_mode": "local-search"
+  "grounding_mode": "local-search",
+  "memory_mode": "episode",
+  "memory_namespace": "default"
 }
 ```
+
+`memory_mode=episode`은 현재 run의 실패 push만 checkpoint state에
+기억합니다. `shared`는 LangGraph Store에서 동일한 보드 구조 분석, 환경으로
+효과가 확인된 전략과 선형 재검증을 통과한 접지 경로를 thread 사이에
+재사용합니다. 연구 비교는 정보 누설을 막기 위해 `off`로 실행하며, 공유
+메모리는 prompt commit·model·실행 모드와 `memory_namespace`가 같은 경우에만
+적중합니다.
 
 위 commit은 private `sokoban-strategy` prompt의 실제 모델 종단간 검증에
 사용한 고정 버전입니다. 새 prompt 버전을 연구에 사용할 때는 먼저 같은
@@ -249,8 +260,9 @@ Studio의 **Manage Assistants**에서 다음 context를 설정합니다. `prompt
 `strategy_hypothesis`, `strategy_violations`, `active_subgoal`,
 `protected_constraints`, `expected_effect`, `feedback`,
 `grounded_actions`, `execution_result`, `reflection_result`,
-`plan_revisions`, `action_history`, `decision_events`를 확인할 수 있습니다.
-prompt 본문과 숨은 추론 원문은 checkpoint에 저장하지 않습니다.
+`plan_revisions`, `action_history`, `decision_events`, `memory_requests`,
+`memory_hits`, `memory_writes`, `llm_calls_saved`를 확인할 수 있습니다. prompt
+본문과 숨은 추론 원문은 checkpoint에 저장하지 않습니다.
 
 Studio 진입점은 `langgraph.json`과
 `src/sokoban_agent/graph/agentic.py`에 정의되어 있습니다.

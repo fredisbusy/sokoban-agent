@@ -10,6 +10,7 @@ from langgraph.runtime import Runtime
 from langsmith import traceable
 from pydantic import ValidationError
 
+from sokoban_agent.graph.agentic_memory_nodes import filter_rejected_pushes
 from sokoban_agent.graph.agentic_state import (
     AgenticRuntimeContext,
     AgenticState,
@@ -41,6 +42,7 @@ StrategyRoute = Literal[
     "compose_strategy_input",
     "verify_strategy",
     "detect_repetition",
+    "remember_failure",
     "__end__",
 ]
 
@@ -96,6 +98,10 @@ class StrategyNodes:
             model_context,
             recent_pushes[-1] if recent_pushes else None,
         )
+        model_context, filtered_count = filter_rejected_pushes(
+            state,
+            model_context,
+        )
         model_context["recent_pushes"] = recent_pushes
         variables: dict[str, object] = {
             "level_id": state["level_id"],
@@ -117,6 +123,9 @@ class StrategyNodes:
         }
         return {
             "strategy_input": variables,
+            "rejected_pushes_filtered": (
+                state["rejected_pushes_filtered"] + filtered_count
+            ),
             "status": "strategy_input_composed",
             "decision_events": [
                 {
@@ -291,9 +300,7 @@ def route_after_strategy_verification(state: AgenticState) -> StrategyRoute:
 
     if not state["strategy_violations"]:
         return "detect_repetition"
-    if state["strategy_attempts"] < 2:
-        return "compose_strategy_input"
-    return "__end__"
+    return "remember_failure"
 
 
 def _step(state: AgenticState) -> int:

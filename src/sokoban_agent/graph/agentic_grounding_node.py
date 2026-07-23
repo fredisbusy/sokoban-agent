@@ -21,7 +21,7 @@ from sokoban_agent.planning.strategy import (
 )
 
 GroundingRoute = Literal[
-    "compose_strategy_input",
+    "remember_failure",
     "execute_until_push",
     "__end__",
 ]
@@ -130,9 +130,7 @@ def route_after_grounding(state: AgenticState) -> GroundingRoute:
 
     if state["grounding_failure"] is None:
         return "execute_until_push"
-    if state["strategy_attempts"] < 2:
-        return "compose_strategy_input"
-    return "__end__"
+    return "remember_failure"
 
 
 def _step(state: AgenticState) -> int:

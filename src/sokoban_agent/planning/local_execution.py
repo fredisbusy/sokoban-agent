@@ -105,6 +105,48 @@ def ground_push_subgoal_direct(
     )
 
 
+def validate_grounded_push_plan(
+    observation: Observation,
+    analysis: BoardAnalysis,
+    subgoal: PushSubgoal,
+    protected_constraints: Sequence[ProtectedConstraint],
+    plan: GroundedPushPlan,
+) -> None:
+    """Revalidate a cached plan linearly without repeating path search."""
+
+    level, state, option = _validate_subgoal(
+        observation,
+        analysis,
+        subgoal,
+        protected_constraints,
+    )
+    if plan.box_id != subgoal.box_id or plan.support != option.support:
+        raise SubgoalGroundingError(
+            "unexpected_state",
+            "저장된 접지 계획이 현재 하위 목표와 일치하지 않습니다",
+        )
+    current = state
+    for action_name in plan.player_actions:
+        move = apply_action(level, current, Action[action_name])
+        if move.invalid_move or move.pushed:
+            raise SubgoalGroundingError(
+                "unexpected_state",
+                "저장된 플레이어 경로가 현재 관찰과 일치하지 않습니다",
+            )
+        current = move.state
+    if current.player != _position(plan.support):
+        raise SubgoalGroundingError(
+            "support_unreachable",
+            "저장된 플레이어 경로가 push 지지 칸에서 끝나지 않습니다",
+        )
+    if plan.push_action != subgoal.direction:
+        raise SubgoalGroundingError(
+            "unexpected_state",
+            "저장된 push 방향이 현재 하위 목표와 다릅니다",
+        )
+    _validate_push(level, current, subgoal)
+
+
 def _validate_subgoal(
     observation: Observation,
     analysis: BoardAnalysis,

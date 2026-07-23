@@ -31,6 +31,14 @@ class AgenticEpisodeResult:
     llm_elapsed_seconds: float
     llm_prompt_tokens: int
     llm_output_tokens: int
+    memory_requests: int
+    memory_hits: int
+    memory_writes: int
+    strategy_cache_hits: int
+    grounding_cache_hits: int
+    analysis_cache_hits: int
+    llm_calls_saved: int
+    rejected_pushes_filtered: int
     local_search_calls: int
     local_expanded_states: int
     local_search_elapsed_seconds: float

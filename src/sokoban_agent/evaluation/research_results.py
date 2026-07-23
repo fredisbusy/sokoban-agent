@@ -52,6 +52,10 @@ class ResearchEpisodeRecord:
     llm_prompt_tokens: int = 0
     llm_output_tokens: int = 0
     llm_elapsed_seconds: float = 0.0
+    memory_requests: int = 0
+    memory_hits: int = 0
+    memory_writes: int = 0
+    llm_calls_saved: int = 0
     rule_checks: int = 0
     reachability_calls: int = 0
     local_search_calls: int = 0
@@ -76,6 +80,10 @@ class ResearchPolicySummary:
     total_protected_violations: int
     total_llm_calls: int
     total_llm_tokens: int
+    total_memory_requests: int
+    total_memory_hits: int
+    total_memory_writes: int
+    total_llm_calls_saved: int
     total_rule_checks: int
     total_reachability_calls: int
     total_local_search_calls: int
@@ -144,6 +152,10 @@ def summarize_research(
                 total_llm_tokens=sum(
                     r.llm_prompt_tokens + r.llm_output_tokens for r in episodes
                 ),
+                total_memory_requests=sum(r.memory_requests for r in episodes),
+                total_memory_hits=sum(r.memory_hits for r in episodes),
+                total_memory_writes=sum(r.memory_writes for r in episodes),
+                total_llm_calls_saved=sum(r.llm_calls_saved for r in episodes),
                 total_rule_checks=sum(r.rule_checks for r in episodes),
                 total_reachability_calls=sum(
                     r.reachability_calls for r in episodes

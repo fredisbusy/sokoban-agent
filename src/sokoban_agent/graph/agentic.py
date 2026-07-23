@@ -8,6 +8,8 @@ import numpy as np
 from langgraph.checkpoint.memory import InMemorySaver
 from langgraph.graph import END, START, StateGraph
 from langgraph.runtime import Runtime
+from langgraph.store.base import BaseStore
+from langgraph.store.memory import InMemoryStore
 from langgraph.types import RetryPolicy
 
 from sokoban_agent.env import (
@@ -21,12 +23,23 @@ from sokoban_agent.graph.agentic_execution_nodes import (
     observe_agentic_state,
     reflect_agentic_execution,
     route_after_action,
-    route_after_reflection,
     route_after_repetition,
 )
 from sokoban_agent.graph.agentic_grounding_node import (
     ground_agentic_subgoal,
     route_after_grounding,
+)
+from sokoban_agent.graph.agentic_memory_nodes import (
+    get_static_board_facts,
+    recall_failed_decisions,
+    recall_grounding,
+    recall_strategy,
+    remember_failure,
+    remember_outcome,
+    route_after_failure_memory,
+    route_after_grounding_recall,
+    route_after_outcome_memory,
+    route_after_strategy_recall,
 )
 from sokoban_agent.graph.agentic_state import (
     AgenticInput,
@@ -91,6 +104,8 @@ def initialize_agentic_state(
         "model_name": context.get("model_name", "unconfigured"),
         "rationale_mode": context.get("rationale_mode", "on"),
         "grounding_mode": context.get("grounding_mode", "local-search"),
+        "memory_mode": context.get("memory_mode", "episode"),
+        "memory_namespace": context.get("memory_namespace", "default"),
         "status": "initialized",
         "board_analysis": None,
         "strategy_hypothesis": None,
@@ -110,6 +125,18 @@ def initialize_agentic_state(
         "completed_subgoals": [],
         "attempt_keys": [],
         "cycle_detected": False,
+        "rejected_pushes": {},
+        "strategy_memory_hit": False,
+        "grounding_memory_hit": False,
+        "grounding_cache_key": None,
+        "memory_requests": 0,
+        "memory_hits": 0,
+        "memory_writes": 0,
+        "strategy_cache_hits": 0,
+        "grounding_cache_hits": 0,
+        "analysis_cache_hits": 0,
+        "llm_calls_saved": 0,
+        "rejected_pushes_filtered": 0,
         "strategy_proposals": 0,
         "strategy_schema_rejections": 0,
         "strategy_semantic_rejections": 0,
@@ -142,7 +169,10 @@ def initialize_agentic_state(
     }
 
 
-def analyze_agentic_board(state: AgenticState) -> dict[str, object]:
+def analyze_agentic_board(
+    state: AgenticState,
+    runtime: Runtime[AgenticRuntimeContext],
+) -> dict[str, object]:
     """Expose deterministic board facts as a checkpointed graph update."""
 
     previous_payload = state.get("board_analysis")
@@ -155,7 +185,16 @@ def analyze_agentic_board(state: AgenticState) -> dict[str, object]:
         Observation,
         np.asarray(state["observation"], dtype=np.uint8),
     )
-    analysis = analyze_board(observation, previous=previous)
+    static_facts, requests, hits, writes = get_static_board_facts(
+        state,
+        runtime,
+        observation,
+    )
+    analysis = analyze_board(
+        observation,
+        previous=previous,
+        static_facts=static_facts,
+    )
     steps = state["info"].get("steps")
     if not isinstance(steps, int):
         raise TypeError("graph info steps must be an integer")
@@ -163,6 +202,10 @@ def analyze_agentic_board(state: AgenticState) -> dict[str, object]:
         "board_analysis": analysis.model_dump(mode="json"),
         "rule_checks": state["rule_checks"] + 1,
         "reachability_calls": state["reachability_calls"] + 1,
+        "memory_requests": state["memory_requests"] + requests,
+        "memory_hits": state["memory_hits"] + hits,
+        "memory_writes": state["memory_writes"] + writes,
+        "analysis_cache_hits": state["analysis_cache_hits"] + hits,
         "status": "analyzed",
         "decision_events": [
             {
@@ -192,6 +235,7 @@ def route_after_analysis(
 def build_agentic_graph(
     *,
     checkpointer: InMemorySaver | None = None,
+    store: BaseStore | None = None,
     prompt_source: PromptSource | None = None,
     strategy_generator: StrategyGenerator | None = None,
 ) -> Any:
@@ -222,16 +266,21 @@ def build_agentic_graph(
         "compose_strategy_input",
         strategy_nodes.compose_strategy_input,
     )
+    builder.add_node("recall_failures", recall_failed_decisions)
+    builder.add_node("recall_strategy", recall_strategy)
     builder.add_node(
         "propose_strategy",
         strategy_nodes.propose_strategy,
         retry_policy=retry_policy,
     )
     builder.add_node("verify_strategy", strategy_nodes.verify_strategy)
+    builder.add_node("remember_failure", remember_failure)
     builder.add_node("detect_repetition", detect_agentic_repetition)
+    builder.add_node("recall_grounding", recall_grounding)
     builder.add_node("ground_subgoal", ground_agentic_subgoal)
     builder.add_node("execute_until_push", execute_agentic_until_push)
     builder.add_node("reflect", reflect_agentic_execution)
+    builder.add_node("remember_outcome", remember_outcome)
     builder.add_node("observe", observe_agentic_state)
     builder.add_edge(START, "initialize")
     builder.add_edge("initialize", "analyze")
@@ -240,11 +289,20 @@ def build_agentic_graph(
         route_after_analysis,
         {
             "resolve_prompt": "resolve_prompt",
-            "compose_strategy_input": "compose_strategy_input",
+            "compose_strategy_input": "recall_failures",
         },
     )
-    builder.add_edge("resolve_prompt", "compose_strategy_input")
-    builder.add_edge("compose_strategy_input", "propose_strategy")
+    builder.add_edge("resolve_prompt", "recall_failures")
+    builder.add_edge("recall_failures", "compose_strategy_input")
+    builder.add_edge("compose_strategy_input", "recall_strategy")
+    builder.add_conditional_edges(
+        "recall_strategy",
+        route_after_strategy_recall,
+        {
+            "propose_strategy": "propose_strategy",
+            "verify_strategy": "verify_strategy",
+        },
+    )
     builder.add_conditional_edges(
         "propose_strategy",
         route_after_strategy_proposal,
@@ -260,6 +318,15 @@ def build_agentic_graph(
         {
             "compose_strategy_input": "compose_strategy_input",
             "detect_repetition": "detect_repetition",
+            "remember_failure": "remember_failure",
+            "__end__": END,
+        },
+    )
+    builder.add_conditional_edges(
+        "remember_failure",
+        route_after_failure_memory,
+        {
+            "compose_strategy_input": "compose_strategy_input",
             "__end__": END,
         },
     )
@@ -267,15 +334,23 @@ def build_agentic_graph(
         "detect_repetition",
         route_after_repetition,
         {
-            "ground_subgoal": "ground_subgoal",
+            "ground_subgoal": "recall_grounding",
             "__end__": END,
+        },
+    )
+    builder.add_conditional_edges(
+        "recall_grounding",
+        route_after_grounding_recall,
+        {
+            "ground_subgoal": "ground_subgoal",
+            "execute_until_push": "execute_until_push",
         },
     )
     builder.add_conditional_edges(
         "ground_subgoal",
         route_after_grounding,
         {
-            "compose_strategy_input": "compose_strategy_input",
+            "remember_failure": "remember_failure",
             "execute_until_push": "execute_until_push",
             "__end__": END,
         },
@@ -288,13 +363,17 @@ def build_agentic_graph(
             "reflect": "reflect",
         },
     )
+    builder.add_edge("reflect", "remember_outcome")
     builder.add_conditional_edges(
-        "reflect",
-        route_after_reflection,
+        "remember_outcome",
+        route_after_outcome_memory,
         {"observe": "observe", "__end__": END},
     )
     builder.add_edge("observe", "analyze")
-    return builder.compile(checkpointer=checkpointer)
+    return builder.compile(
+        checkpointer=checkpointer,
+        store=store or InMemoryStore(),
+    )
 
 
 graph = build_agentic_graph()
