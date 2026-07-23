@@ -1,8 +1,8 @@
 # 프로젝트 목표
 
 > 정답 경로를 미리 주지 않고, 관찰과 4방향 행동만으로 Sokoban을 계획하는
-> AI 에이전트를 단계적으로 연구한다. 데드락이면 에피소드를 끝내고 새
-> 계획으로 재시도한다.
+> AI 에이전트를 단계적으로 연구한다. 환경은 데드락에서 에피소드를 끝내고,
+> 향후 실행기는 실패 기록을 바탕으로 새 계획을 시도한다.
 
 ## 연구 질문
 
@@ -30,12 +30,16 @@
 
 ## 성공 기준
 
-1. 고정 1-box 퍼즐을 `reset → render → solve` 흐름으로 재현한다.
+1. 고정 1-box 퍼즐을 `reset → step → terminated/success` 흐름으로 재현한다.
 2. Random/BFS/LLM 에이전트를 동일한 레벨과 지표로 비교한다.
 3. 처음 보는 소형 레벨에서 반복 실행 결과를 기록한다.
-4. `pytest`, Ruff, mypy 검사를 항상 통과한다.
+4. 변경을 완료할 때 `pytest`, Ruff, mypy 검사를 통과한다.
 
 ## 현재 상태
 
-자체 Gymnasium Sokoban 환경, Boxoban 레벨 로더, LiteLLM/Ollama 연결이
-준비됐다. 다음 목표는 Random 및 BFS/A* 기준선과 공통 측정 구조다.
+자체 Gymnasium Sokoban 환경, 고정·Boxoban 레벨 로더와 내장 레벨 터미널
+플레이가 구현됐다. LiteLLM 기반 Ollama 텍스트 클라이언트도 구현됐지만,
+실행 중인 외부 서버가 필요하며 아직 Sokoban 에이전트는 아니다.
+
+다음 목표는 공통 Agent 계약, Random 및 BFS/A* 기준선, 에피소드 실행기와
+결과 측정 구조다.
