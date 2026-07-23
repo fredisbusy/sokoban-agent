@@ -17,6 +17,11 @@ from sokoban_agent.env.rules import (
     has_static_corner_deadlock,
     is_success,
 )
+from sokoban_agent.graph.research_metrics import (
+    execution_research_update,
+    observation_key,
+    planning_research_update,
+)
 from sokoban_agent.graph.state import SokobanGraphState
 from sokoban_agent.planning import Observation, Planner, PlanningContext
 
@@ -151,6 +156,15 @@ class SokobanGraph:
             "algorithm_calls": (
                 state["algorithm_calls"] + outcome.algorithm_calls
             ),
+            "algorithm_requests": (
+                state["algorithm_requests"] + outcome.algorithm_requests
+            ),
+            "algorithm_cache_hits": (
+                state["algorithm_cache_hits"] + outcome.algorithm_cache_hits
+            ),
+            "algorithm_failures": (
+                state["algorithm_failures"] + outcome.algorithm_failures
+            ),
             "algorithm_fallbacks": (
                 state["algorithm_fallbacks"] + outcome.algorithm_fallbacks
             ),
@@ -162,6 +176,7 @@ class SokobanGraph:
                 state["algorithm_elapsed_seconds"]
                 + outcome.algorithm_elapsed_seconds
             ),
+            **planning_research_update(state, outcome),
             "llm_calls": state["llm_calls"] + outcome.llm_calls,
             "llm_client_errors": (
                 state["llm_client_errors"] + outcome.llm_client_errors
@@ -250,6 +265,11 @@ class SokobanGraph:
             "feedback": (),
             "planning_attempts": 0,
             "action_count": state["action_count"] + 1,
+            **execution_research_update(
+                state,
+                observation,
+                pushed=bool(info["pushed"]),
+            ),
             "total_reward": state["total_reward"] + reward,
             "truncated": truncated,
             "failure_reason": None,
@@ -291,6 +311,7 @@ class SokobanGraph:
         info: dict[str, object],
         seed: int | None,
     ) -> SokobanGraphState:
+        initial_key = observation_key(observation)
         return {
             "observation": observation,
             "info": info,
@@ -305,9 +326,14 @@ class SokobanGraph:
             "validation_summary": None,
             "execution_summary": None,
             "action_history": (),
+            "visited_state_keys": (initial_key,),
+            "seen_plan_keys": (),
             "feedback": (),
             "planning_attempts": 0,
             "action_count": 0,
+            "push_count": 0,
+            "revisited_states": 0,
+            "repeated_plans": 0,
             "invalid_moves": 0,
             "total_reward": 0.0,
             "truncated": False,
@@ -317,9 +343,25 @@ class SokobanGraph:
             "planning_errors": 0,
             "planning_elapsed_seconds": 0.0,
             "algorithm_calls": 0,
+            "algorithm_requests": 0,
+            "algorithm_cache_hits": 0,
+            "algorithm_failures": 0,
             "algorithm_fallbacks": 0,
             "algorithm_expanded_states": 0,
             "algorithm_elapsed_seconds": 0.0,
+            "guard_accepted": 0,
+            "guard_suffix_added": 0,
+            "guard_replaced": 0,
+            "guard_failed": 0,
+            "guard_proposed_actions": 0,
+            "guard_legal_prefix_actions": 0,
+            "guard_adopted_actions": 0,
+            "guard_suffix_expanded_states": 0,
+            "guard_reference_calls": 0,
+            "guard_reference_action_count": 0,
+            "guard_reference_expanded_states": 0,
+            "guard_reference_elapsed_seconds": 0.0,
+            "guard_expansions_saved": 0,
             "llm_calls": 0,
             "llm_client_errors": 0,
             "llm_format_errors": 0,

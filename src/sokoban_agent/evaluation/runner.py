@@ -6,6 +6,10 @@ from collections.abc import Sequence
 from time import perf_counter
 
 from sokoban_agent.env import SokobanEnv
+from sokoban_agent.evaluation.reference import (
+    ReferenceResult,
+    measure_bounded_astar_reference,
+)
 from sokoban_agent.evaluation.results import EpisodeResult
 from sokoban_agent.graph import SokobanGraph, StepObserver
 from sokoban_agent.planning import Planner
@@ -19,9 +23,21 @@ def run_episode(
     level_id: str | None = None,
     max_planning_attempts: int = 3,
     step_observer: StepObserver | None = None,
+    measure_reference: bool = False,
+    reference_max_expanded_states: int = 100_000,
+    reference_result: ReferenceResult | None = None,
 ) -> EpisodeResult:
     """Run one planner inside the checkpointed LangGraph state machine."""
 
+    reference = reference_result or (
+        measure_bounded_astar_reference(
+            env,
+            level_id,
+            max_expanded_states=reference_max_expanded_states,
+        )
+        if measure_reference and level_id is not None
+        else ReferenceResult(solved=False)
+    )
     graph = SokobanGraph(
         env,
         planner,
@@ -52,6 +68,9 @@ def run_episode(
         planning_errors=state["planning_errors"],
         planning_elapsed_seconds=state["planning_elapsed_seconds"],
         algorithm_calls=state["algorithm_calls"],
+        algorithm_requests=state["algorithm_requests"],
+        algorithm_cache_hits=state["algorithm_cache_hits"],
+        algorithm_failures=state["algorithm_failures"],
         algorithm_fallbacks=state["algorithm_fallbacks"],
         algorithm_expanded_states=state["algorithm_expanded_states"],
         algorithm_elapsed_seconds=state["algorithm_elapsed_seconds"],
@@ -66,6 +85,45 @@ def run_episode(
         llm_eval_seconds=state["llm_eval_seconds"],
         llm_prompt_tokens=state["llm_prompt_tokens"],
         llm_output_tokens=state["llm_output_tokens"],
+        push_count=state["push_count"],
+        revisited_states=state["revisited_states"],
+        repeated_plans=state["repeated_plans"],
+        guard_accepted=state["guard_accepted"],
+        guard_suffix_added=state["guard_suffix_added"],
+        guard_replaced=state["guard_replaced"],
+        guard_failed=state["guard_failed"],
+        guard_proposed_actions=state["guard_proposed_actions"],
+        guard_legal_prefix_actions=state["guard_legal_prefix_actions"],
+        guard_adopted_actions=state["guard_adopted_actions"],
+        guard_suffix_expanded_states=state["guard_suffix_expanded_states"],
+        guard_reference_calls=state["guard_reference_calls"],
+        guard_reference_action_count=state["guard_reference_action_count"],
+        guard_reference_expanded_states=(
+            state["guard_reference_expanded_states"]
+        ),
+        guard_reference_elapsed_seconds=(
+            state["guard_reference_elapsed_seconds"]
+        ),
+        guard_expansions_saved=state["guard_expansions_saved"],
+        reference_solved=reference.solved,
+        reference_action_count=reference.action_count,
+        reference_push_count=reference.push_count,
+        reference_expanded_states=reference.expanded_states,
+        reference_elapsed_seconds=reference.elapsed_seconds,
+        action_overhead_vs_reference=(
+            state["action_count"] - reference.action_count
+            if bool(info["success"]) and reference.action_count is not None
+            else None
+        ),
+        push_overhead_vs_reference=(
+            state["push_count"] - reference.push_count
+            if bool(info["success"]) and reference.push_count is not None
+            else None
+        ),
+        policy_elapsed_seconds=max(
+            0.0,
+            elapsed_seconds - state["guard_reference_elapsed_seconds"],
+        ),
     )
 
 
@@ -76,6 +134,8 @@ def run_benchmark(
     level_ids: Sequence[str],
     seeds: Sequence[int],
     max_planning_attempts: int = 3,
+    measure_reference: bool = False,
+    reference_max_expanded_states: int = 100_000,
 ) -> list[EpisodeResult]:
     """Run every planner through the same graph and case grid."""
 
@@ -93,6 +153,8 @@ def run_benchmark(
             seed=seed,
             level_id=level_id,
             max_planning_attempts=max_planning_attempts,
+            measure_reference=measure_reference,
+            reference_max_expanded_states=reference_max_expanded_states,
         )
         for planner in planners
         for level_id in level_ids

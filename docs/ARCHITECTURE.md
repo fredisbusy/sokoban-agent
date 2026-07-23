@@ -59,6 +59,21 @@ flowchart TD
 확장 상태 수와 순수 탐색 시간을 기록한다. 집계에는 평균뿐 아니라 p50,
 p95와 출력 tokens/s가 포함된다.
 
+LLM 기여도 실험에서는 정책이 실제 사용한 탐색과 진단용 탐색을 분리한다.
+`guard_suffix_expanded_states`는 LLM prefix 이후 suffix 탐색량,
+`guard_reference_expanded_states`는 같은 초기 상태를 다시 푼 bounded A*
+비교값이다. 둘의 차이는 `guard_expansions_saved`로 기록한다. 진단용
+reference 시간은 `policy_elapsed_seconds`에서 제외한다.
+탐색 계측은 cache hit도 포함한 `algorithm_requests`, 실제 solver 실행인
+`algorithm_calls`, `algorithm_cache_hits`, `algorithm_failures`를 분리한다.
+
+`guard_disposition`은 `accepted`, `suffix_added`, `replaced`, `failed` 중
+하나이며 제안 행동 수, 합법 prefix 수, 실제 채택 수를 함께 남긴다. 그래프
+실행 중 정확히 같은 보드로 돌아오면 `revisited_states`, 같은 상태에서 같은
+계획을 다시 제안하면 `repeated_plans`가 증가한다. 에피소드 시작점의 별도
+bounded A* reference는 성공한 정책의 행동 수와 push 수 overhead를 비교하는
+기준이다.
+
 ## LangGraph Studio
 
 Studio 전용 그래프는 실행 단계를 다음 노드로 분리해 표시한다.

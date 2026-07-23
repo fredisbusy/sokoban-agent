@@ -109,6 +109,8 @@ def test_bfs_planner_records_failed_search_work() -> None:
 
     assert outcome.error_kind == "search"
     assert outcome.algorithm_calls == 1
+    assert outcome.algorithm_requests == 1
+    assert outcome.algorithm_failures == 1
     assert outcome.algorithm_elapsed_seconds >= 0
 
 
@@ -189,7 +191,10 @@ class FixedPlanner:
 
 
 def test_search_guard_keeps_a_solvable_primary_proposal() -> None:
-    planner = SearchGuardPlanner(FixedPlanner(Action.UP))
+    planner = SearchGuardPlanner(
+        FixedPlanner(Action.UP),
+        measure_contribution=True,
+    )
 
     outcome = planner.plan(_initial_context("tiny-push"))
 
@@ -197,11 +202,20 @@ def test_search_guard_keeps_a_solvable_primary_proposal() -> None:
     assert outcome.algorithm_calls == 0
     assert outcome.algorithm_fallbacks == 0
     assert outcome.llm_calls == 1
+    assert outcome.guard_disposition == "accepted"
+    assert outcome.guard_proposed_actions == 1
+    assert outcome.guard_legal_prefix_actions == 1
+    assert outcome.guard_adopted_actions == 1
+    assert outcome.guard_reference_calls == 1
+    assert outcome.guard_expansions_saved > 0
     assert "보강이 필요 없습니다" in str(outcome.guard_summary)
 
 
 def test_search_guard_appends_and_reuses_grounded_suffix() -> None:
-    planner = SearchGuardPlanner(FixedPlanner(Action.UP))
+    planner = SearchGuardPlanner(
+        FixedPlanner(Action.UP),
+        measure_contribution=True,
+    )
     context = _initial_context("tiny-walk")
 
     first = planner.plan(context)
@@ -215,9 +229,20 @@ def test_search_guard_appends_and_reuses_grounded_suffix() -> None:
         Action.UP,
     )
     assert first.algorithm_calls == 1
+    assert first.algorithm_requests == 1
+    assert first.algorithm_cache_hits == 0
     assert first.algorithm_expanded_states > 0
+    assert first.guard_disposition == "suffix_added"
+    assert first.guard_suffix_expanded_states > 0
+    assert first.guard_reference_expanded_states > 0
+    assert first.guard_expansions_saved == (
+        first.guard_reference_expanded_states
+        - first.guard_suffix_expanded_states
+    )
     assert second.actions == first.actions
     assert second.algorithm_calls == 0
+    assert second.algorithm_requests == 1
+    assert second.algorithm_cache_hits == 1
     assert second.algorithm_expanded_states == 0
     assert "후속 행동" in str(first.guard_summary)
 
@@ -231,4 +256,38 @@ def test_search_guard_falls_back_to_bfs_for_blocked_proposal() -> None:
     assert outcome.algorithm_calls == 1
     assert outcome.algorithm_fallbacks == 1
     assert outcome.llm_calls == 1
+    assert outcome.guard_disposition == "replaced"
+    assert outcome.guard_legal_prefix_actions == 0
+    assert outcome.guard_adopted_actions == 0
     assert "막혀 있습니다" in str(outcome.guard_summary)
+
+
+def test_search_guard_suffix_only_never_replaces_invalid_proposal() -> None:
+    planner = SearchGuardPlanner(
+        FixedPlanner(Action.DOWN),
+        fallback_policy="none",
+    )
+
+    outcome = planner.plan(_initial_context("tiny-push"))
+
+    assert not outcome.actions
+    assert outcome.guard_disposition == "failed"
+    assert outcome.algorithm_calls == 0
+    assert outcome.algorithm_fallbacks == 0
+    assert "전체 대체를 하지 않습니다" in str(outcome.guard_summary)
+
+
+def test_search_guard_always_policy_is_a_negative_control() -> None:
+    planner = SearchGuardPlanner(
+        FixedPlanner(Action.UP),
+        fallback_policy="always",
+        measure_contribution=True,
+    )
+
+    outcome = planner.plan(_initial_context("tiny-push"))
+
+    assert outcome.actions == (Action.UP,)
+    assert outcome.guard_disposition == "replaced"
+    assert outcome.guard_adopted_actions == 0
+    assert outcome.algorithm_fallbacks == 1
+    assert outcome.guard_reference_calls == 1

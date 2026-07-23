@@ -162,12 +162,15 @@ class AStarPlanner:
                 error=str(error),
                 error_kind="search",
                 algorithm_calls=1,
+                algorithm_requests=1,
+                algorithm_failures=1,
                 algorithm_elapsed_seconds=elapsed,
                 elapsed_seconds=elapsed,
             )
         return PlanningOutcome(
             actions=result.actions,
             algorithm_calls=1,
+            algorithm_requests=1,
             algorithm_expanded_states=result.expanded_states,
             algorithm_elapsed_seconds=result.elapsed_seconds,
             elapsed_seconds=perf_counter() - started_at,

@@ -6,6 +6,7 @@ from sokoban_agent.planning.astar import (
     solve_astar_result,
 )
 from sokoban_agent.planning.base import (
+    GuardDisposition,
     NoSolutionError,
     Observation,
     Planner,
@@ -30,6 +31,7 @@ __all__ = [
     "ActionPlan",
     "AStarPlanner",
     "BFSPlanner",
+    "GuardDisposition",
     "LLMPlanner",
     "NoSolutionError",
     "Observation",

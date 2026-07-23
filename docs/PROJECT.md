@@ -8,6 +8,8 @@
 
 - 구조화된 보드만 보고 장기 계획과 데드락 회피를 할 수 있는가?
 - 규칙 기반 솔버와 LLM 에이전트의 성공률·효율·복구 능력은 어떻게 다른가?
+- LLM prefix가 bounded A*의 탐색량을 실제로 줄이는가, 아니면 호출 비용만
+  추가하는가?
 - 상태 기반 에이전트가 안정된 뒤 화면 기반 인식으로 확장할 수 있는가?
 
 ## 범위
@@ -54,3 +56,10 @@ LangGraph Studio용 그래프는 `llm_plan → astar_guard → validate_plan →
 execute_action`을 각각 관찰 가능한 노드로 제공한다. 노드와 상태 필드 이름은
 영어이고, 모델 프롬프트와 목표·판단·위험·검사 요약 내용은 한국어이며 로컬
 실행이 기본이다.
+
+LLM 기여도를 분리하기 위한 다섯 정책 ablation과 연구 계측도 구현됐다.
+고정된 Boxoban test 코호트에서 A* 단독, LLM 단독, suffix-only,
+full-guard, always-replace를 비교한다. 에피소드 결과에는 push, 상태 재방문,
+반복 제안, LLM prefix 채택률과 bounded A* reference 대비 행동·push·탐색량
+차이가 포함된다. 외부 데이터의 커밋과 체크섬, 레벨 ID 목록은 manifest로
+고정한다.

@@ -13,6 +13,12 @@ from sokoban_agent.env import Action
 
 Observation = NDArray[np.uint8]
 PlanningErrorKind = Literal["client", "format", "search", "empty"]
+GuardDisposition = Literal[
+    "accepted",
+    "suffix_added",
+    "replaced",
+    "failed",
+]
 
 
 @dataclass(frozen=True, slots=True)
@@ -48,9 +54,22 @@ class PlanningOutcome:
     llm_prompt_tokens: int = 0
     llm_output_tokens: int = 0
     algorithm_calls: int = 0
+    algorithm_requests: int = 0
+    algorithm_cache_hits: int = 0
+    algorithm_failures: int = 0
     algorithm_fallbacks: int = 0
     algorithm_expanded_states: int = 0
     algorithm_elapsed_seconds: float = 0.0
+    guard_disposition: GuardDisposition | None = None
+    guard_proposed_actions: int = 0
+    guard_legal_prefix_actions: int = 0
+    guard_adopted_actions: int = 0
+    guard_suffix_expanded_states: int = 0
+    guard_reference_calls: int = 0
+    guard_reference_action_count: int = 0
+    guard_reference_expanded_states: int = 0
+    guard_reference_elapsed_seconds: float = 0.0
+    guard_expansions_saved: int = 0
     elapsed_seconds: float = 0.0
 
 

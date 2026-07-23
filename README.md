@@ -238,6 +238,36 @@ uv run --group notebook python -m jupyter nbconvert \
 
 노트북은 실험과 시각화에만 사용하고, 재사용 코드는 `src/`에 둡니다.
 
+### LLM 기여도 파일럿
+
+LLM이 실제로 탐색을 돕는지 확인하는 주 실험은 고정된 Boxoban 코호트에서
+다음 다섯 정책을 비교합니다.
+
+- `astar-only`: 모델 없이 bounded A*만 사용
+- `llm-common-validation`: LLM 제안을 공통 규칙 노드로만 검사
+- `llm-suffix-only`: 유효한 LLM prefix 뒤에서만 A* 실행, 전체 대체 금지
+- `llm-full-guard`: prefix 보강이 실패하면 현재 상태를 A*로 전체 대체
+- `llm-always-replace`: LLM을 호출하되 제안을 버리는 음성 대조군
+
+외부 데이터는 저장소에 커밋하지 않습니다. Apache-2.0 Boxoban 데이터를
+고정 커밋으로 내려받고 체크섬과 50개 레벨 manifest를 검증합니다. 앞의
+30개가 파일럿, 전체 50개가 확인 코호트입니다.
+
+```bash
+uv run python scripts/prepare_boxoban_pilot.py --download
+uv run python scripts/run_boxoban_pilot.py
+```
+
+빠른 연결 점검은 `--cohort-size 1`, 확인 코호트는 `--cohort-size 50`으로
+실행합니다. 결과는 기본적으로
+`_workspace/benchmarks/boxoban_pilot_v1.jsonl`에 에피소드마다 저장되며,
+같은 설정으로 다시 실행하면 완료된 항목을 건너뜁니다.
+
+성공률과 행동 수 외에도 push 수, 상태 재방문, 반복 계획, LLM 제안·합법
+prefix·실제 채택 행동 수, guard 판정, suffix 탐색량, 처음 상태에서 다시 푼
+bounded A* reference와의 행동·push·확장 상태 차이를 기록합니다. 이
+reference는 탐색 한도가 있는 비교 기준이며 수학적 최적해라고 부르지 않습니다.
+
 ## 프로젝트 구조
 
 현재 기능이 들어 있는 경로는 다음과 같습니다.

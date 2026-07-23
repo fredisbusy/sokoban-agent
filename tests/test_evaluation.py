@@ -103,6 +103,35 @@ def test_run_episode_records_step_limit() -> None:
     assert not result.deadlock
     assert result.truncated
     assert result.action_count == 2
+    assert result.push_count == 0
+    assert result.revisited_states == 1
+
+
+def test_run_episode_counts_repeated_proposal_on_the_same_state() -> None:
+    result = run_episode(
+        SokobanEnv(),
+        ScriptedPlanner([Action.DOWN, Action.DOWN]),
+        level_id="tiny-push",
+    )
+
+    assert not result.success
+    assert result.repeated_plans == 1
+
+
+def test_run_episode_records_bounded_astar_reference() -> None:
+    result = run_episode(
+        SokobanEnv(),
+        ScriptedPlanner([Action.UP]),
+        level_id="tiny-push",
+        measure_reference=True,
+    )
+
+    assert result.success
+    assert result.reference_solved
+    assert result.reference_action_count == 1
+    assert result.reference_push_count == 1
+    assert result.action_overhead_vs_reference == 0
+    assert result.push_overhead_vs_reference == 0
 
 
 def test_run_episode_records_expected_agent_stop() -> None:
@@ -191,6 +220,11 @@ def test_summarize_by_planner_calculates_required_metrics() -> None:
             0,
             10.0,
             0.1,
+            guard_proposed_actions=2,
+            guard_adopted_actions=1,
+            guard_accepted=1,
+            reference_solved=True,
+            action_overhead_vs_reference=0,
         ),
         EpisodeResult(
             "agent",
@@ -203,6 +237,11 @@ def test_summarize_by_planner_calculates_required_metrics() -> None:
             1,
             9.0,
             0.2,
+            guard_proposed_actions=2,
+            guard_adopted_actions=2,
+            guard_suffix_added=1,
+            reference_solved=True,
+            action_overhead_vs_reference=1,
         ),
         EpisodeResult(
             "agent",
@@ -234,6 +273,11 @@ def test_summarize_by_planner_calculates_required_metrics() -> None:
     assert summary.total_planning_calls == 0
     assert summary.total_llm_calls == 0
     assert summary.total_llm_retries == 0
+    assert summary.total_guard_accepted == 1
+    assert summary.total_guard_suffix_added == 1
+    assert summary.guard_adoption_rate == pytest.approx(0.75)
+    assert summary.reference_solved_count == 2
+    assert summary.mean_action_overhead_vs_reference == pytest.approx(0.5)
 
 
 def test_summarize_by_planner_accepts_no_results() -> None:

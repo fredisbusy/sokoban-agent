@@ -56,6 +56,10 @@ LLM+BFS Search Guard를 함께 실행한다.
 - [x] LangGraph 전환 후 기준선과 LLM 비교 노트북을 다시 실행한다.
 - [x] LangGraph Studio에서 계획·A* 검사·검증·실행 노드를 관찰한다.
 - [x] LLM 프롬프트와 목표·판단·위험·검사 요약을 한국어로 기록한다.
+- [x] LLM 기여도를 분리하는 5개 정책 ablation을 구현한다.
+- [x] prefix 채택률, 상태 재방문, 반복 계획과 bounded A* reference 대비
+  행동·push·탐색량을 계측한다.
+- [x] 커밋·체크섬·레벨 ID를 고정한 Boxoban 30/50 레벨 파일럿 러너를 만든다.
 
 완료 조건: 하이브리드 Planner가 LLM 단독과 같은 레벨에서 실행되고 알고리즘
 검사·폴백 횟수, 재계획과 성공률을 비교할 수 있다.
@@ -64,4 +68,5 @@ LLM+BFS Search Guard를 함께 실행한다.
 
 - [ ] 렌더링 화면을 읽는 perception을 추가한다.
 - [ ] `recall` 노드와 영속 저장소로 실패 계획·데드락 memory를 추가한다.
-- [ ] Boxoban 분할별 벤치마크 또는 절차 생성 레벨로 확장한다.
+- [ ] Boxoban 파일럿 결과를 바탕으로 분할별 벤치마크 또는 절차 생성 레벨로
+  확장한다.
