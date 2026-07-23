@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from operator import add
-from typing import Annotated, NotRequired, TypedDict
+from typing import Annotated, Literal, NotRequired, TypedDict
 
 
 class AgenticInput(TypedDict):
@@ -45,9 +45,14 @@ class AgenticState(AgenticInput, total=False):
     info: dict[str, object]
     prompt: PromptReference
     model_name: str
+    rationale_mode: Literal["on", "off"]
     status: str
     board_analysis: dict[str, object] | None
     strategy_hypothesis: dict[str, object] | None
+    strategy_input: dict[str, object]
+    strategy_attempts: int
+    strategy_error: str | None
+    strategy_violations: list[dict[str, object]]
     active_subgoal: dict[str, object] | None
     protected_constraints: list[dict[str, object]]
     expected_effect: dict[str, object] | None
@@ -63,3 +68,4 @@ class AgenticRuntimeContext(TypedDict, total=False):
     prompt_name: str
     prompt_commit: str
     model_name: str
+    rationale_mode: Literal["on", "off"]

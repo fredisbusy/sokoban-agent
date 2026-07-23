@@ -1,0 +1,227 @@
+import json
+from collections.abc import Mapping
+from typing import Literal, cast
+
+from sokoban_agent.graph import build_agentic_graph
+from sokoban_agent.graph.agentic_state import AgenticState
+from sokoban_agent.planning.llm import CompletionMetrics, TextCompletion
+from sokoban_agent.planning.strategy import StrategyHypothesis
+from sokoban_agent.planning.strategy_runtime import (
+    PromptReferenceValue,
+    PromptSource,
+    RenderedStrategyPrompt,
+    StrategyGenerator,
+    TransientAgenticError,
+)
+
+
+class FixedPromptSource(PromptSource):
+    def __init__(self, *, fail_once: bool = False) -> None:
+        self.fail_once = fail_once
+        self.resolve_calls = 0
+        self.rendered_variables: list[Mapping[str, object]] = []
+
+    def resolve(self, name: str, selector: str) -> PromptReferenceValue:
+        self.resolve_calls += 1
+        if self.fail_once and self.resolve_calls == 1:
+            raise TransientAgenticError("temporary prompt outage")
+        assert name == "sokoban-strategy"
+        assert selector == "fixture-commit"
+        return PromptReferenceValue(name=name, commit="fixture-commit")
+
+    def render(
+        self,
+        reference: PromptReferenceValue,
+        variables: Mapping[str, object],
+    ) -> RenderedStrategyPrompt:
+        assert reference.commit == "fixture-commit"
+        self.rendered_variables.append(variables)
+        return RenderedStrategyPrompt(
+            system_prompt="fixture system",
+            user_prompt="fixture user",
+        )
+
+
+class SequenceStrategyGenerator(StrategyGenerator):
+    def __init__(self, *responses: str) -> None:
+        self.responses = list(responses)
+        self.calls = 0
+
+    def generate(
+        self,
+        prompt: RenderedStrategyPrompt,
+        *,
+        seed: int | None,
+        response_schema: Mapping[str, object],
+    ) -> TextCompletion:
+        assert prompt.system_prompt == "fixture system"
+        assert seed == 7
+        assert response_schema["title"] == "StrategyHypothesis"
+        response = self.responses[self.calls]
+        self.calls += 1
+        return TextCompletion(response, CompletionMetrics())
+
+
+def _strategy_json(*, target_id: str = "T1") -> str:
+    return StrategyHypothesis.model_validate(
+        {
+            "summary": "B1을 T1로 올리는 첫 push를 검증한다",
+            "assignments": [
+                {
+                    "box_id": "B1",
+                    "target_id": target_id,
+                    "reason": "reverse-pull 거리가 1이다",
+                }
+            ],
+            "protected_constraints": [],
+            "subgoal": {
+                "kind": "push",
+                "box_id": "B1",
+                "target_id": target_id,
+                "direction": "UP",
+                "destination": {"row": 1, "col": 2},
+            },
+            "expected_effect": {
+                "box_id": "B1",
+                "from_position": {"row": 2, "col": 2},
+                "to_position": {"row": 1, "col": 2},
+            },
+            "failure_conditions": [
+                {
+                    "kind": "unexpected_state",
+                    "description": "상자가 예상 칸으로 이동하지 않음",
+                }
+            ],
+        }
+    ).model_dump_json()
+
+
+def _invoke(
+    prompt_source: FixedPromptSource,
+    generator: SequenceStrategyGenerator,
+    *,
+    rationale_mode: Literal["on", "off"] = "on",
+) -> AgenticState:
+    graph = build_agentic_graph(
+        prompt_source=prompt_source,
+        strategy_generator=generator,
+    )
+    return cast(
+        AgenticState,
+        graph.invoke(
+            {"level_id": "tiny-push", "seed": 7, "max_steps": 15},
+            context={
+                "prompt_name": "sokoban-strategy",
+                "prompt_commit": "fixture-commit",
+                "model_name": "fixture-model",
+                "rationale_mode": rationale_mode,
+            },
+        ),
+    )
+
+
+def test_strategy_nodes_use_pinned_prompt_and_board_analysis() -> None:
+    prompt_source = FixedPromptSource()
+    generator = SequenceStrategyGenerator(_strategy_json())
+
+    result = _invoke(prompt_source, generator)
+
+    assert result["status"] == "strategy_ready"
+    assert result["prompt"] == {
+        "name": "sokoban-strategy",
+        "commit": "fixture-commit",
+    }
+    hypothesis = cast(dict[str, object], result["strategy_hypothesis"])
+    subgoal = cast(dict[str, object], hypothesis["subgoal"])
+    active_subgoal = cast(dict[str, object], result["active_subgoal"])
+    assert subgoal["box_id"] == "B1"
+    assert active_subgoal["direction"] == "UP"
+    assert result["strategy_attempts"] == 1
+    variables = prompt_source.rendered_variables[0]
+    assert set(variables) == {
+        "level_id",
+        "board_analysis_json",
+        "feedback_json",
+        "plan_revisions_json",
+        "rationale_mode",
+    }
+    assert "observation" not in variables
+    assert json.loads(str(variables["board_analysis_json"])) == result[
+        "board_analysis"
+    ]
+
+
+def test_schema_error_routes_back_to_strategy_proposal() -> None:
+    prompt_source = FixedPromptSource()
+    generator = SequenceStrategyGenerator("{}", _strategy_json())
+
+    result = _invoke(prompt_source, generator)
+
+    assert result["status"] == "strategy_ready"
+    assert result["strategy_attempts"] == 2
+    assert generator.calls == 2
+    assert any("스키마" in feedback for feedback in result["feedback"])
+    assert len(prompt_source.rendered_variables) == 2
+
+
+def test_semantic_violation_routes_back_with_structured_feedback() -> None:
+    prompt_source = FixedPromptSource()
+    generator = SequenceStrategyGenerator(
+        _strategy_json(target_id="T9"),
+        _strategy_json(),
+    )
+
+    result = _invoke(prompt_source, generator)
+
+    assert result["status"] == "strategy_ready"
+    assert result["strategy_attempts"] == 2
+    assert any("unknown_target" in feedback for feedback in result["feedback"])
+
+
+def test_langgraph_retry_policy_retries_transient_prompt_failure() -> None:
+    prompt_source = FixedPromptSource(fail_once=True)
+    generator = SequenceStrategyGenerator(_strategy_json())
+
+    result = _invoke(prompt_source, generator)
+
+    assert result["status"] == "strategy_ready"
+    assert prompt_source.resolve_calls == 2
+
+
+def test_strategy_graph_exposes_prompt_lifecycle_nodes() -> None:
+    graph = build_agentic_graph(
+        prompt_source=FixedPromptSource(),
+        strategy_generator=SequenceStrategyGenerator(_strategy_json()),
+    )
+
+    assert {
+        "resolve_prompt",
+        "compose_strategy_input",
+        "propose_strategy",
+        "verify_strategy",
+    } <= set(graph.get_graph().nodes)
+
+
+def test_no_rationale_ablation_keeps_execution_fields() -> None:
+    on_source = FixedPromptSource()
+    off_source = FixedPromptSource()
+
+    with_rationale = _invoke(
+        on_source,
+        SequenceStrategyGenerator(_strategy_json()),
+        rationale_mode="on",
+    )
+    without_rationale = _invoke(
+        off_source,
+        SequenceStrategyGenerator(_strategy_json()),
+        rationale_mode="off",
+    )
+
+    assert off_source.rendered_variables[0]["rationale_mode"] == "off"
+    for field in (
+        "active_subgoal",
+        "protected_constraints",
+        "expected_effect",
+        "failure_conditions",
+    ):
+        assert without_rationale[field] == with_rationale[field]

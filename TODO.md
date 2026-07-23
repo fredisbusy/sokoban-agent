@@ -103,17 +103,17 @@ graph에서 전역 oracle 호출이 0회임을 테스트로 증명한다.
 
 - [ ] LangSmith Prompt Management에 구조화 전략 prompt를 만들고 연구
   실행에서 prompt commit을 고정한다.
-- [ ] `resolve_prompt → compose_strategy_input → propose_strategy`를
+- [x] `resolve_prompt → compose_strategy_input → propose_strategy`를
   관찰 가능한 LangGraph node로 구성한다.
-- [ ] prompt 이름·resolved commit·모델 설정을 결과에 기록한다.
-- [ ] LLM이 원시 방향 행동 대신 구조화된 전략 가설과 하위 목표 하나를
+- [x] prompt 이름·resolved commit·모델 설정을 결과에 기록한다.
+- [x] LLM이 원시 방향 행동 대신 구조화된 전략 가설과 하위 목표 하나를
   반환하도록 schema를 추가한다.
-- [ ] transient prompt·모델 오류는 LangGraph retry policy로 처리하고,
+- [x] transient prompt·모델 오류는 LangGraph retry policy로 처리하고,
   schema·의미 오류는 state와 conditional edge로 수정 경로에 보낸다.
-- [ ] 네트워크 없이 그래프를 시험할 고정 prompt와 모델 fixture를 만든다.
-- [ ] 존재하지 않는 상자·목표·칸, 모순된 배정과 보호 제약을 구조화된
+- [x] 네트워크 없이 그래프를 시험할 고정 prompt와 모델 fixture를 만든다.
+- [x] 존재하지 않는 상자·목표·칸, 모순된 배정과 보호 제약을 구조화된
   feedback으로 거절한다.
-- [ ] 자연어 근거를 제거해도 실행 필드만 유지되는 ablation을 만든다.
+- [x] 자연어 근거를 제거해도 실행 필드만 유지되는 ablation을 만든다.
 
 완료 조건: prompt가 Planner 내부 문자열에 숨지 않고 Studio trace에서
 node·commit·입력 변수를 확인할 수 있다. 같은 commit·입력·seed 실행을
