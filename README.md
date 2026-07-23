@@ -62,6 +62,21 @@ print(info)
 `FLOOR`, `WALL`, `TARGET`, `BOX`, `PLAYER`, `BOX_ON_TARGET`,
 `PLAYER_ON_TARGET` 중 하나로 표현한 `uint8` 배열입니다.
 
+### 터미널에서 직접 플레이
+
+내장 레벨은 터미널에서 방향키 또는 `WASD`로 플레이할 수 있습니다.
+
+```bash
+uv run sokoban-play
+```
+
+`R`은 현재 레벨을 다시 시작하고 `Q`는 게임을 종료합니다. 한 번 밀면
+완료되는 입문 레벨은 다음처럼 선택합니다.
+
+```bash
+uv run sokoban-play --level tiny-push
+```
+
 ### Boxoban 레벨 사용
 
 [Google DeepMind Boxoban 레벨](https://github.com/google-deepmind/boxoban-levels)은
@@ -133,5 +148,6 @@ assets/           # 레벨·이미지 등 정적 자료
 ## 문서
 
 - [프로젝트 목표와 연구 범위](docs/PROJECT.md)
+- [핵심 아키텍처와 실행 흐름](docs/ARCHITECTURE.md)
 - [현재 우선순위와 완료 조건](TODO.md)
 - [에이전트 작업 규칙](AGENTS.md)
