@@ -6,6 +6,7 @@ readme = "README.md"
 requires-python = ">=3.11,<3.14"
 dependencies = [
     "gymnasium>=1.0.0",
+    "litellm>=1.83.3,<2.0.0",
     "matplotlib>=3.9.0",
     "numpy>=2.0.0",
     "opencv-python>=4.10.0.84",
@@ -49,4 +50,3 @@ python_version = "3.11"
 strict = true
 packages = ["sokoban_agent"]
 mypy_path = "src"
-
