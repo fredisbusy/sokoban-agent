@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from typing import Literal
 
 from langgraph.runtime import Runtime
+from langsmith import traceable
 from pydantic import ValidationError
 
 from sokoban_agent.graph.agentic_state import (
@@ -124,9 +125,7 @@ class StrategyNodes:
         )
         attempt = state["strategy_attempts"] + 1
         try:
-            hypothesis = StrategyHypothesis.model_validate_json(
-                completion.content
-            )
+            hypothesis = _validate_strategy_response(completion.content)
         except ValidationError:
             feedback = "strategy_schema_error: 전략 응답이 스키마와 다릅니다"
             return {
@@ -256,6 +255,13 @@ def _step(state: AgenticState) -> int:
     if not isinstance(steps, int):
         raise TypeError("graph info steps must be an integer")
     return steps
+
+
+@traceable(name="validate_strategy_response", run_type="parser")
+def _validate_strategy_response(content: str) -> StrategyHypothesis:
+    """Trace the exact structured response and any schema validation error."""
+
+    return StrategyHypothesis.model_validate_json(content)
 
 
 def _completion_metrics(

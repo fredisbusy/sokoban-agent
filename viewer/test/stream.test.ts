@@ -1,9 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
+import type { Client } from "@langchain/langgraph-sdk";
+
 import {
-  parseSseChunk,
-  runIdFromEvent,
+  createThread,
+  GraphRunError,
   streamRun,
   validateRunContext,
 } from "../lib/stream.ts";
@@ -16,30 +18,6 @@ const RUN_CONTEXT: RunContext = {
   rationale_mode: "on",
   grounding_mode: "local-search",
 };
-
-test("SSE parser preserves incomplete chunks", () => {
-  const first = parseSseChunk("event: updates\nid: 1\ndata: {\"execute\":");
-  assert.equal(first.events.length, 0);
-  const second = parseSseChunk(`${first.remainder}"ok"}\n\n`);
-  assert.deepEqual(second.events, [{
-    event: "updates",
-    id: "1",
-    data: { execute: "ok" },
-  }]);
-});
-
-test("SSE parser supports multiline data and final frame", () => {
-  const parsed = parseSseChunk(
-    "event: updates\ndata: {\"node\":\ndata: {\"status\":\"ok\"}}\n\n",
-    true,
-  );
-  assert.deepEqual(parsed.events[0].data, { node: { status: "ok" } });
-});
-
-test("run id is read from Agent Server metadata", () => {
-  assert.equal(runIdFromEvent({ data: { run_id: "run-1" } }), "run-1");
-  assert.equal(runIdFromEvent({ data: { run: { run_id: "run-2" } } }), "run-2");
-});
 
 test("run context accepts automatic latest selector and rejects unresolved values", () => {
   assert.doesNotThrow(
@@ -55,113 +33,114 @@ test("run context accepts automatic latest selector and rejects unresolved value
   );
 });
 
-test("stream run sends immutable prompt and model context to LangGraph", async () => {
-  const originalFetch = globalThis.fetch;
-  const calls: Array<{ url: string; options: RequestInit }> = [];
-  globalThis.fetch = async (url: RequestInfo | URL, options: RequestInit = {}) => {
-    calls.push({ url: String(url), options });
-    return new Response("", { status: 200 });
-  };
-
-  try {
-    await streamRun({
-      apiUrl: "http://agent",
-      threadId: "thread-1",
-      assistantId: "sokoban_agent",
-      input: {
-        level_id: "boxoban-medium-56",
-        level_rows: ["#####", "#@$.#", "#####"],
-        seed: 0,
-        max_steps: 120,
+test("thread creation uses the official LangGraph client", async () => {
+  const signal = new AbortController().signal;
+  const calls: unknown[] = [];
+  const client = {
+    threads: {
+      async create(options: unknown) {
+        calls.push(options);
+        return { thread_id: "thread-1" };
       },
-      context: RUN_CONTEXT,
-      onEvent: () => {},
-    });
-    const body = JSON.parse(String(calls[0].options.body));
-    assert.deepEqual(body.context, RUN_CONTEXT);
-    assert.equal(body.assistant_id, "sokoban_agent");
-    assert.equal(body.stream_mode, "updates");
-    assert.deepEqual(body.input.level_rows, ["#####", "#@$.#", "#####"]);
-  } finally {
-    globalThis.fetch = originalFetch;
-  }
-});
-
-test("graph error events are not mistaken for resumable disconnects", async () => {
-  const originalFetch = globalThis.fetch;
-  const calls: Array<{ url: string; options: RequestInit }> = [];
-  globalThis.fetch = async (url: RequestInfo | URL, options: RequestInit = {}) => {
-    calls.push({ url: String(url), options });
-    return new Response(
-      "event: metadata\ndata: {\"run_id\":\"run-1\"}\n\n"
-      + "event: error\ndata: {\"error\":\"PromptConfigurationError\"}\n\n",
-      { status: 200, headers: { "Content-Type": "text/event-stream" } },
-    );
-  };
-
-  try {
-    await assert.rejects(
-      streamRun({
-        apiUrl: "http://agent",
-        threadId: "thread-1",
-        assistantId: "agent",
-        input: {},
-        context: RUN_CONTEXT,
-        onEvent: () => {},
-      }),
-      /PromptConfigurationError/,
-    );
-    assert.equal(calls.length, 1);
-  } finally {
-    globalThis.fetch = originalFetch;
-  }
-});
-
-test("dropped resumable stream rejoins from its last event", async () => {
-  const originalFetch = globalThis.fetch;
-  const calls: Array<{ url: string; options: RequestInit }> = [];
-  let pulls = 0;
-  const broken = new ReadableStream<Uint8Array>({
-    pull(controller) {
-      pulls += 1;
-      if (pulls === 1) {
-        controller.enqueue(new TextEncoder().encode(
-          "event: metadata\nid: 1\ndata: {\"run_id\":\"run-1\"}\n\n"
-          + "event: updates\nid: 2\ndata: {\"observe\":{\"status\":\"ok\"}}\n\n",
-        ));
-      } else {
-        controller.error(new Error("network dropped"));
-      }
     },
-  });
-  const resumed = new Response(
-    "event: updates\nid: 3\ndata: {\"execute\":{\"status\":\"success\"}}\n\n",
-    { status: 200, headers: { "Content-Type": "text/event-stream" } },
-  );
-  globalThis.fetch = async (url: RequestInfo | URL, options: RequestInit = {}) => {
-    calls.push({ url: String(url), options });
-    return calls.length === 1
-      ? new Response(broken, { status: 200 })
-      : resumed;
-  };
+  } as unknown as Client;
 
-  try {
-    const events: SseEvent[] = [];
-    await streamRun({
+  const threadId = await createThread("http://agent", signal, client);
+
+  assert.equal(threadId, "thread-1");
+  assert.deepEqual(calls, [{ signal }]);
+});
+
+test("stream run delegates resumable updates to the LangGraph SDK", async () => {
+  const captured: Record<string, unknown> = {};
+  const events: SseEvent[] = [];
+  const client = {
+    runs: {
+      stream(
+        threadId: string,
+        assistantId: string,
+        options: Record<string, unknown>,
+      ) {
+        Object.assign(captured, { threadId, assistantId, options });
+        return chunks([
+          { event: "metadata", id: "1", data: { run_id: "run-1" } },
+          { event: "updates", id: "2", data: { observe: { status: "ok" } } },
+        ]);
+      },
+    },
+  } as unknown as Client;
+
+  await streamRun({
+    apiUrl: "http://agent",
+    threadId: "thread-1",
+    assistantId: "sokoban_agent",
+    input: {
+      level_id: "boxoban-medium-56",
+      level_rows: ["#####", "#@$.#", "#####"],
+      seed: 0,
+      max_steps: 120,
+    },
+    context: RUN_CONTEXT,
+    onEvent: (event) => events.push(event),
+    client,
+  });
+
+  assert.equal(captured.threadId, "thread-1");
+  assert.equal(captured.assistantId, "sokoban_agent");
+  assert.deepEqual(captured.options, {
+    input: {
+      level_id: "boxoban-medium-56",
+      level_rows: ["#####", "#@$.#", "#####"],
+      seed: 0,
+      max_steps: 120,
+    },
+    context: RUN_CONTEXT,
+    streamMode: "updates",
+    streamSubgraphs: true,
+    streamResumable: true,
+    onDisconnect: "continue",
+    signal: undefined,
+  });
+  assert.deepEqual(events.map((event) => event.id), ["1", "2"]);
+});
+
+test("graph error events retain their server payload", async () => {
+  const client = {
+    runs: {
+      stream() {
+        return chunks([
+          {
+            event: "error",
+            data: {
+              error: "PromptConfigurationError",
+              message: "prompt lookup failed",
+            },
+          },
+        ]);
+      },
+    },
+  } as unknown as Client;
+
+  await assert.rejects(
+    streamRun({
       apiUrl: "http://agent",
       threadId: "thread-1",
       assistantId: "agent",
       input: {},
       context: RUN_CONTEXT,
-      onEvent: (event) => events.push(event),
-    });
-    assert.deepEqual(events.map((event) => event.id), ["1", "2", "3"]);
-    assert.match(calls[1].url, /threads\/thread-1\/runs\/run-1\/stream/);
-    assert.equal(
-      (calls[1].options.headers as Record<string, string>)["Last-Event-ID"],
-      "2",
-    );
-  } finally {
-    globalThis.fetch = originalFetch;
-  }
+      onEvent: () => {},
+      client,
+    }),
+    (error: unknown) => (
+      error instanceof GraphRunError
+      && error.message.includes("PromptConfigurationError")
+      && error.message.includes("prompt lookup failed")
+    ),
+  );
 });
+
+async function* chunks(
+  events: Array<{ event: string; id?: string; data: unknown }>,
+) {
+  for (const event of events) yield event;
+}

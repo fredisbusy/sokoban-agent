@@ -253,9 +253,10 @@ prompt 본문과 숨은 추론 원문은 checkpoint에 저장하지 않습니다
 Studio 진입점은 `langgraph.json`과
 `src/sokoban_agent/graph/agentic.py`에 정의되어 있습니다.
 개발 기본 예시는 `LANGSMITH_TRACING=true`이며 LangGraph node와
-`ChatLiteLLM` 호출을 같은 LangSmith project에서 추적합니다. 모델 입력과
-출력을 외부에 남기면 안 되는 환경에서는 tracing을 끄거나 LangSmith
-input/output masking을 적용합니다.
+`ChatLiteLLM` 호출, 구조화 응답 parser를 같은 LangSmith project에서
+추적합니다. parser span에는 스키마 검증 오류가 필드 단위로 기록됩니다.
+모델 입력과 출력을 외부에 남기면 안 되는 환경에서는 tracing을 끄거나
+LangSmith input/output masking을 적용합니다.
 
 ## 연구와 검증
 
