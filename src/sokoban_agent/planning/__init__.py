@@ -25,16 +25,25 @@ from sokoban_agent.planning.llm_planner import (
     serialize_board,
 )
 from sokoban_agent.planning.random import RandomPlanner
+from sokoban_agent.planning.strategy import (
+    BoardAnalysis,
+    PlanRevision,
+    StrategyHypothesis,
+    StrategyViolation,
+    validate_strategy,
+)
 
 __all__ = [
     "ActionPlanResponse",
     "ActionPlan",
     "AStarPlanner",
     "BFSPlanner",
+    "BoardAnalysis",
     "GuardDisposition",
     "LLMPlanner",
     "NoSolutionError",
     "Observation",
+    "PlanRevision",
     "Planner",
     "PlanningContext",
     "PlanningOutcome",
@@ -42,10 +51,13 @@ __all__ = [
     "SearchResult",
     "SearchLimitError",
     "SearchGuardPlanner",
+    "StrategyHypothesis",
+    "StrategyViolation",
     "parse_plan_response",
     "serialize_board",
     "solve_astar",
     "solve_astar_result",
     "solve_bfs",
     "solve_bfs_result",
+    "validate_strategy",
 ]

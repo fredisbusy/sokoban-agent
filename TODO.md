@@ -74,13 +74,13 @@ LangGraph 기능을 우선 사용한다. 세부 설계와 평가 원칙은
 
 ### 1. LangGraph 연구 계약
 
-- [ ] 보드 분석, 전략 가설, 상자-목표 배정, 보호 제약, 하위 목표, 예상 효과,
+- [x] 보드 분석, 전략 가설, 상자-목표 배정, 보호 제약, 하위 목표, 예상 효과,
   실패 조건과 계획 수정을 표현하는 state schema와 JSON fixture를 정의한다.
-- [ ] 누적 decision·revision event에 LangGraph state reducer를 적용한다.
-- [ ] prompt·모델 설정과 환경 의존성은 LangGraph runtime context로 주입한다.
-- [ ] 전역 bounded A*를 평가 oracle seam으로 분리하고 주 `StateGraph`가
+- [x] 누적 decision·revision event에 LangGraph state reducer를 적용한다.
+- [x] prompt·모델 설정과 환경 의존성은 LangGraph runtime context로 주입한다.
+- [x] 전역 bounded A*를 평가 oracle seam으로 분리하고 주 `StateGraph`가
   oracle 결과를 참조하지 않는 테스트를 작성한다.
-- [ ] 기존 원시 행동 LLM, full-guard와 A* 정책의 결과·지표 형식을 baseline
+- [x] 기존 원시 행동 LLM, full-guard와 A* 정책의 결과·지표 형식을 baseline
   계약으로 고정한다.
 
 완료 조건: 모델 호출 없이 state update와 reducer를 재현하고, 주 compiled
