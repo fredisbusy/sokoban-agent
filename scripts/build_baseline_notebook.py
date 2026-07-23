@@ -9,9 +9,9 @@ from typing import Any, cast
 import nbformat
 from nbformat.v4 import new_code_cell, new_markdown_cell, new_notebook
 
-from sokoban_agent.agents import BFSAgent, RandomAgent
 from sokoban_agent.env import SokobanEnv
-from sokoban_agent.evaluation import run_benchmark, summarize_by_agent
+from sokoban_agent.evaluation import run_benchmark, summarize_by_planner
+from sokoban_agent.planning import BFSPlanner, RandomPlanner
 
 LEVEL_IDS = ["tiny-push", "tiny-walk"]
 SEEDS = list(range(10))
@@ -28,18 +28,18 @@ def _summary_text() -> tuple[str, str]:
     try:
         results = run_benchmark(
             env,
-            [RandomAgent(), BFSAgent()],
+            [RandomPlanner(), BFSPlanner()],
             level_ids=LEVEL_IDS,
             seeds=SEEDS,
         )
     finally:
         env.close()
     summaries = {
-        summary.agent_name: summary
-        for summary in summarize_by_agent(results)
+        summary.planner_name: summary
+        for summary in summarize_by_planner(results)
     }
-    random_summary = summaries["random"]
-    bfs_summary = summaries["bfs"]
+    random_summary = summaries["graph:random"]
+    bfs_summary = summaries["graph:bfs"]
     if bfs_summary.mean_actions_on_success is None:
         raise RuntimeError("BFS must solve at least one baseline episode")
     tldr = (
@@ -80,18 +80,18 @@ def build_notebook(output_path: Path) -> None:
                 "### Key Assumptions\n\n"
                 "- 현재 비교 범위는 `tiny-push`, `tiny-walk`다.\n"
                 "- BFS는 primitive action 최단 경로를 완전 탐색한다.\n"
-                "- 실행 시간에는 Agent 초기화·계획과 행동 선택이 포함된다."
+                "- 실행 시간에는 LangGraph 초기화·계획·검증·실행이 포함된다."
             ),
             _new_markdown_cell("### 1. Setup"),
             _new_code_cell(
                 "from dataclasses import asdict\n\n"
                 "import matplotlib.pyplot as plt\n"
                 "import pandas as pd\n\n"
-                "from sokoban_agent.agents import BFSAgent, RandomAgent\n"
+                "from sokoban_agent.planning import BFSPlanner, RandomPlanner\n"
                 "from sokoban_agent.env import SokobanEnv\n"
                 "from sokoban_agent.evaluation import (\n"
                 "    run_benchmark,\n"
-                "    summarize_by_agent,\n"
+                "    summarize_by_planner,\n"
                 ")\n\n"
                 f"LEVEL_IDS = {LEVEL_IDS!r}\n"
                 f"SEEDS = {SEEDS!r}\n"
@@ -103,7 +103,7 @@ def build_notebook(output_path: Path) -> None:
                 "try:\n"
                 "    results = run_benchmark(\n"
                 "        env,\n"
-                "        [RandomAgent(), BFSAgent()],\n"
+                "        [RandomPlanner(), BFSPlanner()],\n"
                 "        level_ids=LEVEL_IDS,\n"
                 "        seeds=SEEDS,\n"
                 "    )\n"
@@ -117,8 +117,8 @@ def build_notebook(output_path: Path) -> None:
             _new_markdown_cell("## Results\n\n### 3. Compare metrics"),
             _new_code_cell(
                 "summary_df = pd.DataFrame.from_records(\n"
-                "    asdict(summary) for summary in summarize_by_agent(results)\n"
-                ").set_index('agent_name')\n"
+                "    asdict(summary) for summary in summarize_by_planner(results)\n"
+                ").set_index('planner_name')\n"
                 "summary_df"
             ),
             _new_code_cell(
@@ -130,7 +130,7 @@ def build_notebook(output_path: Path) -> None:
                 "    ax=axes[1], title='Mean actions per episode'\n"
                 ")\n"
                 "for axis in axes:\n"
-                "    axis.set_xlabel('Agent')\n"
+                "    axis.set_xlabel('Graph planner')\n"
                 "    axis.tick_params(axis='x', rotation=0)\n"
                 "fig.tight_layout()\n"
                 "plt.show()"
@@ -138,14 +138,14 @@ def build_notebook(output_path: Path) -> None:
             _new_markdown_cell("### 4. Validate the comparison cohort"),
             _new_code_cell(
                 "case_sets = {\n"
-                "    agent_name: set(\n"
+                "    planner_name: set(\n"
                 "        zip(group['level_id'], group['seed'], strict=True)\n"
                 "    )\n"
-                "    for agent_name, group in results_df.groupby('agent_name')\n"
+                "    for planner_name, group in results_df.groupby('planner_name')\n"
                 "}\n"
-                "assert case_sets['random'] == case_sets['bfs']\n"
-                "assert len(case_sets['bfs']) == len(LEVEL_IDS) * len(SEEDS)\n"
-                "assert summary_df.loc['bfs', 'success_rate'] == 1.0\n"
+                "assert case_sets['graph:random'] == case_sets['graph:bfs']\n"
+                "assert len(case_sets['graph:bfs']) == len(LEVEL_IDS) * len(SEEDS)\n"
+                "assert summary_df.loc['graph:bfs', 'success_rate'] == 1.0\n"
                 "case_sets"
             ),
             _new_markdown_cell(takeaways),

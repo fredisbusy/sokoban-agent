@@ -11,7 +11,7 @@ from statistics import fmean
 class EpisodeResult:
     """Raw measurements from one agent, level, and seed combination."""
 
-    agent_name: str
+    planner_name: str
     level_id: str
     seed: int | None
     success: bool
@@ -22,6 +22,12 @@ class EpisodeResult:
     total_reward: float
     elapsed_seconds: float
     failure_reason: str | None = None
+    planning_calls: int = 0
+    planning_retries: int = 0
+    planning_errors: int = 0
+    planning_elapsed_seconds: float = 0.0
+    algorithm_calls: int = 0
+    algorithm_fallbacks: int = 0
     llm_calls: int = 0
     llm_retries: int = 0
     llm_client_errors: int = 0
@@ -31,10 +37,10 @@ class EpisodeResult:
 
 
 @dataclass(frozen=True, slots=True)
-class AgentSummary:
+class PlannerSummary:
     """Aggregate metrics for one agent."""
 
-    agent_name: str
+    planner_name: str
     episode_count: int
     success_count: int
     success_rate: float
@@ -45,6 +51,12 @@ class AgentSummary:
     mean_actions_on_success: float | None
     mean_invalid_moves: float
     mean_elapsed_seconds: float
+    total_planning_calls: int
+    total_planning_retries: int
+    total_planning_errors: int
+    mean_planning_elapsed_seconds: float
+    total_algorithm_calls: int
+    total_algorithm_fallbacks: int
     total_llm_calls: int
     total_llm_retries: int
     total_llm_client_errors: int
@@ -53,25 +65,25 @@ class AgentSummary:
     mean_llm_elapsed_seconds: float
 
 
-def summarize_by_agent(
+def summarize_by_planner(
     results: Sequence[EpisodeResult],
-) -> list[AgentSummary]:
+) -> list[PlannerSummary]:
     """Aggregate episode results while preserving agent encounter order."""
 
     grouped: dict[str, list[EpisodeResult]] = {}
     for result in results:
-        grouped.setdefault(result.agent_name, []).append(result)
+        grouped.setdefault(result.planner_name, []).append(result)
 
-    summaries: list[AgentSummary] = []
-    for agent_name, episodes in grouped.items():
+    summaries: list[PlannerSummary] = []
+    for planner_name, episodes in grouped.items():
         successes = [episode for episode in episodes if episode.success]
         episode_count = len(episodes)
         success_count = len(successes)
         deadlock_count = sum(episode.deadlock for episode in episodes)
         truncated_count = sum(episode.truncated for episode in episodes)
         summaries.append(
-            AgentSummary(
-                agent_name=agent_name,
+            PlannerSummary(
+                planner_name=planner_name,
                 episode_count=episode_count,
                 success_count=success_count,
                 success_rate=success_count / episode_count,
@@ -91,6 +103,24 @@ def summarize_by_agent(
                 ),
                 mean_elapsed_seconds=fmean(
                     episode.elapsed_seconds for episode in episodes
+                ),
+                total_planning_calls=sum(
+                    episode.planning_calls for episode in episodes
+                ),
+                total_planning_retries=sum(
+                    episode.planning_retries for episode in episodes
+                ),
+                total_planning_errors=sum(
+                    episode.planning_errors for episode in episodes
+                ),
+                mean_planning_elapsed_seconds=fmean(
+                    episode.planning_elapsed_seconds for episode in episodes
+                ),
+                total_algorithm_calls=sum(
+                    episode.algorithm_calls for episode in episodes
+                ),
+                total_algorithm_fallbacks=sum(
+                    episode.algorithm_fallbacks for episode in episodes
                 ),
                 total_llm_calls=sum(
                     episode.llm_calls for episode in episodes

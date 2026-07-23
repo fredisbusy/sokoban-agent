@@ -1,15 +1,9 @@
 from collections import deque
-from collections.abc import Mapping
 
 import numpy as np
 import pytest
+from langgraph.checkpoint.memory import InMemorySaver
 
-from sokoban_agent.agents import (
-    AgentStopped,
-    BFSAgent,
-    Observation,
-    RandomAgent,
-)
 from sokoban_agent.env import (
     Action,
     FixedLevelProvider,
@@ -22,60 +16,51 @@ from sokoban_agent.evaluation import (
     run_benchmark_traces,
     run_episode,
     run_episode_trace,
-    summarize_by_agent,
+    summarize_by_planner,
+)
+from sokoban_agent.graph import SokobanGraph
+from sokoban_agent.planning import (
+    BFSPlanner,
+    PlanningContext,
+    PlanningOutcome,
+    RandomPlanner,
 )
 
 
-class ScriptedAgent:
+class ScriptedPlanner:
     def __init__(self, actions: list[Action]) -> None:
         self._initial_actions = actions
         self._actions: deque[Action] = deque()
 
     @property
     def name(self) -> str:
-        return "scripted"
+        return "graph:scripted"
 
-    def reset(
-        self,
-        observation: Observation,
-        info: Mapping[str, object],
-        *,
-        seed: int | None = None,
-    ) -> None:
-        del observation, info, seed
+    def reset(self, *, seed: int | None = None) -> None:
+        del seed
         self._actions = deque(self._initial_actions)
 
-    def act(
-        self,
-        observation: Observation,
-        info: Mapping[str, object],
-    ) -> Action:
-        del observation, info
-        return self._actions.popleft()
+    def plan(self, context: PlanningContext) -> PlanningOutcome:
+        del context
+        if not self._actions:
+            return PlanningOutcome(error="no plan", error_kind="empty")
+        return PlanningOutcome(actions=(self._actions.popleft(),))
 
 
-class StoppedAgent(ScriptedAgent):
-    def reset(
-        self,
-        observation: Observation,
-        info: Mapping[str, object],
-        *,
-        seed: int | None = None,
-    ) -> None:
-        del observation, info, seed
-        raise AgentStopped("no plan")
+class StoppedPlanner(ScriptedPlanner):
+    def plan(self, context: PlanningContext) -> PlanningOutcome:
+        del context
+        return PlanningOutcome(error="no plan", error_kind="empty")
 
 
 def test_run_episode_records_success_invalid_moves_and_time() -> None:
     env = SokobanEnv()
-    times = iter([10.0, 10.25])
 
     result = run_episode(
         env,
-        ScriptedAgent([Action.DOWN, Action.UP]),
+        ScriptedPlanner([Action.DOWN, Action.UP]),
         seed=7,
         level_id="tiny-push",
-        clock=lambda: next(times),
     )
 
     assert result.level_id == "tiny-push"
@@ -83,9 +68,10 @@ def test_run_episode_records_success_invalid_moves_and_time() -> None:
     assert result.success
     assert not result.deadlock
     assert not result.truncated
-    assert result.action_count == 2
+    assert result.action_count == 1
     assert result.invalid_moves == 1
-    assert result.elapsed_seconds == pytest.approx(0.25)
+    assert result.planning_retries == 1
+    assert result.elapsed_seconds >= 0
 
 
 def test_run_episode_records_deadlock() -> None:
@@ -95,7 +81,7 @@ def test_run_episode_records_deadlock() -> None:
     )
     env = SokobanEnv(level_provider=FixedLevelProvider([level]))
 
-    result = run_episode(env, ScriptedAgent([Action.LEFT]))
+    result = run_episode(env, ScriptedPlanner([Action.LEFT]))
 
     assert not result.success
     assert result.deadlock
@@ -108,7 +94,7 @@ def test_run_episode_records_step_limit() -> None:
 
     result = run_episode(
         env,
-        ScriptedAgent([Action.RIGHT, Action.LEFT]),
+        ScriptedPlanner([Action.RIGHT, Action.LEFT]),
         level_id="tiny-walk",
     )
 
@@ -121,7 +107,7 @@ def test_run_episode_records_step_limit() -> None:
 def test_run_episode_records_expected_agent_stop() -> None:
     result = run_episode(
         SokobanEnv(),
-        StoppedAgent([]),
+        StoppedPlanner([]),
         level_id="tiny-walk",
     )
 
@@ -130,12 +116,29 @@ def test_run_episode_records_expected_agent_stop() -> None:
     assert result.failure_reason == "no plan"
 
 
+def test_graph_checkpoints_episode_by_thread_id() -> None:
+    checkpointer = InMemorySaver()
+    graph = SokobanGraph(
+        SokobanEnv(),
+        BFSPlanner(),
+        checkpointer=checkpointer,
+    )
+
+    state = graph.run(level_id="tiny-push", thread_id="checkpoint-test")
+    checkpoint = checkpointer.get(
+        {"configurable": {"thread_id": "checkpoint-test"}}
+    )
+
+    assert state["info"]["success"]
+    assert checkpoint is not None
+
+
 def test_episode_trace_retains_initial_and_executed_boards() -> None:
     env = SokobanEnv()
 
     trace = run_episode_trace(
         env,
-        ScriptedAgent([Action.UP]),
+        ScriptedPlanner([Action.UP]),
         seed=4,
         level_id="tiny-push",
     )
@@ -157,7 +160,7 @@ def test_episode_trace_retains_initial_and_executed_boards() -> None:
 def test_trace_benchmark_runs_the_same_case_grid() -> None:
     traces = run_benchmark_traces(
         SokobanEnv(max_steps=10),
-        [BFSAgent()],
+        [BFSPlanner()],
         level_ids=["tiny-push", "tiny-walk"],
         seeds=[1, 2],
     )
@@ -174,7 +177,7 @@ def test_trace_benchmark_runs_the_same_case_grid() -> None:
     assert all(trace.frames for trace in traces)
 
 
-def test_summarize_by_agent_calculates_required_metrics() -> None:
+def test_summarize_by_planner_calculates_required_metrics() -> None:
     results = [
         EpisodeResult(
             "agent",
@@ -214,7 +217,7 @@ def test_summarize_by_agent_calculates_required_metrics() -> None:
         ),
     ]
 
-    summary = summarize_by_agent(results)[0]
+    summary = summarize_by_planner(results)[0]
 
     assert summary.episode_count == 3
     assert summary.success_count == 2
@@ -225,19 +228,20 @@ def test_summarize_by_agent_calculates_required_metrics() -> None:
     assert summary.mean_actions_on_success == 3
     assert summary.mean_invalid_moves == 1
     assert summary.mean_elapsed_seconds == pytest.approx(0.2)
+    assert summary.total_planning_calls == 0
     assert summary.total_llm_calls == 0
     assert summary.total_llm_retries == 0
 
 
-def test_summarize_by_agent_accepts_no_results() -> None:
-    assert summarize_by_agent([]) == []
+def test_summarize_by_planner_accepts_no_results() -> None:
+    assert summarize_by_planner([]) == []
 
 
 def test_benchmark_runs_identical_cases_for_both_baselines() -> None:
     env = SokobanEnv(max_steps=30)
     results = run_benchmark(
         env,
-        [RandomAgent(), BFSAgent()],
+        [RandomPlanner(), BFSPlanner()],
         level_ids=["tiny-push", "tiny-walk"],
         seeds=[3, 5],
     )
@@ -245,10 +249,10 @@ def test_benchmark_runs_identical_cases_for_both_baselines() -> None:
     random_cases = {
         (result.level_id, result.seed)
         for result in results
-        if result.agent_name == "random"
+        if result.planner_name == "graph:random"
     }
     bfs_results = [
-        result for result in results if result.agent_name == "bfs"
+        result for result in results if result.planner_name == "graph:bfs"
     ]
     bfs_cases = {
         (result.level_id, result.seed) for result in bfs_results
@@ -259,17 +263,17 @@ def test_benchmark_runs_identical_cases_for_both_baselines() -> None:
     assert all(result.success for result in bfs_results)
 
 
-def test_benchmark_requires_agents_levels_and_seeds() -> None:
+def test_benchmark_requires_planners_levels_and_seeds() -> None:
     env = SokobanEnv()
 
-    with pytest.raises(ValueError, match="agent"):
+    with pytest.raises(ValueError, match="planner"):
         run_benchmark(env, [], level_ids=["tiny-push"], seeds=[1])
     with pytest.raises(ValueError, match="level"):
-        run_benchmark(env, [RandomAgent()], level_ids=[], seeds=[1])
+        run_benchmark(env, [RandomPlanner()], level_ids=[], seeds=[1])
     with pytest.raises(ValueError, match="seed"):
         run_benchmark(
             env,
-            [RandomAgent()],
+            [RandomPlanner()],
             level_ids=["tiny-push"],
             seeds=[],
         )

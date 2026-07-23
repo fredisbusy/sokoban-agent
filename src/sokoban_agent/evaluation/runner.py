@@ -1,115 +1,93 @@
-"""Episode and benchmark runners shared by every agent."""
+"""Evaluation helpers built on the LangGraph episode runtime."""
 
 from __future__ import annotations
 
-from collections.abc import Callable, Mapping, Sequence
+from collections.abc import Sequence
 from time import perf_counter
 
-from sokoban_agent.agents import (
-    Agent,
-    AgentDiagnostics,
-    AgentStopped,
-    Observation,
-)
-from sokoban_agent.agents.base import ReportsAgentDiagnostics
-from sokoban_agent.env import Action, SokobanEnv
+from sokoban_agent.env import SokobanEnv
 from sokoban_agent.evaluation.results import EpisodeResult
-
-Clock = Callable[[], float]
-StepObserver = Callable[
-    [Observation, Action | None, Mapping[str, object]],
-    None,
-]
+from sokoban_agent.graph import SokobanGraph, StepObserver
+from sokoban_agent.planning import Planner
 
 
 def run_episode(
     env: SokobanEnv,
-    agent: Agent,
+    planner: Planner,
     *,
     seed: int | None = None,
     level_id: str | None = None,
-    clock: Clock | None = None,
+    max_planning_attempts: int = 3,
     step_observer: StepObserver | None = None,
 ) -> EpisodeResult:
-    """Run one episode and record planning, action, and environment metrics."""
+    """Run one planner inside the checkpointed LangGraph state machine."""
 
-    options = {"level_id": level_id} if level_id is not None else None
-    observation, raw_info = env.reset(seed=seed, options=options)
-    info: dict[str, object] = dict(raw_info)
-    timer = clock or perf_counter
-    started_at = timer()
-    action_count = 0
-    invalid_moves = 0
-    total_reward = 0.0
-    truncated = False
-    failure_reason: str | None = None
-
-    if step_observer is not None:
-        step_observer(observation.copy(), None, info)
-    try:
-        agent.reset(observation, info, seed=seed)
-        while not bool(info["success"]) and not bool(info["deadlock"]):
-            action = agent.act(observation, info)
-            observation, reward, terminated, truncated, raw_info = env.step(
-                action
-            )
-            info = dict(raw_info)
-            action_count += 1
-            invalid_moves += int(bool(info["invalid_move"]))
-            total_reward += reward
-            if step_observer is not None:
-                step_observer(observation.copy(), action, info)
-            if terminated or truncated:
-                break
-    except AgentStopped as error:
-        failure_reason = str(error)
-
-    elapsed_seconds = timer() - started_at
-    diagnostics = (
-        agent.diagnostics
-        if isinstance(agent, ReportsAgentDiagnostics)
-        else AgentDiagnostics()
+    graph = SokobanGraph(
+        env,
+        planner,
+        max_planning_attempts=max_planning_attempts,
     )
+    started_at = perf_counter()
+    state = graph.run(
+        seed=seed,
+        level_id=level_id,
+        step_observer=step_observer,
+    )
+    elapsed_seconds = perf_counter() - started_at
+    info = state["info"]
     return EpisodeResult(
-        agent_name=agent.name,
-        level_id=str(info["level_id"]),
+        planner_name=graph.name,
+        level_id=state["level_id"],
         seed=seed,
         success=bool(info["success"]),
         deadlock=bool(info["deadlock"]),
-        truncated=truncated,
-        action_count=action_count,
-        invalid_moves=invalid_moves,
-        total_reward=total_reward,
+        truncated=state["truncated"],
+        action_count=state["action_count"],
+        invalid_moves=state["invalid_moves"],
+        total_reward=state["total_reward"],
         elapsed_seconds=elapsed_seconds,
-        failure_reason=failure_reason,
-        llm_calls=diagnostics.llm_calls,
-        llm_retries=diagnostics.llm_retries,
-        llm_client_errors=diagnostics.llm_client_errors,
-        llm_format_errors=diagnostics.llm_format_errors,
-        llm_invalid_actions=diagnostics.llm_invalid_actions,
-        llm_elapsed_seconds=diagnostics.llm_elapsed_seconds,
+        failure_reason=state["failure_reason"],
+        planning_calls=state["planning_calls"],
+        planning_retries=state["planning_retries"],
+        planning_errors=state["planning_errors"],
+        planning_elapsed_seconds=state["planning_elapsed_seconds"],
+        algorithm_calls=state["algorithm_calls"],
+        algorithm_fallbacks=state["algorithm_fallbacks"],
+        llm_calls=state["llm_calls"],
+        llm_retries=state["planning_retries"] if state["llm_calls"] else 0,
+        llm_client_errors=state["llm_client_errors"],
+        llm_format_errors=state["llm_format_errors"],
+        llm_invalid_actions=state["llm_invalid_actions"],
+        llm_elapsed_seconds=state["llm_elapsed_seconds"],
     )
 
 
 def run_benchmark(
     env: SokobanEnv,
-    agents: Sequence[Agent],
+    planners: Sequence[Planner],
     *,
     level_ids: Sequence[str],
     seeds: Sequence[int],
+    max_planning_attempts: int = 3,
 ) -> list[EpisodeResult]:
-    """Run every agent on the same ordered Cartesian product of cases."""
+    """Run every planner through the same graph and case grid."""
 
-    if not agents:
-        raise ValueError("at least one agent is required")
+    if not planners:
+        raise ValueError("at least one planner is required")
     if not level_ids:
         raise ValueError("at least one level_id is required")
     if not seeds:
         raise ValueError("at least one seed is required")
 
     return [
-        run_episode(env, agent, seed=seed, level_id=level_id)
-        for agent in agents
+        run_episode(
+            env,
+            planner,
+            seed=seed,
+            level_id=level_id,
+            max_planning_attempts=max_planning_attempts,
+        )
+        for planner in planners
         for level_id in level_ids
         for seed in seeds
     ]

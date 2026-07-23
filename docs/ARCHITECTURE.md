@@ -1,52 +1,55 @@
-# 아키텍처
+# LangGraph 중심 아키텍처
 
-이 프로젝트는 Gymnasium 환경을 게임 규칙의 단일 기준으로 사용한다.
-터미널 사용자와 향후 모든 에이전트는 같은 `reset()`과 `step()` 계약을
-통해 보드를 조작한다.
+이 프로젝트의 실행 코어는 LangGraph다. Gymnasium 환경은 게임 규칙과 상태
+전이의 단일 기준이고, Planner는 상태를 직접 변경하지 않은 채 행동 계획만
+제안한다.
 
-## 최소 실행 구조
+## 실행 그래프
 
 ```mermaid
-flowchart LR
-    L["LevelProvider<br/>고정 레벨 · Boxoban"] --> E["SokobanEnv<br/>규칙 · 상태 전이 · 판정"]
-    T["터미널 플레이"] --> E
-    E --> X["에피소드 실행기"]
-    X --> A["Agent<br/>Random · BFS · LLM"]
-    A --> X
-    X --> E
-    X --> R["EpisodeResult<br/>성공 · 행동 · 무효 이동 · 시간"]
-    O["OllamaClient<br/>LiteLLM · Ollama"] --> F["LLMAgent<br/>직렬화 · JSON 검증 · 재시도"]
-    F --> X
+flowchart TD
+    S["START · 환경 reset"] --> P["plan · Planner 호출"]
+    P -->|"계획 있음"| V["validate · 순수 규칙 검사"]
+    P -->|"복구 가능 오류"| P
+    P -->|"재시도 소진"| E["END"]
+    V -->|"유효"| X["execute · env.step"]
+    V -->|"막힌 행동"| P
+    V -->|"재시도 소진"| E
+    X -->|"남은 계획"| V
+    X -->|"새 계획 필요"| P
+    X -->|"성공 · 데드락 · 제한"| E
 ```
 
-## 구현된 경계
+`SokobanGraphState`에는 관찰, 환경 정보, 남은 계획, 행동 이력, 거절 피드백,
+계획 시도 횟수와 평가 지표가 들어간다. `InMemorySaver`는 에피소드
+`thread_id`별로 각 노드 이후 상태를 체크포인트한다.
 
-- `LevelProvider`는 같은 크기의 레벨을 ID 또는 seed 기반 표본으로 공급한다.
-- `SokobanEnv`만 플레이어와 상자 위치를 변경한다. 외부 코드는 항상
-  `step()`으로 행동을 실행한다.
-- 승리와 정적 코너 데드락은 `terminated`, 행동 제한 도달은 `truncated`로
-  구분한다.
-- 터미널 플레이는 환경을 조작하는 UI일 뿐 별도 게임 규칙을 갖지 않는다.
-- `OllamaClient`는 모델 호출을, `LLMAgent`는 보드 프롬프트와 행동 검증,
-  제한된 재시도를 담당한다.
-- Random과 BFS는 같은 `Agent` Protocol을 구현한다.
-- 실행기는 모든 Agent를 같은 레벨·seed 조합에서 실행하고 `EpisodeResult`를
-  기록한다. 진단을 제공하는 Agent는 LLM 호출·재시도·오류·응답 시간도
-  함께 기록한다.
-- trace 실행기는 같은 에피소드 루프의 step observer를 통해 초기 보드와
-  실행 후 보드를 저장한다. 노트북 애니메이션은 별도 재실행이 아니라 집계에
-  사용된 `EpisodeResult`와 짝지어진 이 trajectory를 재생한다.
+## Planner 경계
 
-## 기준선 구조
+모든 계획 방식은 같은 `Planner` Protocol을 구현한다.
 
-기준선은 세 가지 계약으로 구성한다.
+- `RandomPlanner`: 한 행동을 표본 추출한다.
+- `BFSPlanner`: 현재 상태에서 완전한 최단 행동열을 계산한다.
+- `LLMPlanner`: JSON Schema로 한 행동을 제안한다.
+- `SearchGuardPlanner`: 주 Planner의 제안 이후 상태를 BFS로 검사하고,
+  막혔거나 풀 수 없으면 현재 상태의 BFS 계획으로 대체한다.
 
-1. `Agent`: 초기 관찰로 에피소드를 준비하고 다음 행동을 반환한다.
-2. 에피소드 실행기: reset, Agent 호출, step, 종료와 행동 제한을 관리한다.
-3. `EpisodeResult`: 성공, 행동 수, 무효 이동, 데드락과 시간을 기록한다.
+그래프는 Planner 종류를 알 필요가 없다. 알고리즘 Planner가 여러 행동을
+반환하면 그래프가 각 행동을 다시 검증하며 순서대로 실행한다. LLM의 형식
+오류나 막힌 행동은 상태의 feedback에 기록되고 `plan` 노드로 되돌아간다.
 
-BFS, LLM 행동 검증기와 환경은 이동·밀기·정적 코너 데드락의 순수 규칙
-함수를 공유한다.
-상태 분석기, Planner, Controller 같은 세부 계층은 실제 구현 사이에 서로
-다른 책임이 확인될 때만 추가한다. 우선순위는 [TODO](../TODO.md)에서
-관리한다.
+## 책임 경계
+
+- `env/`: 레벨, 규칙, 상태 전이, 성공과 데드락 판정
+- `planning/`: BFS·Random·LLM 계획 생성과 Ollama 연결
+- `graph/`: 계획, 검증, 실행, 재시도, 체크포인트
+- `evaluation/`: 동일한 그래프를 사용한 벤치마크, 집계, trajectory
+
+평가 실행기는 별도 행동 루프를 구현하지 않는다. 반드시 `SokobanGraph`를
+호출하므로 기준선과 LLM이 같은 검증·복구 정책을 통과한다.
+
+## 다음 확장
+
+장기 기억은 그래프 상태와 별도로 JSONL 또는 SQLite에 실패 상태를 저장한 뒤
+`recall` 노드를 `plan` 앞에 추가한다. 다음 알고리즘 확장은 A* 휴리스틱과
+상자 단위 부분 계획을 별도 Planner 또는 subgraph로 추가한다.

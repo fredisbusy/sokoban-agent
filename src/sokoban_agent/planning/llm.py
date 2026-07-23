@@ -46,12 +46,9 @@ class OllamaSettings(BaseModel):
 
         if env_file is not None:
             load_dotenv(dotenv_path=env_file, override=False)
-
         api_base = os.getenv("OLLAMA_API_BASE")
         if not api_base:
-            msg = "OLLAMA_API_BASE is required; set it in .env"
-            raise ValueError(msg)
-
+            raise ValueError("OLLAMA_API_BASE is required; set it in .env")
         return cls(
             api_base=api_base,
             model=os.getenv("OLLAMA_MODEL", "llama3.2"),
@@ -61,7 +58,7 @@ class OllamaSettings(BaseModel):
 
 
 class OllamaClient:
-    """Small provider-neutral entry point backed by LiteLLM and Ollama."""
+    """Provider-neutral text client backed by LiteLLM and Ollama."""
 
     def __init__(self, settings: OllamaSettings) -> None:
         self.settings = settings
@@ -86,8 +83,7 @@ class OllamaClient:
         if system_prompt:
             messages.append({"role": "system", "content": system_prompt})
         messages.append({"role": "user", "content": prompt})
-
-        completion_kwargs: dict[str, Any] = {
+        kwargs: dict[str, Any] = {
             "model": self.settings.litellm_model,
             "messages": messages,
             "api_base": self.settings.api_base,
@@ -95,17 +91,13 @@ class OllamaClient:
             "temperature": self.settings.temperature,
         }
         if seed is not None:
-            completion_kwargs["seed"] = seed
+            kwargs["seed"] = seed
         if response_format is not None:
-            completion_kwargs["response_format"] = dict(response_format)
+            kwargs["response_format"] = dict(response_format)
 
-        response = cast(
-            ModelResponse,
-            completion(**completion_kwargs),
-        )
+        response = cast(ModelResponse, completion(**kwargs))
         if not response.choices:
             raise RuntimeError("Ollama returned no choices")
-
         content = response.choices[0].message.content
         if not content:
             raise RuntimeError("Ollama returned an empty response")

@@ -28,7 +28,7 @@
 Random은 7/20 에피소드를 해결했으며 상세 결과는
 `notebooks/baseline_comparison.ipynb`에 기록했다.
 
-## 지금 — LLM 에이전트
+## 완료된 LLM 기준선
 
 - [x] 보드를 직렬화하고 행동 출력을 구조화한다.
 - [x] 빈 응답, 출력 형식 오류, 무효 행동에 재시도·복구 규칙을 둔다.
@@ -44,8 +44,24 @@ Random은 7/20 에피소드를 해결했으며 상세 결과는
 `notebooks/llm_agent_comparison.ipynb`에 기록했다. 같은 노트북의 기본
 애니메이션은 LLM의 `tiny-walk`, seed 0 실패 경로를 재생한다.
 
+이 결과는 LangGraph 전환 전 `Agent.act()` 실행기의 기준선이다.
+
+## 지금 — LangGraph 중심 실행기
+
+- [x] 에피소드 루프를 `plan → validate → execute` StateGraph로 이전한다.
+- [x] Random, BFS, LLM을 공통 Planner 노드로 이전한다.
+- [x] 계획 오류와 막힌 행동을 조건부 edge에서 재시도한다.
+- [x] 에피소드별 `thread_id` 체크포인트와 일반 계획 지표를 기록한다.
+- [x] 평가와 trajectory가 반드시 같은 그래프 실행기를 사용하게 한다.
+- [x] LLM 등 주 Planner의 제안을 BFS로 검사·대체하는 하이브리드를 추가한다.
+- [ ] A* 휴리스틱 Planner를 추가해 BFS guard와 비교한다.
+- [ ] LangGraph 전환 후 기준선과 LLM 비교 노트북을 다시 실행한다.
+
+완료 조건: 하이브리드 Planner가 LLM 단독과 같은 레벨에서 실행되고 알고리즘
+검사·폴백 횟수, 재계획과 성공률을 비교할 수 있다.
+
 ## 보류
 
 - [ ] 렌더링 화면을 읽는 perception을 추가한다.
-- [ ] 방문한 보드 상태, 실패한 계획, 데드락을 누적하는 memory를 추가한다.
+- [ ] `recall` 노드와 영속 저장소로 실패 계획·데드락 memory를 추가한다.
 - [ ] Boxoban 분할별 벤치마크 또는 절차 생성 레벨로 확장한다.

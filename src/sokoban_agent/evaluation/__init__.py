@@ -1,9 +1,9 @@
 """Public experiment runners and result models."""
 
 from sokoban_agent.evaluation.results import (
-    AgentSummary,
     EpisodeResult,
-    summarize_by_agent,
+    PlannerSummary,
+    summarize_by_planner,
 )
 from sokoban_agent.evaluation.runner import run_benchmark, run_episode
 from sokoban_agent.evaluation.traces import (
@@ -14,7 +14,7 @@ from sokoban_agent.evaluation.traces import (
 )
 
 __all__ = [
-    "AgentSummary",
+    "PlannerSummary",
     "EpisodeFrame",
     "EpisodeResult",
     "EpisodeTrace",
@@ -22,5 +22,5 @@ __all__ = [
     "run_benchmark_traces",
     "run_episode",
     "run_episode_trace",
-    "summarize_by_agent",
+    "summarize_by_planner",
 ]

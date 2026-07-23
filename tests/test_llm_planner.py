@@ -3,16 +3,15 @@ from collections.abc import Mapping
 
 import pytest
 
-from sokoban_agent.agents import (
-    Agent,
-    AgentStopped,
-    LLMAgent,
+from sokoban_agent.env import Action, SokobanEnv
+from sokoban_agent.evaluation import run_episode
+from sokoban_agent.planning import (
+    LLMPlanner,
     Observation,
+    PlanningContext,
     parse_action_response,
     serialize_board,
 )
-from sokoban_agent.env import Action, SokobanEnv
-from sokoban_agent.evaluation import run_episode
 
 
 class SequenceClient:
@@ -84,56 +83,55 @@ def test_invalid_action_response_is_rejected(response: str) -> None:
         parse_action_response(response)
 
 
-def test_llm_agent_retries_format_and_blocked_action() -> None:
+def test_llm_planner_reports_format_error_without_retrying_itself() -> None:
     observation, info = _initial_state()
-    client = SequenceClient(["", '{"action":"DOWN"}', '{"action":"UP"}'])
-    agent = LLMAgent(
-        client,
-        model_name="test-model",
-        max_attempts=3,
-    )
-    accepted_agent: Agent = agent
-    accepted_agent.reset(observation, info, seed=17)
+    client = SequenceClient([""])
+    planner = LLMPlanner(client, model_name="test-model")
+    planner.reset(seed=17)
 
-    action = accepted_agent.act(observation, info)
+    outcome = planner.plan(PlanningContext(observation, info, (), (), 17))
 
-    assert action is Action.UP
-    assert agent.diagnostics.llm_calls == 3
-    assert agent.diagnostics.llm_retries == 2
-    assert agent.diagnostics.llm_format_errors == 1
-    assert agent.diagnostics.llm_invalid_actions == 1
+    assert outcome.actions == ()
+    assert outcome.error_kind == "format"
+    assert outcome.llm_calls == 1
+    assert outcome.llm_format_errors == 1
     assert client.requests[0]["seed"] == 17
-    assert client.requests[0]["response_format"] is not None
-    assert "Rejected attempts:" in str(client.requests[2]["prompt"])
 
 
-def test_llm_agent_stops_after_client_errors_exhaust_attempts() -> None:
-    observation, info = _initial_state()
-    agent = LLMAgent(
-        SequenceClient([RuntimeError("offline"), RuntimeError("offline")]),
-        model_name="test-model",
-        max_attempts=2,
+def test_graph_retries_format_and_blocked_llm_proposals() -> None:
+    client = SequenceClient(["", '{"action":"DOWN"}', '{"action":"UP"}'])
+    planner = LLMPlanner(client, model_name="test-model")
+
+    result = run_episode(
+        SokobanEnv(),
+        planner,
+        seed=17,
+        level_id="tiny-push",
+        max_planning_attempts=3,
     )
-    agent.reset(observation, info)
-
-    with pytest.raises(AgentStopped, match="after 2 attempts"):
-        agent.act(observation, info)
-
-    assert agent.diagnostics.llm_calls == 2
-    assert agent.diagnostics.llm_retries == 1
-    assert agent.diagnostics.llm_client_errors == 2
-
-
-def test_episode_records_llm_diagnostics() -> None:
-    env = SokobanEnv()
-    agent = LLMAgent(
-        SequenceClient(['{"action":"UP"}']),
-        model_name="test-model",
-    )
-
-    result = run_episode(env, agent, seed=3, level_id="tiny-push")
 
     assert result.success
-    assert result.llm_calls == 1
-    assert result.llm_retries == 0
-    assert result.llm_elapsed_seconds >= 0
+    assert result.llm_calls == 3
+    assert result.planning_retries == 2
+    assert result.llm_format_errors == 1
+    assert result.llm_invalid_actions == 1
+    assert "Rejected proposals:" in str(client.requests[2]["prompt"])
+
+
+def test_graph_stops_after_client_errors_exhaust_attempts() -> None:
+    planner = LLMPlanner(
+        SequenceClient([RuntimeError("offline"), RuntimeError("offline")]),
+        model_name="test-model",
+    )
+
+    result = run_episode(
+        SokobanEnv(),
+        planner,
+        level_id="tiny-push",
+        max_planning_attempts=2,
+    )
+
+    assert not result.success
+    assert result.failure_reason == "request failed: RuntimeError"
+    assert result.llm_calls == 2
+    assert result.llm_client_errors == 2

@@ -3,8 +3,8 @@ from typing import Any
 
 import pytest
 
-from sokoban_agent.agents import llm
-from sokoban_agent.agents.llm import OllamaClient, OllamaSettings
+from sokoban_agent.planning import llm
+from sokoban_agent.planning.llm import OllamaClient, OllamaSettings
 
 
 def test_settings_are_loaded_from_environment(

@@ -1,22 +1,23 @@
-"""Deterministic breadth-first search baseline for small Sokoban levels."""
+"""Breadth-first search planning node for small Sokoban boards."""
 
 from __future__ import annotations
 
 from collections import deque
+from time import perf_counter
 
-from sokoban_agent.agents.base import (
-    AgentInfo,
-    AgentStopped,
-    NoSolutionError,
-    Observation,
-    SearchLimitError,
-)
 from sokoban_agent.env import Action, SokobanState
 from sokoban_agent.env.rules import (
     apply_action,
     decode_observation,
     has_static_corner_deadlock,
     is_success,
+)
+from sokoban_agent.planning.base import (
+    NoSolutionError,
+    Observation,
+    PlanningContext,
+    PlanningOutcome,
+    SearchLimitError,
 )
 
 _Parent = tuple[SokobanState, Action] | None
@@ -82,46 +83,41 @@ def _restore_plan(
     return tuple(actions)
 
 
-class BFSAgent:
-    """Replay a shortest plan found from the episode's initial observation."""
+class BFSPlanner:
+    """Produce a complete shortest plan for the graph to validate and execute."""
 
     def __init__(self, *, max_expanded_states: int = 100_000) -> None:
         if max_expanded_states <= 0:
             raise ValueError("max_expanded_states must be positive")
         self.max_expanded_states = max_expanded_states
-        self._plan: deque[Action] = deque()
 
     @property
     def name(self) -> str:
         """Return the experiment name."""
 
-        return "bfs"
+        return "graph:bfs"
 
-    def reset(
-        self,
-        observation: Observation,
-        info: AgentInfo,
-        *,
-        seed: int | None = None,
-    ) -> None:
-        """Plan a shortest path for the new episode."""
+    def reset(self, *, seed: int | None = None) -> None:
+        """Reset the stateless algorithm node."""
 
-        del info, seed
-        self._plan = deque(
-            solve_bfs(
-                observation,
+        del seed
+
+    def plan(self, context: PlanningContext) -> PlanningOutcome:
+        """Run BFS from the graph's current observation."""
+
+        started_at = perf_counter()
+        try:
+            actions = solve_bfs(
+                context.observation,
                 max_expanded_states=self.max_expanded_states,
             )
+        except (NoSolutionError, SearchLimitError) as error:
+            return PlanningOutcome(
+                error=str(error),
+                error_kind="search",
+                elapsed_seconds=perf_counter() - started_at,
+            )
+        return PlanningOutcome(
+            actions=actions,
+            elapsed_seconds=perf_counter() - started_at,
         )
-
-    def act(
-        self,
-        observation: Observation,
-        info: AgentInfo,
-    ) -> Action:
-        """Return the next planned action."""
-
-        del observation, info
-        if not self._plan:
-            raise AgentStopped("BFS plan has no remaining actions")
-        return self._plan.popleft()
