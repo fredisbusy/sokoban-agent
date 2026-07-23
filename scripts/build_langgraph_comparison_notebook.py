@@ -385,7 +385,7 @@ def build_notebook(output_path: Path) -> None:
         metadata={
             "kernelspec": {"display_name": "Python 3", "language": "python",
                            "name": "python3"},
-            "language_info": {"name": "python", "version": "3.11"},
+            "language_info": {"name": "python", "version": "3.13"},
         },
     )
     output_path.parent.mkdir(parents=True, exist_ok=True)

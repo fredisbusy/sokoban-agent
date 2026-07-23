@@ -23,7 +23,7 @@ registry를 만들지 않습니다. 구체적인 연구 설계는
 
 ## 빠른 시작
 
-Python 3.11~3.13과 [uv](https://docs.astral.sh/uv/)가 필요합니다.
+Python 3.13과 [uv](https://docs.astral.sh/uv/)가 필요합니다.
 
 ```bash
 git clone https://github.com/fredisbusy/sokoban-agent.git
