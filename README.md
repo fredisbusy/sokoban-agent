@@ -182,11 +182,10 @@ print(state["algorithm_calls"], state["algorithm_fallbacks"])
 
 로컬 Studio에서는 `initialize`, `llm_plan`, `astar_guard`,
 `validate_plan`, `execute_action` 노드를 단계별로 살펴볼 수 있습니다.
-Studio용 의존성을 설치하고 개발 서버를 실행합니다.
+Studio용 의존성 설치와 개발 서버 실행은 다음 명령으로 한 번에 처리합니다.
 
 ```bash
-uv sync --group studio
-uv run --group studio langgraph dev
+make studio
 ```
 
 Studio 입력에는 다음처럼 내장 레벨과 실행 한도를 지정합니다.
