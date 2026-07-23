@@ -14,6 +14,7 @@ def test_settings_are_loaded_from_environment(
     monkeypatch.setenv("OLLAMA_TIMEOUT_SECONDS", "30")
     monkeypatch.setenv("OLLAMA_NUM_CTX", "2048")
     monkeypatch.setenv("OLLAMA_MAX_OUTPUT_TOKENS", "64")
+    monkeypatch.setenv("OLLAMA_STRATEGY_MAX_OUTPUT_TOKENS", "1024")
     monkeypatch.setenv("OLLAMA_KEEP_ALIVE", "1h")
     monkeypatch.setenv("OLLAMA_THINK", "true")
 
@@ -25,6 +26,7 @@ def test_settings_are_loaded_from_environment(
     assert settings.temperature == 0
     assert settings.num_ctx == 2048
     assert settings.max_output_tokens == 64
+    assert settings.strategy_max_output_tokens == 1024
     assert settings.keep_alive == "1h"
     assert settings.think
 
@@ -34,10 +36,15 @@ def test_structured_output_default_allows_complete_strategy_json(
 ) -> None:
     monkeypatch.setenv("OLLAMA_API_BASE", "http://ollama.local:11434")
     monkeypatch.delenv("OLLAMA_MAX_OUTPUT_TOKENS", raising=False)
+    monkeypatch.delenv(
+        "OLLAMA_STRATEGY_MAX_OUTPUT_TOKENS",
+        raising=False,
+    )
 
     settings = OllamaSettings.from_env(env_file=None)
 
     assert settings.max_output_tokens == 512
+    assert settings.strategy_max_output_tokens == 2048
 
 
 def test_client_passes_native_ollama_configuration(
@@ -77,6 +84,7 @@ def test_client_passes_native_ollama_configuration(
         system_prompt="JSON으로 답해.",
         seed=7,
         response_schema=schema,
+        max_output_tokens=1024,
     )
 
     assert result.content == '{"actions":["UP"]}'
@@ -98,7 +106,7 @@ def test_client_passes_native_ollama_configuration(
     assert payload["options"] == {
         "temperature": 0,
         "num_ctx": 2048,
-        "num_predict": 64,
+        "num_predict": 1024,
         "seed": 7,
     }
 

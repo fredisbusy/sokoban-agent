@@ -29,6 +29,7 @@ class OllamaSettings(BaseModel):
     temperature: float = Field(default=0.0, ge=0.0, le=2.0)
     num_ctx: int = Field(default=4096, gt=0)
     max_output_tokens: int = Field(default=512, gt=0, le=512)
+    strategy_max_output_tokens: int = Field(default=2048, gt=0, le=4096)
     keep_alive: str = "30m"
     think: bool = False
 
@@ -61,6 +62,9 @@ class OllamaSettings(BaseModel):
             num_ctx=int(os.getenv("OLLAMA_NUM_CTX", "4096")),
             max_output_tokens=int(
                 os.getenv("OLLAMA_MAX_OUTPUT_TOKENS", "512")
+            ),
+            strategy_max_output_tokens=int(
+                os.getenv("OLLAMA_STRATEGY_MAX_OUTPUT_TOKENS", "2048")
             ),
             keep_alive=os.getenv("OLLAMA_KEEP_ALIVE", "30m"),
             think=_env_bool("OLLAMA_THINK", default=False),
@@ -106,9 +110,19 @@ class OllamaClient:
         system_prompt: str | None = None,
         seed: int | None = None,
         response_schema: Mapping[str, object] | None = None,
+        max_output_tokens: int | None = None,
     ) -> TextCompletion:
         """Generate one non-streaming response and retain Ollama metrics."""
 
+        output_tokens = (
+            self.settings.max_output_tokens
+            if max_output_tokens is None
+            else max_output_tokens
+        )
+        if output_tokens < 1 or output_tokens > self.settings.num_ctx:
+            raise ValueError(
+                "max_output_tokens must be between 1 and num_ctx"
+            )
         messages: list[dict[str, str]] = []
         if system_prompt:
             messages.append({"role": "system", "content": system_prompt})
@@ -116,7 +130,7 @@ class OllamaClient:
         options: dict[str, int | float] = {
             "temperature": self.settings.temperature,
             "num_ctx": self.settings.num_ctx,
-            "num_predict": self.settings.max_output_tokens,
+            "num_predict": output_tokens,
         }
         if seed is not None:
             options["seed"] = seed

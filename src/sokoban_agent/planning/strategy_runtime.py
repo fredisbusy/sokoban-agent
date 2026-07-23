@@ -205,6 +205,7 @@ class OllamaStrategyGenerator:
                 system_prompt=prompt.system_prompt,
                 seed=seed,
                 response_schema=response_schema,
+                max_output_tokens=client.settings.strategy_max_output_tokens,
             )
         except (OSError, RuntimeError) as error:
             raise TransientAgenticError(

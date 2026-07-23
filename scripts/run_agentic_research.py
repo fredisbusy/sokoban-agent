@@ -48,6 +48,9 @@ def main() -> None:
             "temperature": settings.temperature,
             "num_ctx": settings.num_ctx,
             "max_output_tokens": settings.max_output_tokens,
+            "strategy_max_output_tokens": (
+                settings.strategy_max_output_tokens
+            ),
             "think": settings.think,
         },
         dirty_worktree=dirty,
