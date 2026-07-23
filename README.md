@@ -41,7 +41,56 @@ uv run python scripts/check_ollama.py
 
 정상이라면 모델이 `연결 확인`처럼 짧은 응답을 반환합니다.
 
-## Python에서 사용
+## Sokoban 환경 사용
+
+기본 환경은 작은 고정 레벨을 포함하며 Gymnasium에
+`SokobanAgent-v0`로 등록됩니다.
+
+```python
+import gymnasium as gym
+import sokoban_agent.env
+
+env = gym.make("SokobanAgent-v0", render_mode="ansi")
+observation, info = env.reset(seed=42, options={"level_id": "tiny-push"})
+observation, reward, terminated, truncated, info = env.step(0)
+
+print(env.render())
+print(info)
+```
+
+행동은 `0=UP`, `1=RIGHT`, `2=DOWN`, `3=LEFT`입니다. 관찰은 각 칸을
+`FLOOR`, `WALL`, `TARGET`, `BOX`, `PLAYER`, `BOX_ON_TARGET`,
+`PLAYER_ON_TARGET` 중 하나로 표현한 `uint8` 배열입니다.
+
+### Boxoban 레벨 사용
+
+[Google DeepMind Boxoban 레벨](https://github.com/google-deepmind/boxoban-levels)은
+외부 데이터셋으로 관리합니다. 필요한 경우 다음 위치에 내려받습니다.
+
+```bash
+git clone --depth 1 \
+  https://github.com/google-deepmind/boxoban-levels.git \
+  data/boxoban
+```
+
+한 개의 텍스트 파일이나 `train`, `valid`, `test` 디렉터리를 레벨 공급자로
+연결할 수 있습니다. 선택된 파일만 파싱하여 전체 학습 세트를 메모리에
+올리지 않습니다.
+
+```python
+from sokoban_agent.env import BoxobanLevelProvider, SokobanEnv
+
+levels = BoxobanLevelProvider("data/boxoban/unfiltered/train")
+env = SokobanEnv(level_provider=levels, render_mode="ansi")
+
+observation, info = env.reset(seed=42)
+print(info["level_id"], env.render())
+```
+
+저장소에는 전체 데이터셋 없이도 파서와 환경을 확인할 수 있는
+`assets/levels/boxoban_sample.txt`가 포함됩니다.
+
+## Ollama를 Python에서 사용
 
 ```python
 from sokoban_agent.agents.llm import OllamaClient
@@ -69,7 +118,7 @@ make typecheck      # mypy
 
 ```text
 src/sokoban_agent/
-├── env/          # Gymnasium 환경과 게임 규칙
+├── env/          # Gymnasium 환경, 게임 규칙, Boxoban 레벨 로더
 ├── agents/       # 기준선과 LLM 에이전트
 ├── perception/   # 보드·화면 인식
 ├── memory/       # 상태·계획·실패 기록

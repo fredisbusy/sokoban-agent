@@ -12,13 +12,13 @@
 
 ## 범위
 
-- 작은 자체 Gymnasium 환경과 고정 레벨부터 구현한다.
+- 자체 Gymnasium 환경과 고정 레벨부터 구현하고 같은 규칙으로 Boxoban
+  레벨을 불러온다.
 - Random/BFS 기준선과 LiteLLM/Ollama 에이전트를 같은 인터페이스로 비교한다.
 - 성공률, 행동 수, 무효 이동, 출력 형식 오류, 데드락, 응답 시간을 기록한다.
 - 화면 인식과 장기 기억은 상태 기반 실험 이후에 추가한다.
 
-대규모 강화학습, 기존 `gym-sokoban` 의존, 처음부터 전체 Boxoban을 푸는
-것은 현재 범위가 아니다.
+대규모 강화학습과 처음부터 전체 Boxoban을 푸는 것은 현재 범위가 아니다.
 
 ## 설계 원칙
 
@@ -37,5 +37,5 @@
 
 ## 현재 상태
 
-프로젝트 구조와 LiteLLM/Ollama 연결은 준비됐다. 다음 목표는 자체
-Gymnasium Sokoban 환경과 핵심 동작 테스트다.
+자체 Gymnasium Sokoban 환경, Boxoban 레벨 로더, LiteLLM/Ollama 연결이
+준비됐다. 다음 목표는 Random 및 BFS/A* 기준선과 공통 측정 구조다.
