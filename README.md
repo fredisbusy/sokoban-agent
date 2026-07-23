@@ -18,8 +18,8 @@ Python 3.11~3.13과 [uv](https://docs.astral.sh/uv/)가 필요합니다.
 ```bash
 git clone https://github.com/fredisbusy/sokoban-agent.git
 cd sokoban-agent
-uv sync
-uv run sokoban-play --level tiny-push
+make sync
+make play LEVEL=tiny-push
 ```
 
 Ollama 없이도 LangGraph와 Random/BFS Planner를 사용할 수 있습니다.
@@ -30,18 +30,19 @@ Ollama 없이도 LangGraph와 Random/BFS Planner를 사용할 수 있습니다.
 제외합니다.
 
 ```bash
-uv sync --no-dev
+make sync-core
 ```
 
 LLM, vision, notebook 기능은 각각 명시적으로 설치합니다.
 
 ```bash
-uv sync --no-dev --extra llm
-uv sync --no-dev --extra vision
-uv sync --group notebook
+make sync-llm
+make sync-vision
+make sync-notebook
 ```
 
 기능별 선택 기준은 [의존성과 기술 선택](docs/DEPENDENCIES.md)에 정리했습니다.
+사용 가능한 명령 전체는 `make help`로 확인할 수 있습니다.
 
 ## Sokoban 환경 사용
 
@@ -71,14 +72,14 @@ env.close()
 내장 레벨은 터미널에서 방향키 또는 `WASD`로 플레이할 수 있습니다.
 
 ```bash
-uv run sokoban-play
+make play
 ```
 
 `R`은 현재 레벨을 다시 시작하고 `Q`는 게임을 종료합니다. 한 번 밀면
 완료되는 입문 레벨은 다음처럼 선택합니다.
 
 ```bash
-uv run sokoban-play --level tiny-push
+make play LEVEL=tiny-push
 ```
 
 터미널 플레이는 현재 macOS와 Linux의 대화형 터미널을 지원합니다.
@@ -120,7 +121,7 @@ Ollama 서버가 실행 중이고 사용할 모델이 서버에 설치되어 있
 
 ```bash
 cp .env.example .env
-uv run python scripts/check_ollama.py
+make ollama-check
 ```
 
 `.env`에서 필수 값은 `OLLAMA_API_BASE`입니다. 모델과 제한 시간에는
@@ -207,27 +208,21 @@ Studio 진입점은 `langgraph.json`과
 ## 연구와 검증
 
 ```bash
-uv run pytest
-uv run ruff check .
-uv run mypy
+make check
 ```
 
-`make test`, `make lint`, `make typecheck`는 같은 검사의 단축 명령입니다.
+각 검사는 `make test`, `make lint`, `make typecheck`로 따로 실행할 수 있습니다.
 기준선 비교 노트북은 다음 명령으로 다시 생성하고 실행할 수 있습니다.
 
 ```bash
-uv run --group notebook python scripts/build_baseline_notebook.py
-uv run --group notebook python -m jupyter nbconvert \
-  --execute --to notebook --inplace notebooks/baseline_comparison.ipynb
+make baseline-notebook
 ```
 
 주 실험은 `.env`의 모델을 사용해 Random, BFS, push 기반 A*, LLM,
 LLM+BFS Guard, LLM+A* Guard를 비교합니다.
 
 ```bash
-uv run --group notebook python scripts/build_langgraph_comparison_notebook.py
-uv run --group notebook python -m jupyter nbconvert \
-  --execute --to notebook --inplace notebooks/langgraph_planner_comparison.ipynb
+make experiment-notebook
 ```
 
 `baseline_comparison.ipynb`는 LangGraph 실행기와 BFS 기준선을 빠르게

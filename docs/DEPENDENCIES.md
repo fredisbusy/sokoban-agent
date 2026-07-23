@@ -8,12 +8,12 @@ dependency group으로 분리한다.
 
 | 범위 | 구성 | 설치 |
 | --- | --- | --- |
-| core | Gymnasium, NumPy, LangGraph | `uv sync --no-dev` |
-| LLM | Pydantic, python-dotenv, 표준 라이브러리 HTTP | `uv sync --no-dev --extra llm` |
-| vision | OpenCV, Pillow | `uv sync --no-dev --extra vision` |
-| dev | pytest, Ruff, mypy와 LLM 테스트 의존성 | `uv sync` |
-| notebook | Jupyter, nbclient, nbformat, pandas, Matplotlib | `uv sync --group notebook` |
-| studio | LangGraph CLI, 로컬 in-memory Agent Server | `uv sync --group studio` |
+| core | Gymnasium, NumPy, LangGraph | `make sync-core` |
+| LLM | Pydantic, python-dotenv, 표준 라이브러리 HTTP | `make sync-llm` |
+| vision | OpenCV, Pillow | `make sync-vision` |
+| dev | pytest, Ruff, mypy와 LLM 테스트 의존성 | `make sync` |
+| notebook | Jupyter, nbclient, nbformat, pandas, Matplotlib | `make sync-notebook` |
+| studio | LangGraph CLI, 로컬 in-memory Agent Server | `make sync-studio` |
 
 `dev`에는 optional LLM 기능까지 항상 테스트하기 위해 LLM 패키지를
 의도적으로 다시 선언한다. 배포 패키지의 기본 의존성에는 포함되지 않는다.
