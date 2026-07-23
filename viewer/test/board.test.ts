@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { boardFromObservation, parseBoard } from "../src/board.js";
+import { boardFromObservation, parseBoard } from "../lib/board.ts";
 
 test("numeric observation becomes Sokoban symbols", () => {
   assert.equal(

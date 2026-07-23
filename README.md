@@ -134,7 +134,7 @@ OLLAMA_MODEL=qwen3.6:27b-mlx
 OLLAMA_TIMEOUT_SECONDS=300
 OLLAMA_TEMPERATURE=0
 OLLAMA_NUM_CTX=4096
-OLLAMA_MAX_OUTPUT_TOKENS=256
+OLLAMA_MAX_OUTPUT_TOKENS=512
 OLLAMA_KEEP_ALIVE=30m
 OLLAMA_THINK=false
 LANGSMITH_TRACING=false
@@ -355,7 +355,7 @@ docs/                  # 목표와 아키텍처
 ## 실시간 Sokoban 관찰 화면
 
 에이전트 실행과 동시에 플레이어·상자 이동 및 구조화된 전략 상태를 보려면
-두 터미널에서 Agent Server와 관찰 화면을 각각 실행한다.
+두 터미널에서 Agent Server와 Next.js·TypeScript 관찰 화면을 각각 실행한다.
 
 ```bash
 # 터미널 1

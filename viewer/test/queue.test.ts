@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { FrameQueue } from "../src/queue.js";
+import { FrameQueue } from "../lib/frame-queue.ts";
 
 test("queue pauses display without dropping streamed frames", () => {
   const queue = new FrameQueue();

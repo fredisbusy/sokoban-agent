@@ -6,9 +6,10 @@ import {
   runIdFromEvent,
   streamRun,
   validateRunContext,
-} from "../src/stream.js";
+} from "../lib/stream.ts";
+import type { RunContext, SseEvent } from "../lib/types.ts";
 
-const RUN_CONTEXT = {
+const RUN_CONTEXT: RunContext = {
   prompt_name: "sokoban-strategy",
   prompt_commit: "abc123",
   model_name: "qwen3.6:27b-mlx",
@@ -56,8 +57,8 @@ test("run context accepts automatic latest selector and rejects unresolved value
 
 test("stream run sends immutable prompt and model context to LangGraph", async () => {
   const originalFetch = globalThis.fetch;
-  const calls = [];
-  globalThis.fetch = async (url, options = {}) => {
+  const calls: Array<{ url: string; options: RequestInit }> = [];
+  globalThis.fetch = async (url: RequestInfo | URL, options: RequestInit = {}) => {
     calls.push({ url: String(url), options });
     return new Response("", { status: 200 });
   };
@@ -71,7 +72,7 @@ test("stream run sends immutable prompt and model context to LangGraph", async (
       context: RUN_CONTEXT,
       onEvent: () => {},
     });
-    const body = JSON.parse(calls[0].options.body);
+    const body = JSON.parse(String(calls[0].options.body));
     assert.deepEqual(body.context, RUN_CONTEXT);
     assert.equal(body.assistant_id, "sokoban_agent");
     assert.equal(body.stream_mode, "updates");
@@ -82,8 +83,8 @@ test("stream run sends immutable prompt and model context to LangGraph", async (
 
 test("graph error events are not mistaken for resumable disconnects", async () => {
   const originalFetch = globalThis.fetch;
-  const calls = [];
-  globalThis.fetch = async (url, options = {}) => {
+  const calls: Array<{ url: string; options: RequestInit }> = [];
+  globalThis.fetch = async (url: RequestInfo | URL, options: RequestInit = {}) => {
     calls.push({ url: String(url), options });
     return new Response(
       "event: metadata\ndata: {\"run_id\":\"run-1\"}\n\n"
@@ -112,9 +113,9 @@ test("graph error events are not mistaken for resumable disconnects", async () =
 
 test("dropped resumable stream rejoins from its last event", async () => {
   const originalFetch = globalThis.fetch;
-  const calls = [];
+  const calls: Array<{ url: string; options: RequestInit }> = [];
   let pulls = 0;
-  const broken = new ReadableStream({
+  const broken = new ReadableStream<Uint8Array>({
     pull(controller) {
       pulls += 1;
       if (pulls === 1) {
@@ -131,7 +132,7 @@ test("dropped resumable stream rejoins from its last event", async () => {
     "event: updates\nid: 3\ndata: {\"execute\":{\"status\":\"success\"}}\n\n",
     { status: 200, headers: { "Content-Type": "text/event-stream" } },
   );
-  globalThis.fetch = async (url, options = {}) => {
+  globalThis.fetch = async (url: RequestInfo | URL, options: RequestInit = {}) => {
     calls.push({ url: String(url), options });
     return calls.length === 1
       ? new Response(broken, { status: 200 })
@@ -139,7 +140,7 @@ test("dropped resumable stream rejoins from its last event", async () => {
   };
 
   try {
-    const events = [];
+    const events: SseEvent[] = [];
     await streamRun({
       apiUrl: "http://agent",
       threadId: "thread-1",
@@ -150,7 +151,10 @@ test("dropped resumable stream rejoins from its last event", async () => {
     });
     assert.deepEqual(events.map((event) => event.id), ["1", "2", "3"]);
     assert.match(calls[1].url, /threads\/thread-1\/runs\/run-1\/stream/);
-    assert.equal(calls[1].options.headers["Last-Event-ID"], "2");
+    assert.equal(
+      (calls[1].options.headers as Record<string, string>)["Last-Event-ID"],
+      "2",
+    );
   } finally {
     globalThis.fetch = originalFetch;
   }

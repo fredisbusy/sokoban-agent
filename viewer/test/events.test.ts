@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { applyUpdate, normalizeEvent } from "../src/events.js";
+import { applyUpdate, normalizeEvent } from "../lib/events.ts";
 
 test("partial LangGraph updates accumulate into one view event", () => {
   const first = applyUpdate({}, {
@@ -59,13 +59,13 @@ test("baseline board and summaries remain supported", () => {
       guard_summary: "안전",
     },
   });
-  assert.equal(event.board.includes("@"), true);
+  assert.equal(event.board?.includes("@"), true);
   assert.equal(event.strategy.hypothesis, "목표로 이동");
   assert.equal(event.strategy.risk, "안전");
 });
 
 test("terminal and error states map to distinct phases", () => {
-  const makeEvent = (state) => normalizeEvent({
+  const makeEvent = (state: Record<string, unknown>) => normalizeEvent({
     id: "evt",
     threadId: "thread",
     node: "reflect",

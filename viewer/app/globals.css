@@ -87,7 +87,7 @@ button.primary { border: 0; border-radius: 0; padding-inline: 1.5rem; background
 .empty-mark { display: grid; place-items: center; width: 5rem; height: 5rem; margin: 0 auto 1rem; border: 1px solid var(--line); border-radius: 50%; color: var(--acid); font: 2rem ui-monospace, monospace; }
 .board {
   position: relative;
-  display: none;
+  display: grid;
   grid-template-columns: repeat(var(--columns), var(--tile));
   grid-template-rows: repeat(var(--rows), var(--tile));
   padding: .35rem;

@@ -1,4 +1,21 @@
-export async function createThread(apiUrl, signal) {
+import type { RunContext, SseEvent } from "./types.ts";
+
+interface StreamRunOptions {
+  apiUrl: string;
+  threadId: string;
+  assistantId: string;
+  input: Record<string, unknown>;
+  context: RunContext;
+  signal?: AbortSignal;
+  onEvent: (event: SseEvent) => void;
+}
+
+interface StreamProgress {
+  lastEventId: string | null;
+  runId: string | null;
+}
+
+export async function createThread(apiUrl: string, signal?: AbortSignal): Promise<string> {
   const response = await fetch(`${trimSlash(apiUrl)}/threads`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -6,7 +23,7 @@ export async function createThread(apiUrl, signal) {
     signal,
   });
   if (!response.ok) throw new Error(await responseMessage(response, "thread 생성 실패"));
-  const payload = await response.json();
+  const payload = await response.json() as { thread_id?: string };
   if (!payload.thread_id) throw new Error("Agent Server가 thread_id를 반환하지 않았습니다");
   return payload.thread_id;
 }
@@ -19,7 +36,7 @@ export async function streamRun({
   context,
   signal,
   onEvent,
-}) {
+}: StreamRunOptions): Promise<void> {
   validateRunContext(context);
   const response = await fetch(
     `${trimSlash(apiUrl)}/threads/${encodeURIComponent(threadId)}/runs/stream`,
@@ -42,41 +59,36 @@ export async function streamRun({
     },
   );
   if (!response.ok) throw new Error(await responseMessage(response, "stream 시작 실패"));
-  const progress = { lastEventId: null, runId: null };
+  const progress: StreamProgress = { lastEventId: null, runId: null };
   try {
-    await readEventStream(response, signal, onEvent, progress);
+    await readEventStream(response, onEvent, progress);
   } catch (error) {
-    if (
-      !(error instanceof StreamDisconnectError)
-      || signal?.aborted
-      || !progress.runId
-    ) throw error;
+    if (!(error instanceof StreamDisconnectError) || signal?.aborted || !progress.runId) {
+      throw error;
+    }
     await resumeRun({ apiUrl, threadId, signal, onEvent, progress });
   }
 }
 
 export class GraphRunError extends Error {
-  constructor(payload) {
-    const error = typeof payload === "object" && payload !== null
-      ? payload.error
-      : null;
-    const message = typeof payload === "object" && payload !== null
-      ? payload.message
-      : payload;
-    super([error, message].filter(Boolean).join(": ") || "LangGraph run이 실패했습니다");
+  readonly payload: unknown;
+
+  constructor(payload: unknown) {
+    const record = isRecord(payload) ? payload : {};
+    const message = typeof payload === "string" ? payload : record.message;
+    super(
+      [record.error, message]
+        .filter((item): item is string => typeof item === "string" && item.length > 0)
+        .join(": ") || "LangGraph run이 실패했습니다",
+    );
     this.name = "GraphRunError";
     this.payload = payload;
   }
 }
 
-export function validateRunContext(context) {
-  if (!context || typeof context !== "object") {
-    throw new Error("LangGraph runtime context가 필요합니다");
-  }
-  for (const key of ["prompt_name", "prompt_commit", "model_name"]) {
-    if (typeof context[key] !== "string" || context[key].trim() === "") {
-      throw new Error(`${key} 값을 입력하세요`);
-    }
+export function validateRunContext(context: RunContext): void {
+  for (const key of ["prompt_name", "prompt_commit", "model_name"] as const) {
+    if (context[key].trim() === "") throw new Error(`${key} 값을 입력하세요`);
   }
   if (context.prompt_commit.trim().toLowerCase() === "unresolved") {
     throw new Error("prompt_commit을 해석할 수 없습니다");
@@ -89,13 +101,17 @@ export function validateRunContext(context) {
   }
 }
 
-async function readEventStream(response, signal, onEvent, progress) {
+async function readEventStream(
+  response: Response,
+  onEvent: (event: SseEvent) => void,
+  progress: StreamProgress,
+): Promise<void> {
   if (!response.body) throw new Error("Agent Server stream 본문이 없습니다");
   const reader = response.body.getReader();
   const decoder = new TextDecoder();
   let pending = "";
   while (true) {
-    let chunk;
+    let chunk: ReadableStreamReadResult<Uint8Array>;
     try {
       chunk = await reader.read();
     } catch (error) {
@@ -116,16 +132,24 @@ async function readEventStream(response, signal, onEvent, progress) {
 }
 
 class StreamDisconnectError extends Error {
-  constructor(cause) {
+  constructor(cause: unknown) {
     super(cause instanceof Error ? cause.message : "Agent Server stream 연결이 끊겼습니다");
     this.name = "StreamDisconnectError";
     this.cause = cause;
   }
 }
 
-async function resumeRun({ apiUrl, threadId, signal, onEvent, progress }) {
+async function resumeRun({
+  apiUrl,
+  threadId,
+  signal,
+  onEvent,
+  progress,
+}: Omit<StreamRunOptions, "assistantId" | "input" | "context"> & {
+  progress: StreamProgress;
+}): Promise<void> {
   const response = await fetch(
-    `${trimSlash(apiUrl)}/threads/${encodeURIComponent(threadId)}/runs/${encodeURIComponent(progress.runId)}/stream?stream_mode=updates`,
+    `${trimSlash(apiUrl)}/threads/${encodeURIComponent(threadId)}/runs/${encodeURIComponent(progress.runId ?? "")}/stream?stream_mode=updates`,
     {
       headers: {
         Accept: "text/event-stream",
@@ -135,27 +159,32 @@ async function resumeRun({ apiUrl, threadId, signal, onEvent, progress }) {
     },
   );
   if (!response.ok) throw new Error(await responseMessage(response, "stream 복구 실패"));
-  await readEventStream(response, signal, onEvent, progress);
+  await readEventStream(response, onEvent, progress);
 }
 
-export function parseSseChunk(text, flush = false) {
+export function parseSseChunk(
+  text: string,
+  flush = false,
+): { events: SseEvent[]; remainder: string } {
   const normalized = text.replace(/\r\n/g, "\n");
   const parts = normalized.split("\n\n");
   const remainder = flush ? "" : parts.pop() ?? "";
-  const frames = flush ? parts : parts;
-  const events = frames.map(parseFrame).filter(Boolean);
+  const events = parts.map(parseFrame).filter((event): event is SseEvent => event !== null);
   return { events, remainder };
 }
 
-export function runIdFromEvent(event) {
-  if (!event || typeof event.data !== "object" || event.data === null) return null;
-  return event.data.run_id ?? event.data.run?.run_id ?? null;
+export function runIdFromEvent(event: Pick<SseEvent, "data">): string | null {
+  if (!isRecord(event.data)) return null;
+  if (typeof event.data.run_id === "string") return event.data.run_id;
+  return isRecord(event.data.run) && typeof event.data.run.run_id === "string"
+    ? event.data.run.run_id
+    : null;
 }
 
-function parseFrame(frame) {
+function parseFrame(frame: string): SseEvent | null {
   let event = "message";
-  let id = null;
-  const data = [];
+  let id: string | null = null;
+  const data: string[] = [];
   for (const line of frame.split("\n")) {
     if (line.startsWith("event:")) event = line.slice(6).trim();
     else if (line.startsWith("id:")) id = line.slice(3).trim();
@@ -163,20 +192,24 @@ function parseFrame(frame) {
   }
   if (data.length === 0) return null;
   const raw = data.join("\n");
-  let parsed = raw;
+  let parsed: unknown = raw;
   try {
     parsed = JSON.parse(raw);
   } catch {
-    // Preserve non-JSON protocol messages for error reporting.
+    // Keep non-JSON protocol messages readable.
   }
   return { event, id, data: parsed };
 }
 
-async function responseMessage(response, fallback) {
+async function responseMessage(response: Response, fallback: string): Promise<string> {
   const detail = await response.text();
   return `${fallback} (${response.status})${detail ? `: ${detail.slice(0, 240)}` : ""}`;
 }
 
-function trimSlash(value) {
-  return String(value).replace(/\/+$/, "");
+function trimSlash(value: string): string {
+  return value.replace(/\/+$/, "");
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }

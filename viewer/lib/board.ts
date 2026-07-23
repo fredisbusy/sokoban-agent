@@ -1,7 +1,9 @@
+import type { BoardTile } from "./types";
+
 const SYMBOLS = new Set(["#", " ", ".", "$", "@", "*", "+"]);
 const OBSERVATION_SYMBOLS = [" ", "#", ".", "$", "@", "*", "+"];
 
-export function parseBoard(board) {
+export function parseBoard(board: string): BoardTile[][] {
   if (typeof board !== "string" || board.length === 0) {
     throw new TypeError("board must be a non-empty string");
   }
@@ -28,12 +30,13 @@ export function parseBoard(board) {
   );
 }
 
-export function boardFromObservation(observation) {
+export function boardFromObservation(observation: unknown): string | null {
   if (!Array.isArray(observation) || observation.length === 0) return null;
   const rows = observation.map((row) => {
     if (!Array.isArray(row)) throw new TypeError("observation rows must be arrays");
     return row.map((value) => {
-      const symbol = OBSERVATION_SYMBOLS[value];
+      if (!Number.isInteger(value)) throw new TypeError(`unknown observation tile: ${value}`);
+      const symbol = OBSERVATION_SYMBOLS[value as number];
       if (symbol === undefined) throw new TypeError(`unknown observation tile: ${value}`);
       return symbol;
     }).join("");
