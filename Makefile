@@ -35,7 +35,7 @@ lab:
 	uv run --group notebook jupyter lab
 
 studio:
-	uv run --group studio langgraph dev
+	uv run --group studio langgraph dev --host localhost
 
 test:
 	uv run pytest
