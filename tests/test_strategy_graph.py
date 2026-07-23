@@ -2,6 +2,7 @@ import json
 from collections.abc import Mapping
 from typing import Literal, cast
 
+from sokoban_agent.evaluation import run_agentic_episode
 from sokoban_agent.graph import build_agentic_graph
 from sokoban_agent.graph.agentic_state import AgenticState
 from sokoban_agent.planning.llm import CompletionMetrics, TextCompletion
@@ -279,11 +280,21 @@ def test_agentic_loop_replans_after_each_push_until_success() -> None:
     ]
     assert len(result["completed_subgoals"]) == 2
     assert generator.calls == 2
-    assert [
-        event["stage"]
+    action_events = [
+        event
         for event in result["decision_events"]
         if event["stage"] == "execute_until_push"
-    ] == ["execute_until_push", "execute_until_push"]
+    ]
+    assert [event["action"] for event in action_events] == result[
+        "action_history"
+    ]
+    assert [event["pushed"] for event in action_events] == [
+        False,
+        True,
+        False,
+        False,
+        True,
+    ]
 
 
 def test_agentic_loop_stops_when_step_limit_prevents_push() -> None:
@@ -312,3 +323,51 @@ def test_agentic_loop_stops_when_step_limit_prevents_push() -> None:
     execution_result = cast(dict[str, object], result["execution_result"])
     assert execution_result["push_count"] == 0
     assert generator.calls == 1
+
+
+def test_agentic_evaluation_reads_metrics_from_shared_graph_state() -> None:
+    prompt_source = FixedPromptSource()
+    generator = SequenceStrategyGenerator(
+        _strategy_json(
+            from_row=2,
+            from_col=3,
+            to_row=1,
+            to_col=3,
+        )
+    )
+
+    result = run_agentic_episode(
+        {
+            "level_id": "held-out-one-push",
+            "level_rows": [
+                "#######",
+                "#  .  #",
+                "#  $  #",
+                "#  @  #",
+                "#######",
+            ],
+            "seed": 7,
+            "max_steps": 15,
+        },
+        context={
+            "prompt_name": "sokoban-strategy",
+            "prompt_commit": "fixture-commit",
+            "model_name": "fixture-model",
+            "rationale_mode": "on",
+        },
+        prompt_source=prompt_source,
+        strategy_generator=generator,
+        thread_id="agentic-evaluation-contract",
+    )
+
+    assert result.success
+    assert result.level_id == "held-out-one-push"
+    assert result.action_count == 1
+    assert result.push_count == 1
+    assert result.strategy_proposals == 1
+    assert result.llm_calls == 1
+    assert result.local_search_calls == 1
+    assert result.local_expanded_states > 0
+    assert result.effect_matches == 1
+    assert result.algorithm_calls == 0
+    assert result.prompt_commit == "fixture-commit"

@@ -40,6 +40,8 @@ def _reflection_state() -> AgenticState:
             "plan_revisions": [],
             "attempt_keys": [],
             "strategy_attempts": 1,
+            "effect_matches": 0,
+            "effect_mismatches": 0,
         },
     )
 

@@ -156,7 +156,9 @@ def test_agentic_graph_initializes_json_safe_checkpoint_state() -> None:
         {
             "step": 1,
             "stage": "execute_until_push",
-            "summary": "행동 1개를 실행하고 push 1회에서 멈췄습니다",
+            "summary": "UP 행동을 실행했습니다",
+            "action": "UP",
+            "pushed": True,
         },
         {
             "step": 1,

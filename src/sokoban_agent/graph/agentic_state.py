@@ -12,6 +12,7 @@ class AgenticInput(TypedDict):
     level_id: NotRequired[str]
     seed: NotRequired[int | None]
     max_steps: NotRequired[int]
+    level_rows: NotRequired[list[str]]
 
 
 class PromptReference(TypedDict):
@@ -27,6 +28,8 @@ class DecisionEvent(TypedDict):
     step: int
     stage: str
     summary: str
+    action: NotRequired[str]
+    pushed: NotRequired[bool]
 
 
 class PlanRevisionPayload(TypedDict):
@@ -64,6 +67,18 @@ class AgenticState(AgenticInput, total=False):
     completed_subgoals: list[dict[str, object]]
     attempt_keys: list[str]
     cycle_detected: bool
+    strategy_proposals: int
+    strategy_schema_rejections: int
+    strategy_semantic_rejections: int
+    llm_calls: int
+    llm_elapsed_seconds: float
+    llm_prompt_tokens: int
+    llm_output_tokens: int
+    local_search_calls: int
+    local_expanded_states: int
+    push_count: int
+    effect_matches: int
+    effect_mismatches: int
     protected_constraints: list[dict[str, object]]
     expected_effect: dict[str, object] | None
     failure_conditions: list[dict[str, object]]

@@ -85,7 +85,7 @@ def ground_push_subgoal(
             "선택한 push가 보호 칸을 점유합니다",
         )
 
-    _, paths = reachable_paths(level, state)
+    reachable, paths = reachable_paths(level, state)
     support = _position(option.support)
     try:
         player_path = paths[support]
@@ -124,6 +124,7 @@ def ground_push_subgoal(
             cast(Direction, action.name) for action in player_path
         ),
         push_action=subgoal.direction,
+        expanded_player_states=len(reachable),
     )
 
 

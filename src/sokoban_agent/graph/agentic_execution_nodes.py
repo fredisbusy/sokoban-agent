@@ -20,6 +20,7 @@ from sokoban_agent.planning.base import Observation
 from sokoban_agent.planning.strategy import ExpectedEffect
 
 ExecutionRoute = Literal["observe", "__end__"]
+ActionRoute = Literal["execute_until_push", "reflect"]
 RepetitionRoute = Literal["ground_subgoal", "__end__"]
 
 
@@ -71,23 +72,35 @@ def route_after_repetition(state: AgenticState) -> RepetitionRoute:
 
 
 def execute_agentic_until_push(state: AgenticState) -> dict[str, object]:
-    """Apply grounded actions and stop at the first push or step limit."""
+    """Apply one grounded action so every primitive move is stream-visible."""
 
     observation = cast(
         Observation,
         np.asarray(state["observation"], dtype=np.uint8),
     )
     level, board = decode_observation(observation)
-    before_boxes = _boxes(board.boxes)
     steps = _step(state)
     requested = list(state["grounded_actions"])
-    executed: list[str] = []
-    invalid_move = False
-    push_count = 0
+    prior = state["execution_result"]
+    if prior is None:
+        before_boxes = _boxes(board.boxes)
+        executed: list[str] = []
+        push_count = 0
+    else:
+        before_boxes = cast(
+            list[list[int]],
+            prior["before_boxes"],
+        )
+        executed = list(
+            cast(list[str], prior["actions_executed"])
+        )
+        push_count = cast(int, prior["push_count"])
 
-    for action_name in requested:
-        if steps >= state["max_steps"]:
-            break
+    invalid_move = False
+    action_name: str | None = None
+    pushed = False
+    if steps < state["max_steps"] and len(executed) < len(requested):
+        action_name = requested[len(executed)]
         move = apply_action(level, board, Action[action_name])
         board = move.state
         steps += 1
@@ -95,9 +108,7 @@ def execute_agentic_until_push(state: AgenticState) -> dict[str, object]:
         invalid_move = move.invalid_move
         if move.pushed:
             push_count += 1
-            break
-        if move.invalid_move:
-            break
+            pushed = True
 
     success = is_success(level, board)
     deadlock = not success and has_static_corner_deadlock(level, board)
@@ -107,7 +118,7 @@ def execute_agentic_until_push(state: AgenticState) -> dict[str, object]:
         **state["info"],
         "steps": steps,
         "invalid_move": invalid_move,
-        "pushed": push_count == 1,
+        "pushed": pushed,
         "boxes_on_targets": len(board.boxes & level.targets),
         "success": success,
         "deadlock": deadlock,
@@ -124,7 +135,11 @@ def execute_agentic_until_push(state: AgenticState) -> dict[str, object]:
     return {
         "observation": next_observation.tolist(),
         "info": info,
-        "action_history": [*state["action_history"], *executed],
+        "action_history": [
+            *state["action_history"],
+            *([action_name] if action_name is not None else []),
+        ],
+        "push_count": state["push_count"] + int(pushed),
         "execution_result": result,
         "status": "executed_until_push",
         "decision_events": [
@@ -132,12 +147,36 @@ def execute_agentic_until_push(state: AgenticState) -> dict[str, object]:
                 "step": steps,
                 "stage": "execute_until_push",
                 "summary": (
-                    f"행동 {len(executed)}개를 실행하고 "
-                    f"push {push_count}회에서 멈췄습니다"
+                    f"{action_name} 행동을 실행했습니다"
+                    if action_name is not None
+                    else "행동 한도 때문에 실행하지 못했습니다"
+                ),
+                **(
+                    {"action": action_name, "pushed": pushed}
+                    if action_name is not None
+                    else {}
                 ),
             }
         ],
     }
+
+
+def route_after_action(state: AgenticState) -> ActionRoute:
+    """Repeat the action node until its first push or a terminal condition."""
+
+    execution = cast(dict[str, object], state["execution_result"])
+    executed = cast(list[str], execution["actions_executed"])
+    requested = cast(list[str], execution["actions_requested"])
+    if (
+        cast(int, execution["push_count"]) == 1
+        or cast(bool, execution["invalid_move"])
+        or cast(bool, execution["truncated"])
+        or state["info"].get("success") is True
+        or state["info"].get("deadlock") is True
+        or len(executed) >= len(requested)
+    ):
+        return "reflect"
+    return "execute_until_push"
 
 
 def reflect_agentic_execution(state: AgenticState) -> dict[str, object]:
@@ -178,6 +217,7 @@ def reflect_agentic_execution(state: AgenticState) -> dict[str, object]:
             "reflection_result": reflection,
             "completed_subgoals": completed,
             "strategy_attempts": 0,
+            "effect_matches": state["effect_matches"] + 1,
             "status": status,
             "decision_events": [
                 {
@@ -210,6 +250,7 @@ def reflect_agentic_execution(state: AgenticState) -> dict[str, object]:
     return {
         "reflection_result": reflection,
         "plan_revisions": [revision],
+        "effect_mismatches": state["effect_mismatches"] + 1,
         "feedback": [f"unexpected_state: {evidence}"],
         "status": status,
         "decision_events": [
@@ -238,6 +279,7 @@ def observe_agentic_state(state: AgenticState) -> dict[str, object]:
         "grounded_plan": None,
         "grounded_actions": [],
         "grounding_failure": None,
+        "execution_result": None,
         "decision_events": [
             {
                 "step": _step(state),

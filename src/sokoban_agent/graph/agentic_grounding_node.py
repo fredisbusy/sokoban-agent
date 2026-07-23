@@ -52,6 +52,7 @@ def ground_agentic_subgoal(state: AgenticState) -> dict[str, object]:
             "grounded_plan": None,
             "grounded_actions": [],
             "grounding_failure": failure,
+            "local_search_calls": state["local_search_calls"] + 1,
             "status": "subgoal_grounding_failed",
             "feedback": [feedback],
             "decision_events": [
@@ -68,6 +69,10 @@ def ground_agentic_subgoal(state: AgenticState) -> dict[str, object]:
         "grounded_plan": plan.model_dump(mode="json"),
         "grounded_actions": actions,
         "grounding_failure": None,
+        "local_search_calls": state["local_search_calls"] + 1,
+        "local_expanded_states": (
+            state["local_expanded_states"] + plan.expanded_player_states
+        ),
         "status": "subgoal_grounded",
         "decision_events": [
             {

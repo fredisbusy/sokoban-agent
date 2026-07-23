@@ -10,12 +10,17 @@ from langgraph.graph import END, START, StateGraph
 from langgraph.runtime import Runtime
 from langgraph.types import RetryPolicy
 
-from sokoban_agent.env import SokobanEnv
+from sokoban_agent.env import (
+    FixedLevelProvider,
+    SokobanEnv,
+    parse_level,
+)
 from sokoban_agent.graph.agentic_execution_nodes import (
     detect_agentic_repetition,
     execute_agentic_until_push,
     observe_agentic_state,
     reflect_agentic_execution,
+    route_after_action,
     route_after_reflection,
     route_after_repetition,
 )
@@ -53,7 +58,17 @@ def initialize_agentic_state(
     level_id = state.get("level_id", "tiny-push")
     seed = state.get("seed", 0)
     max_steps = state.get("max_steps", 15)
-    env = SokobanEnv(max_steps=max_steps)
+    level_rows = state.get("level_rows")
+    level_provider = (
+        FixedLevelProvider([parse_level(level_id, level_rows)])
+        if level_rows is not None
+        else None
+    )
+    env = (
+        SokobanEnv(max_steps=max_steps, level_provider=level_provider)
+        if level_provider is not None
+        else SokobanEnv(max_steps=max_steps)
+    )
     try:
         observation, raw_info = env.reset(
             seed=seed,
@@ -92,6 +107,18 @@ def initialize_agentic_state(
         "completed_subgoals": [],
         "attempt_keys": [],
         "cycle_detected": False,
+        "strategy_proposals": 0,
+        "strategy_schema_rejections": 0,
+        "strategy_semantic_rejections": 0,
+        "llm_calls": 0,
+        "llm_elapsed_seconds": 0.0,
+        "llm_prompt_tokens": 0,
+        "llm_output_tokens": 0,
+        "local_search_calls": 0,
+        "local_expanded_states": 0,
+        "push_count": 0,
+        "effect_matches": 0,
+        "effect_mismatches": 0,
         "protected_constraints": [],
         "expected_effect": None,
         "failure_conditions": [],
@@ -243,7 +270,14 @@ def build_agentic_graph(
             "__end__": END,
         },
     )
-    builder.add_edge("execute_until_push", "reflect")
+    builder.add_conditional_edges(
+        "execute_until_push",
+        route_after_action,
+        {
+            "execute_until_push": "execute_until_push",
+            "reflect": "reflect",
+        },
+    )
     builder.add_conditional_edges(
         "reflect",
         route_after_reflection,

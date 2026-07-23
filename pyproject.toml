@@ -24,6 +24,7 @@ vision = [
 
 [project.scripts]
 sokoban-play = "sokoban_agent.play:main"
+sokoban-agentic = "sokoban_agent.agentic_cli:main"
 
 [dependency-groups]
 dev = [

@@ -136,6 +136,7 @@ class GroundedPushPlan(StrategyModel):
     player_actions: tuple[Direction, ...]
     push_action: Direction
     push_count: Literal[1] = 1
+    expanded_player_states: int = Field(ge=1)
 
 
 class FailureCondition(StrategyModel):

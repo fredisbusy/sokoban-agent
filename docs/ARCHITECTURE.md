@@ -156,6 +156,13 @@ Prompt Management를 우선 사용한다.
 compiled graph에 전달하는 역할만 한다. 환경 객체는 context나 checkpoint에
 넣지 않고 관찰·실행 결과만 graph state에 보존한다.
 
+구조화 정책은 `build_agentic_graph()` 한 곳에서만 node와 edge를 정의한다.
+Agent Server·Studio는 `langgraph.json`의 compiled graph를 사용하고, CLI와
+평가는 `AgenticGraphRunner`가 같은 factory를 local `InMemorySaver`와 함께
+호출한다. 실행기는 행동·재계획 루프를 구현하지 않으며 최종 graph state의
+계측만 결과 계약으로 투영한다. 원시 행동 baseline의 기존 graph는 비교
+정책을 재현하기 위해서만 유지한다.
+
 ## 측정
 
 에피소드 결과는 전체·계획·LLM·알고리즘 시간을 분리한다. Ollama의 모델

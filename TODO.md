@@ -133,8 +133,9 @@ node·commit·입력 변수를 확인할 수 있다. 같은 commit·입력·seed
 
 ### 5. 단일 StateGraph의 관찰·성찰·수정 루프
 
-- [ ] 현재 일반 실행과 Studio의 중복 node·routing을 하나의 `StateGraph`로
-  통합하고 `langgraph.json`이 이 graph를 직접 가리키게 한다.
+- [x] 구조화 정책의 CLI·평가와 Studio node·routing을 하나의 `StateGraph`로
+  통합하고 `langgraph.json`이 이 graph를 직접 가리키게 한다. 기존 원시
+  행동 정책은 비교 baseline으로만 보존한다.
 - [x] 고정 전이는 normal edge, 상태 분기는 conditional edge, update와
   routing을 함께 해야 하는 node만 `Command`를 사용한다.
 - [x] 실행은 최대 한 번의 push 후 반드시 `observe`로 돌아가게 한다.

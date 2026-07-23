@@ -1,0 +1,73 @@
+"""Command-line invocation of the shared structured LangGraph."""
+
+from __future__ import annotations
+
+import argparse
+import json
+from collections.abc import Sequence
+
+from sokoban_agent.graph.agentic_runtime import AgenticGraphRunner
+from sokoban_agent.planning.llm import OllamaSettings
+
+
+def build_parser() -> argparse.ArgumentParser:
+    """Build the structured agent CLI parser."""
+
+    parser = argparse.ArgumentParser(
+        description="LangGraph 구조화 전략으로 Sokoban을 실행합니다.",
+    )
+    parser.add_argument("--level-id", default="tiny-push")
+    parser.add_argument("--seed", type=int, default=0)
+    parser.add_argument("--max-steps", type=int, default=15)
+    parser.add_argument("--prompt-name", default="sokoban-strategy")
+    parser.add_argument(
+        "--prompt-commit",
+        required=True,
+        help="LangSmith의 immutable prompt commit hash",
+    )
+    parser.add_argument("--model")
+    parser.add_argument(
+        "--rationale-mode",
+        choices=("on", "off"),
+        default="on",
+    )
+    return parser
+
+
+def main(argv: Sequence[str] | None = None) -> int:
+    """Run one episode and print a safe JSON result summary."""
+
+    args = build_parser().parse_args(argv)
+    model_name = args.model or OllamaSettings.from_env().model
+    state = AgenticGraphRunner().run(
+        {
+            "level_id": args.level_id,
+            "seed": args.seed,
+            "max_steps": args.max_steps,
+        },
+        context={
+            "prompt_name": args.prompt_name,
+            "prompt_commit": args.prompt_commit,
+            "model_name": model_name,
+            "rationale_mode": args.rationale_mode,
+        },
+    )
+    print(
+        json.dumps(
+            {
+                "level_id": state["level_id"],
+                "status": state["status"],
+                "success": state["info"].get("success") is True,
+                "actions": state["action_history"],
+                "push_count": state["push_count"],
+                "prompt": state["prompt"],
+                "model_name": state["model_name"],
+            },
+            ensure_ascii=False,
+        )
+    )
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

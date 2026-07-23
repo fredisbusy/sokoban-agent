@@ -13,6 +13,7 @@ from sokoban_agent.graph.agentic_state import (
     AgenticRuntimeContext,
     AgenticState,
 )
+from sokoban_agent.planning.llm import TextCompletion
 from sokoban_agent.planning.strategy import (
     BoardAnalysis,
     StrategyHypothesis,
@@ -130,6 +131,11 @@ class StrategyNodes:
             feedback = "strategy_schema_error: 전략 응답이 스키마와 다릅니다"
             return {
                 "strategy_attempts": attempt,
+                "strategy_proposals": state["strategy_proposals"] + 1,
+                "strategy_schema_rejections": (
+                    state["strategy_schema_rejections"] + 1
+                ),
+                **_completion_metrics(state, completion),
                 "strategy_hypothesis": None,
                 "strategy_error": feedback,
                 "status": "strategy_schema_error",
@@ -144,6 +150,8 @@ class StrategyNodes:
             }
         return {
             "strategy_attempts": attempt,
+            "strategy_proposals": state["strategy_proposals"] + 1,
+            **_completion_metrics(state, completion),
             "strategy_hypothesis": hypothesis.model_dump(mode="json"),
             "strategy_error": None,
             "strategy_violations": [],
@@ -175,6 +183,9 @@ class StrategyNodes:
             ]
             return {
                 "strategy_violations": payloads,
+                "strategy_semantic_rejections": (
+                    state["strategy_semantic_rejections"] + len(violations)
+                ),
                 "strategy_error": "strategy_semantic_error",
                 "status": "strategy_semantic_error",
                 "feedback": feedback,
@@ -243,3 +254,21 @@ def _step(state: AgenticState) -> int:
     if not isinstance(steps, int):
         raise TypeError("graph info steps must be an integer")
     return steps
+
+
+def _completion_metrics(
+    state: AgenticState,
+    completion: TextCompletion,
+) -> dict[str, object]:
+    return {
+        "llm_calls": state["llm_calls"] + 1,
+        "llm_elapsed_seconds": (
+            state["llm_elapsed_seconds"] + completion.metrics.total_seconds
+        ),
+        "llm_prompt_tokens": (
+            state["llm_prompt_tokens"] + completion.metrics.prompt_tokens
+        ),
+        "llm_output_tokens": (
+            state["llm_output_tokens"] + completion.metrics.output_tokens
+        ),
+    }
