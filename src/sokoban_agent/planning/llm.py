@@ -4,12 +4,14 @@ from __future__ import annotations
 
 import json
 import os
+import ssl
 from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 from urllib.request import Request, urlopen
 
+import certifi
 from dotenv import find_dotenv, load_dotenv
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
@@ -26,7 +28,7 @@ class OllamaSettings(BaseModel):
     timeout_seconds: float = Field(default=300.0, gt=0)
     temperature: float = Field(default=0.0, ge=0.0, le=2.0)
     num_ctx: int = Field(default=4096, gt=0)
-    max_output_tokens: int = Field(default=256, gt=0, le=512)
+    max_output_tokens: int = Field(default=512, gt=0, le=512)
     keep_alive: str = "30m"
     think: bool = False
 
@@ -58,7 +60,7 @@ class OllamaSettings(BaseModel):
             temperature=float(os.getenv("OLLAMA_TEMPERATURE", "0")),
             num_ctx=int(os.getenv("OLLAMA_NUM_CTX", "4096")),
             max_output_tokens=int(
-                os.getenv("OLLAMA_MAX_OUTPUT_TOKENS", "256")
+                os.getenv("OLLAMA_MAX_OUTPUT_TOKENS", "512")
             ),
             keep_alive=os.getenv("OLLAMA_KEEP_ALIVE", "30m"),
             think=_env_bool("OLLAMA_THINK", default=False),
@@ -168,7 +170,8 @@ def _post_json(
         headers={"Content-Type": "application/json"},
         method="POST",
     )
-    with urlopen(request, timeout=timeout) as response:
+    context = ssl.create_default_context(cafile=certifi.where())
+    with urlopen(request, timeout=timeout, context=context) as response:
         decoded = json.loads(response.read())
     if not isinstance(decoded, dict):
         raise RuntimeError("Ollama returned a non-object response")

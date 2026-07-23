@@ -29,6 +29,17 @@ def test_settings_are_loaded_from_environment(
     assert settings.think
 
 
+def test_structured_output_default_allows_complete_strategy_json(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("OLLAMA_API_BASE", "http://ollama.local:11434")
+    monkeypatch.delenv("OLLAMA_MAX_OUTPUT_TOKENS", raising=False)
+
+    settings = OllamaSettings.from_env(env_file=None)
+
+    assert settings.max_output_tokens == 512
+
+
 def test_client_passes_native_ollama_configuration(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -90,6 +101,57 @@ def test_client_passes_native_ollama_configuration(
         "num_predict": 64,
         "seed": 7,
     }
+
+
+def test_https_client_uses_verified_certifi_context(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    captured: dict[str, object] = {}
+    trusted_context = object()
+
+    class FakeResponse:
+        def __enter__(self) -> "FakeResponse":
+            return self
+
+        def __exit__(self, *args: object) -> None:
+            del args
+
+        def read(self) -> bytes:
+            return b'{"message":{"content":"ok"}}'
+
+    def fake_context(*, cafile: str) -> object:
+        captured["cafile"] = cafile
+        return trusted_context
+
+    def fake_urlopen(
+        request: object,
+        *,
+        timeout: float,
+        context: object,
+    ) -> FakeResponse:
+        captured.update(request=request, timeout=timeout, context=context)
+        return FakeResponse()
+
+    monkeypatch.setattr(
+        "sokoban_agent.planning.llm.certifi.where",
+        lambda: "/trusted/cacert.pem",
+    )
+    monkeypatch.setattr(
+        "sokoban_agent.planning.llm.ssl.create_default_context",
+        fake_context,
+    )
+    monkeypatch.setattr(llm, "urlopen", fake_urlopen)
+
+    response = llm._post_json(
+        "https://ollama.example/api/chat",
+        {"model": "fixture"},
+        timeout=12,
+    )
+
+    assert response == {"message": {"content": "ok"}}
+    assert captured["cafile"] == "/trusted/cacert.pem"
+    assert captured["context"] is trusted_context
+    assert captured["timeout"] == 12
 
 
 def test_api_base_requires_http_scheme() -> None:
