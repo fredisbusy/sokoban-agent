@@ -187,18 +187,19 @@ uv run --group notebook python -m jupyter nbconvert \
   --execute --to notebook --inplace notebooks/baseline_comparison.ipynb
 ```
 
-LLM 비교 실험은 `.env`의 모델을 사용하며 다음 명령으로 재생성하고
-실행합니다.
+주 실험은 `.env`의 모델을 사용해 Random, BFS, LLM, LLM+BFS Search
+Guard를 비교합니다.
 
 ```bash
-uv run --group notebook python scripts/build_llm_comparison_notebook.py
+uv run --group notebook python scripts/build_langgraph_comparison_notebook.py
 uv run --group notebook python -m jupyter nbconvert \
-  --execute --to notebook --inplace notebooks/llm_agent_comparison.ipynb
+  --execute --to notebook --inplace notebooks/langgraph_planner_comparison.ipynb
 ```
 
-실행된 비교 노트북은 모든 에피소드의 실제 상태·행동 trajectory를 함께
-보관한다. 기존 LLM 노트북의 저장 출력은 LangGraph 전환 전 기준선이며,
-입력 코드는 새 Planner API로 갱신한 뒤 다시 실행해 비교 결과를 갱신한다.
+`baseline_comparison.ipynb`는 LangGraph 실행기와 BFS 기준선을 빠르게
+확인하는 사전 점검용이다. 실제 모델과 하이브리드 성능을 비교할 때는
+`langgraph_planner_comparison.ipynb`를 사용한다. 두 노트북 모두 저장된
+출력 없이 생성되며 실행한 환경의 결과만 표시한다.
 
 노트북은 실험과 시각화에만 사용하고, 재사용 코드는 `src/`에 둡니다.
 

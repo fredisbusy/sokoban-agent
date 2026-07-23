@@ -9,10 +9,6 @@ from typing import Any, cast
 import nbformat
 from nbformat.v4 import new_code_cell, new_markdown_cell, new_notebook
 
-from sokoban_agent.env import SokobanEnv
-from sokoban_agent.evaluation import run_benchmark, summarize_by_planner
-from sokoban_agent.planning import BFSPlanner, RandomPlanner
-
 LEVEL_IDS = ["tiny-push", "tiny-walk"]
 SEEDS = list(range(10))
 MAX_STEPS = 40
@@ -23,55 +19,17 @@ _new_notebook = cast(Callable[..., Any], new_notebook)
 _write_notebook = cast(Callable[[Any, Path], None], nbformat.write)
 
 
-def _summary_text() -> tuple[str, str]:
-    env = SokobanEnv(max_steps=MAX_STEPS)
-    try:
-        results = run_benchmark(
-            env,
-            [RandomPlanner(), BFSPlanner()],
-            level_ids=LEVEL_IDS,
-            seeds=SEEDS,
-        )
-    finally:
-        env.close()
-    summaries = {
-        summary.planner_name: summary
-        for summary in summarize_by_planner(results)
-    }
-    random_summary = summaries["graph:random"]
-    bfs_summary = summaries["graph:bfs"]
-    if bfs_summary.mean_actions_on_success is None:
-        raise RuntimeError("BFS must solve at least one baseline episode")
-    tldr = (
-        "## tl;dr\n\n"
-        f"- 동일한 {len(LEVEL_IDS)}개 레벨 × {len(SEEDS)}개 seed에서 "
-        f"BFS 성공률은 {bfs_summary.success_rate:.0%}, "
-        f"Random 성공률은 {random_summary.success_rate:.0%}였다.\n"
-        f"- BFS 성공 에피소드의 평균 행동 수는 "
-        f"{bfs_summary.mean_actions_on_success:.1f}회였다.\n"
-        "- 아래 셀은 원시 결과, 집계표와 차트를 같은 설정으로 재생성한다."
-    )
-    takeaways = (
-        "## Takeaways\n\n"
-        f"- BFS는 {bfs_summary.episode_count}개 에피소드 중 "
-        f"{bfs_summary.success_count}개를 해결했다.\n"
-        f"- Random은 {random_summary.episode_count}개 에피소드 중 "
-        f"{random_summary.success_count}개를 해결했다.\n"
-        "- 이 결과는 작은 내장 레벨 기준선이며, 전체 Boxoban 성능을 "
-        "대표하지 않는다."
-    )
-    return tldr, takeaways
-
-
 def build_notebook(output_path: Path) -> None:
     """Create a notebook with visible inputs and bounded outputs."""
 
-    tldr, takeaways = _summary_text()
     notebook = _new_notebook(
         cells=[
             _new_markdown_cell(
                 "# Random vs BFS 기준선\n\n"
-                f"{tldr}"
+                "## Experiment Goal\n\n"
+                "- LangGraph 실행기에서 Random과 BFS 기준선이 같은 cohort를 "
+                "사용하는지 확인한다.\n"
+                "- 저장 출력은 없다. 위에서 아래로 실행해 현재 결과를 만든다."
             ),
             _new_markdown_cell(
                 "## Context & Methods\n\n"
@@ -87,12 +45,12 @@ def build_notebook(output_path: Path) -> None:
                 "from dataclasses import asdict\n\n"
                 "import matplotlib.pyplot as plt\n"
                 "import pandas as pd\n\n"
-                "from sokoban_agent.planning import BFSPlanner, RandomPlanner\n"
                 "from sokoban_agent.env import SokobanEnv\n"
                 "from sokoban_agent.evaluation import (\n"
                 "    run_benchmark,\n"
                 "    summarize_by_planner,\n"
-                ")\n\n"
+                ")\n"
+                "from sokoban_agent.planning import BFSPlanner, RandomPlanner\n\n"
                 f"LEVEL_IDS = {LEVEL_IDS!r}\n"
                 f"SEEDS = {SEEDS!r}\n"
                 f"MAX_STEPS = {MAX_STEPS}"
@@ -148,7 +106,11 @@ def build_notebook(output_path: Path) -> None:
                 "assert summary_df.loc['graph:bfs', 'success_rate'] == 1.0\n"
                 "case_sets"
             ),
-            _new_markdown_cell(takeaways),
+            _new_markdown_cell(
+                "## Takeaways\n\n"
+                "실행 후 위 집계표와 검증 셀을 기준선 결과로 사용한다. "
+                "이 실험은 작은 내장 레벨만 다룬다."
+            ),
         ],
         metadata={
             "kernelspec": {

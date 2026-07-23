@@ -24,9 +24,8 @@
 - [x] 에피소드 실행기에서 성공률, 행동 수, 무효 이동, 데드락, 시간을 기록한다.
 - [x] 환경과 기준선 결과를 보여주는 첫 노트북을 만든다.
 
-내장 레벨 2개와 seed 10개로 두 기준선을 반복 비교했다. BFS는 20/20,
-Random은 7/20 에피소드를 해결했으며 상세 결과는
-`notebooks/baseline_comparison.ipynb`에 기록했다.
+내장 레벨 2개와 seed 10개를 비교하는 재현 가능한 코드가
+`notebooks/baseline_comparison.ipynb`에 있다. 저장 출력은 유지하지 않는다.
 
 ## 완료된 LLM 기준선
 
@@ -38,13 +37,9 @@ Random은 7/20 에피소드를 해결했으며 상세 결과는
 
 완료 조건: 소형 고정/미지 레벨에서 반복 가능한 비교 결과를 남긴다.
 
-`gemma4:26b`, temperature 0, seed 0·1, 최대 15행동으로 내장 레벨 2개와
-실험용 미지 레벨 1개를 비교했다. LLM은 2/6, BFS는 6/6, Random은 0/6을
-해결했다. LLM의 88회 호출, 30회 재시도와 막힌 행동 거절 32회는
-`notebooks/llm_agent_comparison.ipynb`에 기록했다. 같은 노트북의 기본
-애니메이션은 LLM의 `tiny-walk`, seed 0 실패 경로를 재생한다.
-
-이 결과는 LangGraph 전환 전 `Agent.act()` 실행기의 기준선이다.
+LangGraph 전환 전 `Agent.act()` 실행 결과와 저장 출력은 폐기했다. 현재
+비교 코드는 `notebooks/langgraph_planner_comparison.ipynb`에서 LLM 단독과
+LLM+BFS Search Guard를 함께 실행한다.
 
 ## 지금 — LangGraph 중심 실행기
 

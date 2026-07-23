@@ -1,4 +1,4 @@
-"""Build the reproducible LLM-vs-baselines experiment notebook."""
+"""Build the reproducible LangGraph planner comparison notebook."""
 
 from __future__ import annotations
 
@@ -21,22 +21,18 @@ _write_notebook = cast(Callable[[Any, Path], None], nbformat.write)
 
 
 def build_notebook(output_path: Path) -> None:
-    """Create the reader-facing LLM comparison notebook."""
+    """Create the reader-facing LangGraph planner experiment notebook."""
 
     notebook = _new_notebook(
         cells=[
             _new_markdown_cell(
-                "# LLM Sokoban Agent 비교 실험\n\n"
-                "## tl;dr\n\n"
-                "- 저장된 `gemma4:26b` 실행은 동일한 3개 레벨 × 2개 seed 중 "
-                "2/6 에피소드(33%)를 해결했다. 성공은 `tiny-push` 2회였다.\n"
-                "- BFS는 6/6, Random은 0/6을 해결했다.\n"
-                "- LLM은 총 88회 호출했고 30회 재시도했으며, Python 검증기가 "
-                "막힌 행동 32회를 환경 실행 전에 거절했다.\n"
-                "- 아래 애니메이션은 집계에 사용된 실제 LLM 에피소드의 "
-                "보드와 실행 행동을 순서대로 재생한다.\n"
-                "- 이 수치는 아래 고정 설정으로 저장된 실행 결과이며, 모델이나 "
-                "설정을 바꾸면 다시 실행해 갱신해야 한다."
+                "# LangGraph Planner 비교 실험\n\n"
+                "## Experiment Goal\n\n"
+                "- Random, BFS, LLM, LLM+BFS Search Guard를 동일한 레벨과 "
+                "seed에서 비교한다.\n"
+                "- 성공률, 행동 수, 계획 오류·재시도, 알고리즘 폴백과 LLM "
+                "응답 시간을 측정한다.\n"
+                "- 저장 출력은 없다. 위에서 아래로 실행해 현재 결과를 만든다."
             ),
             _new_markdown_cell(
                 "## Context & Methods\n\n"
@@ -60,13 +56,6 @@ def build_notebook(output_path: Path) -> None:
                 "import pandas as pd\n"
                 "from IPython.display import HTML, Markdown, display\n"
                 "from matplotlib import animation\n\n"
-                "from sokoban_agent.planning import (\n"
-                "    BFSPlanner,\n"
-                "    LLMPlanner,\n"
-                "    RandomPlanner,\n"
-                "    SearchGuardPlanner,\n"
-                ")\n"
-                "from sokoban_agent.planning.llm import OllamaClient, OllamaSettings\n"
                 "from sokoban_agent.env import (\n"
                 "    DEFAULT_LEVELS,\n"
                 "    FixedLevelProvider,\n"
@@ -76,6 +65,16 @@ def build_notebook(output_path: Path) -> None:
                 "from sokoban_agent.evaluation import (\n"
                 "    run_benchmark_traces,\n"
                 "    summarize_by_planner,\n"
+                ")\n"
+                "from sokoban_agent.planning import (\n"
+                "    BFSPlanner,\n"
+                "    LLMPlanner,\n"
+                "    RandomPlanner,\n"
+                "    SearchGuardPlanner,\n"
+                ")\n"
+                "from sokoban_agent.planning.llm import (\n"
+                "    OllamaClient,\n"
+                "    OllamaSettings,\n"
                 ")\n\n"
                 f"LEVEL_IDS = {LEVEL_IDS!r}\n"
                 f"SEEDS = {SEEDS!r}\n"
@@ -195,6 +194,7 @@ def build_notebook(output_path: Path) -> None:
             _new_markdown_cell("### 5. Inspect LLM failures by level and seed"),
             _new_code_cell(
                 "llm_name = f'graph:llm:{settings.model}'\n"
+                "hybrid_name = f'graph:hybrid:{llm_name}+bfs'\n"
                 "llm_columns = [\n"
                 "    'level_id',\n"
                 "    'seed',\n"
@@ -219,7 +219,7 @@ def build_notebook(output_path: Path) -> None:
                 "### 6. Replay exact agent movement\n\n"
                 "기본 선택은 장기 계획 실패가 드러나는 LLM의 `tiny-walk`, "
                 "seed 0 에피소드다. `ANIMATION_CASE`를 바꾸면 같은 실험의 "
-                "Random이나 BFS 경로도 재생할 수 있다. 표와 영상에는 환경이 "
+                "다른 Planner 경로도 재생할 수 있다. 표와 영상에는 환경이 "
                 "실제로 실행한 행동만 포함된다."
             ),
             _new_code_cell(
@@ -328,6 +328,7 @@ def build_notebook(output_path: Path) -> None:
                 "assert all(cases == expected_cases for cases in case_sets.values())\n"
                 "assert summary_df.loc['graph:bfs', 'success_rate'] == 1.0\n"
                 "assert summary_df.loc[llm_name, 'total_llm_client_errors'] == 0\n"
+                "assert summary_df.loc[hybrid_name, 'total_algorithm_calls'] > 0\n"
                 "assert len(selected_trace.frames) == (\n"
                 "    selected_trace.result.action_count + 1\n"
                 ")\n"
@@ -337,6 +338,7 @@ def build_notebook(output_path: Path) -> None:
             _new_markdown_cell("## Takeaways"),
             _new_code_cell(
                 "llm_summary = summary_df.loc[llm_name]\n"
+                "hybrid_summary = summary_df.loc[hybrid_name]\n"
                 "bfs_summary = summary_df.loc['graph:bfs']\n"
                 "solved_levels = llm_results_df.loc[\n"
                 "    llm_results_df['success'], 'level_id'\n"
@@ -347,6 +349,9 @@ def build_notebook(output_path: Path) -> None:
                 "    f'({llm_summary.success_rate:.0%}).\\n'\n"
                 "    f'- BFS는 같은 cohort에서 '\n"
                 "    f'{bfs_summary.success_rate:.0%} 성공했다.\\n'\n"
+                "    f'- LLM+BFS Search Guard는 '\n"
+                "    f'{hybrid_summary.success_rate:.0%} 성공했고, BFS 폴백은 '\n"
+                "    f'{int(hybrid_summary.total_algorithm_fallbacks)}회였다.\\n'\n"
                 "    f'- LLM의 총 호출은 {int(llm_summary.total_llm_calls)}회, '\n"
                 "    f'재시도는 {int(llm_summary.total_llm_retries)}회, '\n"
                 "    f'막힌 행동 거절은 '\n"
@@ -374,7 +379,7 @@ def main() -> None:
 
     repository_root = Path(__file__).resolve().parents[1]
     build_notebook(
-        repository_root / "notebooks" / "llm_agent_comparison.ipynb"
+        repository_root / "notebooks" / "langgraph_planner_comparison.ipynb"
     )
 
 
