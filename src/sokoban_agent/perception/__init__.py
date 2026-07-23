@@ -1,0 +1,1 @@
+"""Board and image perception."""
