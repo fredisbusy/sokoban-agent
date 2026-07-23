@@ -49,9 +49,18 @@ class StrategySchemaIssue(TypedDict):
     message: str
 
 
-class AgenticState(AgenticInput, total=False):
-    """Checkpointable state owned by the structured agent StateGraph."""
+class AgenticState(TypedDict):
+    """Initialized checkpointable state owned by the structured StateGraph.
 
+    Graph input is intentionally partial through ``AgenticInput``.  Once the
+    initialize node has run, every field below is present unless it is marked
+    ``NotRequired`` explicitly.
+    """
+
+    level_id: str
+    seed: int | None
+    max_steps: int
+    level_rows: NotRequired[list[str]]
     observation: list[list[int]]
     info: dict[str, object]
     prompt: PromptReference

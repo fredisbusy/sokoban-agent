@@ -355,10 +355,10 @@ def test_agentic_loop_replans_after_each_push_until_success() -> None:
         for event in result["decision_events"]
         if event["stage"] == "execute_until_push"
     ]
-    assert [event["action"] for event in action_events] == result[
+    assert [event.get("action") for event in action_events] == result[
         "action_history"
     ]
-    assert [event["pushed"] for event in action_events] == [
+    assert [event.get("pushed") for event in action_events] == [
         False,
         True,
         False,

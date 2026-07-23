@@ -68,6 +68,8 @@ def test_bfs_plan_solves_built_in_level(
     observation, _ = env.reset(options={"level_id": level_id})
 
     plan = solve_bfs(observation)
+    terminated = truncated = False
+    info: dict[str, object] = {}
     for action in plan:
         _, _, terminated, truncated, info = env.step(action)
 
@@ -140,6 +142,8 @@ def test_astar_plan_solves_built_in_level(
     observation, _ = env.reset(options={"level_id": level_id})
 
     plan = solve_astar(observation)
+    terminated = truncated = False
+    info: dict[str, object] = {}
     for action in plan:
         _, _, terminated, truncated, info = env.step(action)
 
@@ -167,6 +171,8 @@ def test_astar_solves_a_two_box_level() -> None:
     observation, _ = env.reset()
 
     plan = solve_astar(observation)
+    terminated = False
+    info: dict[str, object] = {}
     for action in plan:
         _, _, terminated, _, info = env.step(action)
 

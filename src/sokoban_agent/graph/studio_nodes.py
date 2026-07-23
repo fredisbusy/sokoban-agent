@@ -86,7 +86,7 @@ def initialize(state: StudioInput) -> StudioState:
     }
 
 
-def llm_plan(state: StudioState) -> StudioState:
+def llm_plan(state: StudioState) -> dict[str, object]:
     """Ask the configured model for actions and a Korean decision summary."""
 
     settings = OllamaSettings.from_env()
@@ -149,7 +149,7 @@ def llm_plan(state: StudioState) -> StudioState:
     }
 
 
-def astar_guard(state: StudioState) -> StudioState:
+def astar_guard(state: StudioState) -> dict[str, object]:
     """Check the model plan and append or substitute an A* solution."""
 
     observation = observation_from_state(state)
@@ -228,7 +228,7 @@ def astar_guard(state: StudioState) -> StudioState:
     )
 
 
-def validate_plan(state: StudioState) -> StudioState:
+def validate_plan(state: StudioState) -> dict[str, object]:
     """Validate the grounded plan before any environment transition."""
 
     level, board = decode_observation(observation_from_state(state))
@@ -269,7 +269,7 @@ def validate_plan(state: StudioState) -> StudioState:
     }
 
 
-def execute_action(state: StudioState) -> StudioState:
+def execute_action(state: StudioState) -> dict[str, object]:
     """Execute one validated action and expose the resulting board."""
 
     action = Action[state["plan"][0]]

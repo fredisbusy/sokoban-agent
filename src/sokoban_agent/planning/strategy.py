@@ -266,11 +266,12 @@ def validate_strategy(
         )
 
     protected_cells = {
-        cell
+        (cell.row, cell.col)
         for constraint in strategy.protected_constraints
         for cell in constraint.cells
     }
-    if subgoal.destination in protected_cells:
+    destination = (subgoal.destination.row, subgoal.destination.col)
+    if destination in protected_cells:
         violations.append(
             _violation(
                 "protected_cell_conflict",

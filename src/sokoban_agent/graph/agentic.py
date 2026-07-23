@@ -49,9 +49,9 @@ from sokoban_agent.planning.strategy_runtime import (
 
 
 def initialize_agentic_state(
-    state: AgenticState,
+    state: AgenticInput,
     runtime: Runtime[AgenticRuntimeContext],
-) -> dict[str, object]:
+) -> AgenticState:
     """Reset the requested level into JSON-safe graph state."""
 
     context = runtime.context or {}

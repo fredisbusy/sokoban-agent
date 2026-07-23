@@ -28,8 +28,8 @@ class DecisionEvent(TypedDict):
     details: dict[str, object]
 
 
-class StudioState(TypedDict, total=False):
-    """JSON-serializable state inspected at every Studio node."""
+class StudioState(TypedDict):
+    """Initialized JSON-serializable state inspected at every Studio node."""
 
     level_id: str
     seed: int
@@ -94,7 +94,7 @@ def guard_update(
     fallback: bool,
     expanded_states: int = 0,
     elapsed_seconds: float = 0.0,
-) -> StudioState:
+) -> dict[str, object]:
     """Build the common successful A* guard state update."""
 
     names = [action.name for action in actions]
