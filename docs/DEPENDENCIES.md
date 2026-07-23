@@ -8,15 +8,16 @@ dependency group으로 분리한다.
 
 | 범위 | 구성 | 설치 |
 | --- | --- | --- |
-| core | Gymnasium, NumPy, LangGraph | `make sync-core` |
-| LLM | Pydantic, python-dotenv, 표준 라이브러리 HTTP | `make sync-llm` |
-| vision | OpenCV, Pillow | `make sync-vision` |
+| core | Gymnasium, NumPy, LangGraph | `make sync` |
+| LLM | Pydantic, python-dotenv, 표준 라이브러리 HTTP | `make sync` |
+| vision | OpenCV, Pillow | `make sync` |
 | dev | pytest, Ruff, mypy와 LLM 테스트 의존성 | `make sync` |
-| notebook | Jupyter, nbclient, nbformat, pandas, Matplotlib | `make sync-notebook` |
-| studio | LangGraph CLI, 로컬 in-memory Agent Server | `make sync-studio` |
+| notebook | Jupyter, nbclient, nbformat, pandas, Matplotlib | `make sync` |
+| studio | LangGraph CLI, 로컬 in-memory Agent Server | `make sync` |
 
 `dev`에는 optional LLM 기능까지 항상 테스트하기 위해 LLM 패키지를
 의도적으로 다시 선언한다. 배포 패키지의 기본 의존성에는 포함되지 않는다.
+로컬 개발에서는 `make sync`가 모든 extra와 dependency group을 함께 설치한다.
 
 ## 기준선 탐색
 

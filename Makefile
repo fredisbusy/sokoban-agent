@@ -1,17 +1,11 @@
 LEVEL ?=
 
-.PHONY: help sync sync-core sync-llm sync-vision sync-notebook sync-studio \
-	play ollama-check lab studio test lint typecheck check \
+.PHONY: help sync play ollama-check lab studio test lint typecheck check \
 	baseline-notebook experiment-notebook
 
 help:
 	@echo "설치"
-	@echo "  make sync              개발 환경 설치"
-	@echo "  make sync-core         core만 설치"
-	@echo "  make sync-llm          core + LLM 설치"
-	@echo "  make sync-vision       core + vision 설치"
-	@echo "  make sync-notebook     notebook 도구 설치"
-	@echo "  make sync-studio       LangGraph Studio 설치"
+	@echo "  make sync              모든 의존성 설치"
 	@echo ""
 	@echo "실행"
 	@echo "  make play              터미널 게임 실행"
@@ -29,22 +23,7 @@ help:
 	@echo "  make experiment-notebook 주 실험 노트북 생성 및 실행"
 
 sync:
-	uv sync
-
-sync-core:
-	uv sync --no-dev
-
-sync-llm:
-	uv sync --no-dev --extra llm
-
-sync-vision:
-	uv sync --no-dev --extra vision
-
-sync-notebook:
-	uv sync --group notebook
-
-sync-studio:
-	uv sync --group studio
+	uv sync --all-extras --all-groups
 
 play:
 	uv run sokoban-play $(if $(LEVEL),--level $(LEVEL))
@@ -55,7 +34,7 @@ ollama-check:
 lab:
 	uv run --group notebook jupyter lab
 
-studio: sync-studio
+studio:
 	uv run --group studio langgraph dev
 
 test:

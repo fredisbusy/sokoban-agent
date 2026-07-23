@@ -24,21 +24,12 @@ make play LEVEL=tiny-push
 
 Ollama 없이도 LangGraph와 Random/BFS Planner를 사용할 수 있습니다.
 
-### 필요한 기능만 설치
+### 의존성 설치
 
-기본 환경, LangGraph와 알고리즘 Planner만 설치하려면 개발 의존성을
-제외합니다.
-
-```bash
-make sync-core
-```
-
-LLM, vision, notebook 기능은 각각 명시적으로 설치합니다.
+개발, LLM, vision, notebook, Studio 의존성을 한 번에 설치합니다.
 
 ```bash
-make sync-llm
-make sync-vision
-make sync-notebook
+make sync
 ```
 
 기능별 선택 기준은 [의존성과 기술 선택](docs/DEPENDENCIES.md)에 정리했습니다.
