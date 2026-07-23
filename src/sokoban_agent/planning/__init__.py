@@ -25,6 +25,10 @@ from sokoban_agent.planning.llm_planner import (
     parse_plan_response,
     serialize_board,
 )
+from sokoban_agent.planning.local_execution import (
+    SubgoalGroundingError,
+    ground_push_subgoal,
+)
 from sokoban_agent.planning.random import RandomPlanner
 from sokoban_agent.planning.strategy import (
     BoardAnalysis,
@@ -54,6 +58,9 @@ __all__ = [
     "SearchGuardPlanner",
     "StrategyHypothesis",
     "StrategyViolation",
+    "SubgoalGroundingError",
+    "analyze_board",
+    "ground_push_subgoal",
     "parse_plan_response",
     "serialize_board",
     "solve_astar",
@@ -61,5 +68,4 @@ __all__ = [
     "solve_bfs",
     "solve_bfs_result",
     "validate_strategy",
-    "analyze_board",
 ]

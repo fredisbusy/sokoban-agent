@@ -11,6 +11,10 @@ from langgraph.runtime import Runtime
 from langgraph.types import RetryPolicy
 
 from sokoban_agent.env import SokobanEnv
+from sokoban_agent.graph.agentic_grounding_node import (
+    ground_agentic_subgoal,
+    route_after_grounding,
+)
 from sokoban_agent.graph.agentic_state import (
     AgenticInput,
     AgenticRuntimeContext,
@@ -70,6 +74,9 @@ def initialize_agentic_state(
         "strategy_error": None,
         "strategy_violations": [],
         "active_subgoal": None,
+        "grounded_plan": None,
+        "grounded_actions": [],
+        "grounding_failure": None,
         "protected_constraints": [],
         "expected_effect": None,
         "failure_conditions": [],
@@ -157,6 +164,7 @@ def build_agentic_graph(
         retry_policy=retry_policy,
     )
     builder.add_node("verify_strategy", strategy_nodes.verify_strategy)
+    builder.add_node("ground_subgoal", ground_agentic_subgoal)
     builder.add_edge(START, "initialize")
     builder.add_edge("initialize", "analyze")
     builder.add_edge("analyze", "resolve_prompt")
@@ -174,6 +182,15 @@ def build_agentic_graph(
     builder.add_conditional_edges(
         "verify_strategy",
         route_after_strategy_verification,
+        {
+            "compose_strategy_input": "compose_strategy_input",
+            "ground_subgoal": "ground_subgoal",
+            "__end__": END,
+        },
+    )
+    builder.add_conditional_edges(
+        "ground_subgoal",
+        route_after_grounding,
         {
             "compose_strategy_input": "compose_strategy_input",
             "__end__": END,

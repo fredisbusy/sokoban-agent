@@ -26,7 +26,12 @@ from sokoban_agent.planning.strategy_runtime import (
     StrategyGenerator,
 )
 
-StrategyRoute = Literal["compose_strategy_input", "verify_strategy", "__end__"]
+StrategyRoute = Literal[
+    "compose_strategy_input",
+    "verify_strategy",
+    "ground_subgoal",
+    "__end__",
+]
 
 
 @dataclass(frozen=True, slots=True)
@@ -226,7 +231,7 @@ def route_after_strategy_verification(state: AgenticState) -> StrategyRoute:
     """Route semantic violations to bounded correction."""
 
     if not state["strategy_violations"]:
-        return "__end__"
+        return "ground_subgoal"
     if state["strategy_attempts"] < 3:
         return "compose_strategy_input"
     return "__end__"

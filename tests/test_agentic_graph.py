@@ -143,6 +143,11 @@ def test_agentic_graph_initializes_json_safe_checkpoint_state() -> None:
             "stage": "verify_strategy",
             "summary": "전략 가설과 단일 push 하위 목표를 승인했습니다",
         },
+        {
+            "step": 0,
+            "stage": "ground_subgoal",
+            "summary": "플레이어 이동 0회와 push 1회를 접지했습니다",
+        },
     ]
     assert graph.get_state(config).values["board_analysis"] == result[
         "board_analysis"
@@ -170,12 +175,14 @@ def test_agentic_graph_reducer_accumulates_decision_events_per_thread() -> None:
         "compose_strategy_input",
         "propose_strategy",
         "verify_strategy",
+        "ground_subgoal",
         "initialize",
         "analyze",
         "resolve_prompt",
         "compose_strategy_input",
         "propose_strategy",
         "verify_strategy",
+        "ground_subgoal",
     ]
 
 

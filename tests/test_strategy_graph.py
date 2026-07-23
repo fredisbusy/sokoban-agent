@@ -126,7 +126,7 @@ def test_strategy_nodes_use_pinned_prompt_and_board_analysis() -> None:
 
     result = _invoke(prompt_source, generator)
 
-    assert result["status"] == "strategy_ready"
+    assert result["status"] == "subgoal_grounded"
     assert result["prompt"] == {
         "name": "sokoban-strategy",
         "commit": "fixture-commit",
@@ -137,6 +137,8 @@ def test_strategy_nodes_use_pinned_prompt_and_board_analysis() -> None:
     assert subgoal["box_id"] == "B1"
     assert active_subgoal["direction"] == "UP"
     assert result["strategy_attempts"] == 1
+    assert result["grounded_actions"] == ["UP"]
+    assert result["grounding_failure"] is None
     variables = prompt_source.rendered_variables[0]
     assert set(variables) == {
         "level_id",
@@ -157,7 +159,7 @@ def test_schema_error_routes_back_to_strategy_proposal() -> None:
 
     result = _invoke(prompt_source, generator)
 
-    assert result["status"] == "strategy_ready"
+    assert result["status"] == "subgoal_grounded"
     assert result["strategy_attempts"] == 2
     assert generator.calls == 2
     assert any("스키마" in feedback for feedback in result["feedback"])
@@ -173,7 +175,7 @@ def test_semantic_violation_routes_back_with_structured_feedback() -> None:
 
     result = _invoke(prompt_source, generator)
 
-    assert result["status"] == "strategy_ready"
+    assert result["status"] == "subgoal_grounded"
     assert result["strategy_attempts"] == 2
     assert any("unknown_target" in feedback for feedback in result["feedback"])
 
@@ -184,7 +186,7 @@ def test_langgraph_retry_policy_retries_transient_prompt_failure() -> None:
 
     result = _invoke(prompt_source, generator)
 
-    assert result["status"] == "strategy_ready"
+    assert result["status"] == "subgoal_grounded"
     assert prompt_source.resolve_calls == 2
 
 
@@ -199,6 +201,7 @@ def test_strategy_graph_exposes_prompt_lifecycle_nodes() -> None:
         "compose_strategy_input",
         "propose_strategy",
         "verify_strategy",
+        "ground_subgoal",
     } <= set(graph.get_graph().nodes)
 
 

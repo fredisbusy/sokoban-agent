@@ -168,3 +168,17 @@ def test_plan_revision_requires_observable_evidence() -> None:
                 "changed_fields": ["subgoal"],
             }
         )
+
+
+def test_strategy_validation_rejects_static_deadlock_push() -> None:
+    analysis_payload = _board_analysis().model_dump(mode="json")
+    analysis_payload["push_options"][0]["creates_static_deadlock"] = True
+
+    violations = validate_strategy(
+        BoardAnalysis.model_validate(analysis_payload),
+        _strategy_hypothesis(),
+    )
+
+    assert [violation.code for violation in violations] == [
+        "static_deadlock_push"
+    ]

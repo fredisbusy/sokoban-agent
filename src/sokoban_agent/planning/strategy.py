@@ -11,6 +11,7 @@ FailureKind = Literal[
     "support_unreachable",
     "destination_blocked",
     "protected_constraint_violated",
+    "static_deadlock",
     "unexpected_state",
 ]
 ViolationCode = Literal[
@@ -20,6 +21,7 @@ ViolationCode = Literal[
     "unavailable_push",
     "expected_effect_mismatch",
     "protected_cell_conflict",
+    "static_deadlock_push",
 ]
 
 
@@ -126,6 +128,16 @@ class ExpectedEffect(StrategyModel):
     to_position: Cell
 
 
+class GroundedPushPlan(StrategyModel):
+    """Shortest player path followed by exactly one intended push."""
+
+    box_id: str = Field(pattern=r"^B[1-9][0-9]*$")
+    support: Cell
+    player_actions: tuple[Direction, ...]
+    push_action: Direction
+    push_count: Literal[1] = 1
+
+
 class FailureCondition(StrategyModel):
     """An explicit condition that should trigger strategy revision."""
 
@@ -214,17 +226,26 @@ def validate_strategy(
             )
         )
 
-    matching_push = any(
-        option.box_id == subgoal.box_id
+    matching_pushes = [
+        option
+        for option in analysis.push_options
+        if option.box_id == subgoal.box_id
         and option.direction == subgoal.direction
         and option.destination == subgoal.destination
-        for option in analysis.push_options
-    )
+    ]
+    matching_push = bool(matching_pushes)
     if not matching_push:
         violations.append(
             _violation(
                 "unavailable_push",
                 "현재 보드에서 선택한 push를 실행할 수 없습니다",
+            )
+        )
+    elif matching_pushes[0].creates_static_deadlock:
+        violations.append(
+            _violation(
+                "static_deadlock_push",
+                "선택한 push가 정적 dead square에 상자를 둡니다",
             )
         )
 

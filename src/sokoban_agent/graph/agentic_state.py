@@ -54,6 +54,9 @@ class AgenticState(AgenticInput, total=False):
     strategy_error: str | None
     strategy_violations: list[dict[str, object]]
     active_subgoal: dict[str, object] | None
+    grounded_plan: dict[str, object] | None
+    grounded_actions: list[str]
+    grounding_failure: dict[str, object] | None
     protected_constraints: list[dict[str, object]]
     expected_effect: dict[str, object] | None
     failure_conditions: list[dict[str, object]]
