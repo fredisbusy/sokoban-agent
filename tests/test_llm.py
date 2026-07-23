@@ -91,7 +91,14 @@ def test_client_uses_langchain_chat_model_with_structured_output() -> None:
         HumanMessage(content="다음 계획은?"),
     ]
     assert captured["kwargs"] == {
-        "response_format": schema,
+        "response_format": {
+            "type": "json_schema",
+            "json_schema": {
+                "name": "structured_response",
+                "schema": schema,
+                "strict": True,
+            },
+        },
         "seed": 7,
         "max_tokens": 1024,
     }

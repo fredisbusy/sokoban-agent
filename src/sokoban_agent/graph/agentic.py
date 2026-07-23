@@ -97,6 +97,8 @@ def initialize_agentic_state(
         "strategy_input": {},
         "strategy_attempts": 0,
         "strategy_error": None,
+        "strategy_schema_issues": [],
+        "latest_strategy_feedback": [],
         "strategy_violations": [],
         "active_subgoal": None,
         "grounded_plan": None,

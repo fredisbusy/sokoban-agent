@@ -173,6 +173,27 @@ def test_schema_error_routes_back_to_strategy_proposal() -> None:
     assert generator.calls == 2
     assert any("스키마" in feedback for feedback in result["feedback"])
     assert len(prompt_source.rendered_variables) == 2
+    retry_feedback = json.loads(
+        str(prompt_source.rendered_variables[1]["feedback_json"])
+    )
+    assert any("path=summary" in item for item in retry_feedback)
+
+
+def test_schema_error_exposes_bounded_validation_issues() -> None:
+    prompt_source = FixedPromptSource()
+    generator = SequenceStrategyGenerator("{}", "{}", "{}")
+
+    result = _invoke(prompt_source, generator)
+
+    assert result["status"] == "strategy_schema_error"
+    issues = result["strategy_schema_issues"]
+    assert len(issues) <= 8
+    assert issues[0] == {
+        "path": "summary",
+        "code": "missing",
+        "message": "Field required",
+    }
+    assert result["strategy_error"] == "strategy_schema_error"
 
 
 def test_semantic_violation_routes_back_with_structured_feedback() -> None:

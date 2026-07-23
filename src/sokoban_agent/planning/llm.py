@@ -148,7 +148,21 @@ class LiteLLMClient:
         if seed is not None:
             invocation["seed"] = seed
         if response_schema is not None:
-            invocation["response_format"] = dict(response_schema)
+            schema = dict(response_schema)
+            title = schema.get("title")
+            schema_name = (
+                title
+                if isinstance(title, str) and title
+                else "structured_response"
+            )
+            invocation["response_format"] = {
+                "type": "json_schema",
+                "json_schema": {
+                    "name": schema_name,
+                    "schema": schema,
+                    "strict": True,
+                },
+            }
         message = self.model.invoke(messages, **invocation)
         content = message.content
         if not isinstance(content, str) or not content.strip():

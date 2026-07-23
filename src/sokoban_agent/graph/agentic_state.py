@@ -41,6 +41,14 @@ class PlanRevisionPayload(TypedDict):
     evidence: str
 
 
+class StrategySchemaIssue(TypedDict):
+    """One safe, model-actionable structured-output validation issue."""
+
+    path: str
+    code: str
+    message: str
+
+
 class AgenticState(AgenticInput, total=False):
     """Checkpointable state owned by the structured agent StateGraph."""
 
@@ -57,6 +65,8 @@ class AgenticState(AgenticInput, total=False):
     strategy_input: dict[str, object]
     strategy_attempts: int
     strategy_error: str | None
+    strategy_schema_issues: list[StrategySchemaIssue]
+    latest_strategy_feedback: list[str]
     strategy_violations: list[dict[str, object]]
     active_subgoal: dict[str, object] | None
     grounded_plan: dict[str, object] | None
