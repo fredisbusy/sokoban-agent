@@ -15,7 +15,9 @@ from sokoban_agent.planning.strategy_runtime import (
 
 class StaticPromptSource:
     def resolve(self, name: str, selector: str) -> PromptReferenceValue:
-        commit = selector if selector != "unresolved" else "fixture-commit"
+        if selector == "unresolved":
+            raise AssertionError("agent graph used an unresolved prompt selector")
+        commit = "fixture-commit" if selector == "latest" else selector
         return PromptReferenceValue(name, commit)
 
     def render(
@@ -226,6 +228,7 @@ def test_agentic_graph_has_agent_server_defaults() -> None:
 
     result = graph.invoke({"level_id": "tiny-push"})
 
+    # The fixture resolves the default `latest` selector to this immutable commit.
     assert result["prompt"] == {
         "name": "sokoban-strategy",
         "commit": "fixture-commit",

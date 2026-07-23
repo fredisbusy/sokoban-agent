@@ -85,7 +85,7 @@ def initialize_agentic_state(
         "info": dict(raw_info),
         "prompt": {
             "name": context.get("prompt_name", "sokoban-strategy"),
-            "commit": context.get("prompt_commit", "unresolved"),
+            "commit": context.get("prompt_commit", "latest"),
         },
         "prompt_resolved": False,
         "model_name": context.get("model_name", "unconfigured"),
