@@ -6,6 +6,8 @@ import argparse
 import json
 from collections.abc import Sequence
 
+from dotenv import load_dotenv
+
 from sokoban_agent.graph.agentic_runtime import AgenticGraphRunner
 from sokoban_agent.planning.llm import OllamaSettings
 
@@ -43,6 +45,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     """Run one episode and print a safe JSON result summary."""
 
     args = build_parser().parse_args(argv)
+    load_dotenv(".env", override=True)
     model_name = args.model or OllamaSettings.from_env().model
     state = AgenticGraphRunner().run(
         {

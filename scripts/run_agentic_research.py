@@ -7,6 +7,8 @@ import json
 import subprocess
 from pathlib import Path
 
+from dotenv import load_dotenv
+
 from sokoban_agent.evaluation import (
     ResearchRunConfig,
     load_agentic_cohort_manifest,
@@ -20,6 +22,7 @@ def main() -> None:
     """Run the comparison and persist one self-describing JSON artifact."""
 
     args = _parse_args()
+    load_dotenv(".env", override=True)
     cohort = load_agentic_cohort_manifest(args.manifest)
     settings = OllamaSettings.from_env()
     git_commit = _git_output("rev-parse", "HEAD")
