@@ -288,6 +288,7 @@ docs/                  # 목표와 아키텍처
 
 - [프로젝트 목표와 연구 범위](docs/PROJECT.md)
 - [구조화된 문제 해결 에이전트 연구 계획](docs/AGENTIC_PLANNING.md)
+- [LangGraph 실시간 Sokoban 관찰 화면 계획](docs/LIVE_VIEWER.md)
 - [핵심 아키텍처와 실행 흐름](docs/ARCHITECTURE.md)
 - [의존성과 기술 선택](docs/DEPENDENCIES.md)
 - [현재 우선순위와 완료 조건](TODO.md)
