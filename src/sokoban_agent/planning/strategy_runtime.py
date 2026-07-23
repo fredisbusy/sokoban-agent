@@ -85,14 +85,18 @@ class LangSmithPromptSource:
     def resolve(self, name: str, selector: str) -> PromptReferenceValue:
         """Pull a selector and retain the server-resolved commit hash."""
 
-        prompt = self._pull(f"{name}:{selector}", skip_cache=True)
+        canonical_name = self._canonical_name(name)
+        prompt = self._pull(
+            f"{canonical_name}:{selector}",
+            skip_cache=True,
+        )
         metadata = prompt.metadata or {}
         commit = metadata.get("lc_hub_commit_hash")
         if not isinstance(commit, str) or not commit:
             raise PromptConfigurationError(
                 "LangSmith prompt did not expose a resolved commit hash"
             )
-        return PromptReferenceValue(name=name, commit=commit)
+        return PromptReferenceValue(name=canonical_name, commit=commit)
 
     def render(
         self,
@@ -152,6 +156,31 @@ class LangSmithPromptSource:
                 f"LangSmith prompt configuration failed: {type(error).__name__}"
             ) from error
         return cast(BasePromptTemplate[PromptValue], prompt)
+
+    def _canonical_name(self, name: str) -> str:
+        if "/" in name:
+            return name
+        try:
+            prompt = self._client.get_prompt(name)
+        except (
+            LangSmithAPIError,
+            LangSmithConnectionError,
+            LangSmithRateLimitError,
+            LangSmithRequestTimeout,
+        ) as error:
+            raise TransientAgenticError(
+                "LangSmith prompt metadata request failed temporarily"
+            ) from error
+        except (LangSmithAuthError, LangSmithUserError) as error:
+            raise PromptConfigurationError(
+                f"LangSmith prompt configuration failed: {type(error).__name__}"
+            ) from error
+        full_name = prompt.full_name if prompt is not None else None
+        if not isinstance(full_name, str) or not full_name:
+            raise PromptConfigurationError(
+                f"LangSmith prompt {name!r} does not exist"
+            )
+        return full_name
 
 
 class OllamaStrategyGenerator:

@@ -1,3 +1,4 @@
+from types import SimpleNamespace
 from typing import Any, cast
 
 from langchain_core.prompts.structured import StructuredPrompt
@@ -13,6 +14,11 @@ class PromptClientFake:
     def __init__(self, prompt: StructuredPrompt) -> None:
         self.prompt = prompt
         self.identifiers: list[tuple[str, bool]] = []
+        self.prompt_lookups: list[str] = []
+
+    def get_prompt(self, identifier: str) -> Any:
+        self.prompt_lookups.append(identifier)
+        return SimpleNamespace(full_name="workspace/sokoban-strategy")
 
     def pull_prompt(
         self,
@@ -49,12 +55,13 @@ def test_langsmith_prompt_source_pins_commit_and_renders_messages() -> None:
     )
 
     assert reference == PromptReferenceValue(
-        name="sokoban-strategy",
+        name="workspace/sokoban-strategy",
         commit="abc123def456",
     )
     assert rendered.system_prompt == "system tiny-push"
     assert rendered.user_prompt == "analysis {}"
     assert client.identifiers == [
-        ("sokoban-strategy:production", True),
-        ("sokoban-strategy:abc123def456", False),
+        ("workspace/sokoban-strategy:production", True),
+        ("workspace/sokoban-strategy:abc123def456", False),
     ]
+    assert client.prompt_lookups == ["sokoban-strategy"]
