@@ -1,15 +1,14 @@
 from types import SimpleNamespace
 from typing import Any, cast
 
-import pytest
+from langchain_core.messages import AIMessage
 from langchain_core.prompts.structured import StructuredPrompt
 from langsmith import Client
 
-from sokoban_agent.planning import llm
-from sokoban_agent.planning.llm import OllamaClient, OllamaSettings
+from sokoban_agent.planning.llm import LiteLLMClient, OllamaSettings
 from sokoban_agent.planning.strategy_runtime import (
     LangSmithPromptSource,
-    OllamaStrategyGenerator,
+    LiteLLMStrategyGenerator,
     PromptReferenceValue,
     RenderedStrategyPrompt,
 )
@@ -73,27 +72,23 @@ def test_langsmith_prompt_source_pins_commit_and_renders_messages() -> None:
 
 
 def test_strategy_generator_uses_the_larger_strategy_token_budget(
-    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     captured: dict[str, Any] = {}
 
-    def fake_post_json(
-        url: str,
-        payload: dict[str, object],
-        *,
-        timeout: float,
-    ) -> dict[str, Any]:
-        captured.update(url=url, payload=payload, timeout=timeout)
-        return {"message": {"content": "{}"}}
+    class ChatModelFake:
+        def invoke(self, input: object, **kwargs: object) -> AIMessage:
+            captured.update(messages=input, kwargs=kwargs)
+            return AIMessage(content="{}")
 
-    monkeypatch.setattr(llm, "_post_json", fake_post_json)
     settings = OllamaSettings(
         api_base="http://localhost:11434",
         num_ctx=4096,
         max_output_tokens=64,
         strategy_max_output_tokens=1536,
     )
-    generator = OllamaStrategyGenerator(OllamaClient(settings))
+    generator = LiteLLMStrategyGenerator(
+        LiteLLMClient(settings, model=ChatModelFake())
+    )
 
     generator.generate(
         RenderedStrategyPrompt(
@@ -104,8 +99,6 @@ def test_strategy_generator_uses_the_larger_strategy_token_budget(
         response_schema={"type": "object"},
     )
 
-    payload = captured["payload"]
-    assert isinstance(payload, dict)
-    options = payload["options"]
-    assert isinstance(options, dict)
-    assert options["num_predict"] == 1536
+    kwargs = captured["kwargs"]
+    assert isinstance(kwargs, dict)
+    assert kwargs["max_tokens"] == 1536

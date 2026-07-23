@@ -150,16 +150,18 @@ OLLAMA_NUM_CTX=4096
 OLLAMA_MAX_OUTPUT_TOKENS=512
 OLLAMA_KEEP_ALIVE=30m
 OLLAMA_THINK=false
-LANGSMITH_TRACING=false
+LANGSMITH_TRACING=true
 ```
 
-Python에서는 다음처럼 텍스트 응답을 요청합니다. 이 클라이언트는 아직
-독립적으로 사용할 수도 있습니다.
+모델 호출은 provider HTTP를 직접 구현하지 않고 공식 `ChatLiteLLM`
+LangChain 통합을 사용합니다. 따라서 LangGraph 실행 안에서 LangSmith
+callback과 trace context가 모델 호출까지 이어집니다. Python에서는 다음처럼
+동일한 Adapter를 독립적으로 확인할 수도 있습니다.
 
 ```python
-from sokoban_agent.planning.llm import OllamaClient
+from sokoban_agent.planning.llm import LiteLLMClient
 
-client = OllamaClient.from_env()
+client = LiteLLMClient.from_env()
 answer = client.complete("다음 행동을 UP, DOWN, LEFT, RIGHT 중 하나로 답해줘.")
 print(answer.content)
 print(answer.metrics)
@@ -170,11 +172,11 @@ print(answer.metrics)
 
 ```python
 from sokoban_agent.planning import LLMPlanner
-from sokoban_agent.planning.llm import OllamaClient
+from sokoban_agent.planning.llm import LiteLLMClient
 from sokoban_agent.env import SokobanEnv
 from sokoban_agent.graph import SokobanGraph
 
-client = OllamaClient.from_env()
+client = LiteLLMClient.from_env()
 planner = LLMPlanner(client, model_name=client.settings.model)
 graph = SokobanGraph(SokobanEnv(), planner, max_planning_attempts=3)
 state = graph.run(level_id="tiny-push", thread_id="example-episode")
@@ -250,8 +252,10 @@ prompt 본문과 숨은 추론 원문은 checkpoint에 저장하지 않습니다
 
 Studio 진입점은 `langgraph.json`과
 `src/sokoban_agent/graph/agentic.py`에 정의되어 있습니다.
-`LANGSMITH_TRACING=false`가 기본값이므로 실행 기록은 외부 LangSmith로
-전송하지 않습니다.
+개발 기본 예시는 `LANGSMITH_TRACING=true`이며 LangGraph node와
+`ChatLiteLLM` 호출을 같은 LangSmith project에서 추적합니다. 모델 입력과
+출력을 외부에 남기면 안 되는 환경에서는 tracing을 끄거나 LangSmith
+input/output masking을 적용합니다.
 
 ## 연구와 검증
 

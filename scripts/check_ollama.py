@@ -1,10 +1,10 @@
 """Send one lightweight request to the configured Ollama server."""
 
-from sokoban_agent.planning.llm import OllamaClient
+from sokoban_agent.planning.llm import LiteLLMClient
 
 
 def main() -> None:
-    client = OllamaClient.from_env()
+    client = LiteLLMClient.from_env()
     response = client.complete("연결 확인이라고 짧게 답해줘.")
     print(response.content)
     print(

@@ -17,7 +17,7 @@ from sokoban_agent.evaluation import (
     run_research_experiment,
 )
 from sokoban_agent.planning import LLMPlanner, SearchGuardPlanner
-from sokoban_agent.planning.llm import OllamaClient, OllamaSettings
+from sokoban_agent.planning.llm import LiteLLMClient, OllamaSettings
 
 
 def main() -> None:
@@ -55,8 +55,8 @@ def main() -> None:
         },
         dirty_worktree=dirty,
     )
-    primitive_client = OllamaClient(settings)
-    guard_client = OllamaClient(settings)
+    primitive_client = LiteLLMClient(settings)
+    guard_client = LiteLLMClient(settings)
     primitive = LLMPlanner(
         primitive_client,
         model_name=settings.model,

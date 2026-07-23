@@ -26,7 +26,7 @@ from sokoban_agent.planning import (
     PlanningOutcome,
     SearchGuardPlanner,
 )
-from sokoban_agent.planning.llm import OllamaClient, OllamaSettings
+from sokoban_agent.planning.llm import LiteLLMClient, OllamaSettings
 
 VARIANTS = (
     "astar-only",
@@ -177,7 +177,7 @@ def _build_planners(
     max_expanded_states: int,
 ) -> dict[str, Planner]:
     def llm() -> LLMPlanner:
-        client = OllamaClient(settings)
+        client = LiteLLMClient(settings)
         return LLMPlanner(client, model_name=settings.model)
 
     return {

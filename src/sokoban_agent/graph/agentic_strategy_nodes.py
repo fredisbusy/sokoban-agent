@@ -21,7 +21,7 @@ from sokoban_agent.planning.strategy import (
 )
 from sokoban_agent.planning.strategy_runtime import (
     LangSmithPromptSource,
-    OllamaStrategyGenerator,
+    LiteLLMStrategyGenerator,
     PromptReferenceValue,
     PromptSource,
     StrategyGenerator,
@@ -228,7 +228,7 @@ class StrategyNodes:
         return self.prompt_source or LangSmithPromptSource()
 
     def _strategy_generator(self) -> StrategyGenerator:
-        return self.strategy_generator or OllamaStrategyGenerator()
+        return self.strategy_generator or LiteLLMStrategyGenerator()
 
 
 def route_after_strategy_proposal(state: AgenticState) -> StrategyRoute:

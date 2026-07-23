@@ -1,21 +1,17 @@
-"""Native Ollama client with generation telemetry."""
+"""LiteLLM-backed LangChain chat model configuration and telemetry."""
 
 from __future__ import annotations
 
-import json
 import os
-import ssl
 from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
-from urllib.request import Request, urlopen
+from typing import Protocol, cast
 
-import certifi
 from dotenv import find_dotenv, load_dotenv
+from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
+from langchain_litellm import ChatLiteLLM
 from pydantic import BaseModel, ConfigDict, Field, field_validator
-
-_NANOSECONDS_PER_SECOND = 1_000_000_000
 
 
 class OllamaSettings(BaseModel):
@@ -91,14 +87,35 @@ class TextCompletion:
     metrics: CompletionMetrics
 
 
-class OllamaClient:
-    """Small native client for deterministic, observable Ollama calls."""
+class ChatModel(Protocol):
+    """Minimal LangChain chat-model boundary used by tests and adapters."""
 
-    def __init__(self, settings: OllamaSettings) -> None:
+    def invoke(
+        self,
+        input: object,
+        **kwargs: object,
+    ) -> AIMessage:
+        """Invoke a LangChain-compatible chat model."""
+        ...
+
+
+class LiteLLMClient:
+    """Use the official LiteLLM LangChain integration for model calls."""
+
+    def __init__(
+        self,
+        settings: OllamaSettings,
+        *,
+        model: ChatModel | None = None,
+    ) -> None:
         self.settings = settings
+        self.model = model or cast(ChatModel, _chat_model(settings))
 
     @classmethod
-    def from_env(cls, env_file: str | Path | None = ".env") -> OllamaClient:
+    def from_env(
+        cls,
+        env_file: str | Path | None = ".env",
+    ) -> LiteLLMClient:
         """Create a client from environment variables."""
 
         return cls(OllamaSettings.from_env(env_file))
@@ -112,7 +129,7 @@ class OllamaClient:
         response_schema: Mapping[str, object] | None = None,
         max_output_tokens: int | None = None,
     ) -> TextCompletion:
-        """Generate one non-streaming response and retain Ollama metrics."""
+        """Generate through LangChain and normalize standard usage metadata."""
 
         output_tokens = (
             self.settings.max_output_tokens
@@ -123,77 +140,51 @@ class OllamaClient:
             raise ValueError(
                 "max_output_tokens must be between 1 and num_ctx"
             )
-        messages: list[dict[str, str]] = []
+        messages: list[SystemMessage | HumanMessage] = []
         if system_prompt:
-            messages.append({"role": "system", "content": system_prompt})
-        messages.append({"role": "user", "content": prompt})
-        options: dict[str, int | float] = {
-            "temperature": self.settings.temperature,
-            "num_ctx": self.settings.num_ctx,
-            "num_predict": output_tokens,
-        }
+            messages.append(SystemMessage(content=system_prompt))
+        messages.append(HumanMessage(content=prompt))
+        invocation: dict[str, object] = {"max_tokens": output_tokens}
         if seed is not None:
-            options["seed"] = seed
-
-        payload: dict[str, object] = {
-            "model": self.settings.model,
-            "messages": messages,
-            "stream": False,
-            "think": self.settings.think,
-            "keep_alive": self.settings.keep_alive,
-            "options": options,
-        }
+            invocation["seed"] = seed
         if response_schema is not None:
-            payload["format"] = dict(response_schema)
-
-        raw = _post_json(
-            f"{self.settings.api_base}/api/chat",
-            payload,
-            timeout=self.settings.timeout_seconds,
-        )
-        message = raw.get("message")
-        if not isinstance(message, Mapping):
-            raise RuntimeError("Ollama returned no message")
-        content = message.get("content")
+            invocation["response_format"] = dict(response_schema)
+        message = self.model.invoke(messages, **invocation)
+        content = message.content
         if not isinstance(content, str) or not content.strip():
-            raise RuntimeError("Ollama returned an empty response")
+            raise RuntimeError("LiteLLM returned an empty text response")
+        usage = message.usage_metadata
         return TextCompletion(
             content=content,
             metrics=CompletionMetrics(
-                total_seconds=_seconds(raw.get("total_duration")),
-                load_seconds=_seconds(raw.get("load_duration")),
-                prompt_eval_seconds=_seconds(
-                    raw.get("prompt_eval_duration")
+                prompt_tokens=(
+                    _integer(usage.get("input_tokens")) if usage else 0
                 ),
-                eval_seconds=_seconds(raw.get("eval_duration")),
-                prompt_tokens=_integer(raw.get("prompt_eval_count")),
-                output_tokens=_integer(raw.get("eval_count")),
+                output_tokens=(
+                    _integer(usage.get("output_tokens")) if usage else 0
+                ),
             ),
         )
 
 
-def _post_json(
-    url: str,
-    payload: Mapping[str, object],
-    *,
-    timeout: float,
-) -> dict[str, Any]:
-    request = Request(
-        url,
-        data=json.dumps(payload).encode(),
-        headers={"Content-Type": "application/json"},
-        method="POST",
+def _chat_model(settings: OllamaSettings) -> ChatLiteLLM:
+    model = (
+        settings.model
+        if "/" in settings.model
+        else f"ollama/{settings.model}"
     )
-    context = ssl.create_default_context(cafile=certifi.where())
-    with urlopen(request, timeout=timeout, context=context) as response:
-        decoded = json.loads(response.read())
-    if not isinstance(decoded, dict):
-        raise RuntimeError("Ollama returned a non-object response")
-    return decoded
-
-
-def _seconds(value: object) -> float:
-    return _integer(value) / _NANOSECONDS_PER_SECOND
+    return ChatLiteLLM(
+        model=model,
+        api_base=settings.api_base,
+        request_timeout=settings.timeout_seconds,
+        temperature=settings.temperature,
+        max_tokens=settings.max_output_tokens,
+        num_ctx=settings.num_ctx,
+        model_kwargs={
+            "keep_alive": settings.keep_alive,
+            "think": settings.think,
+        },
+    )
 
 
 def _integer(value: object) -> int:

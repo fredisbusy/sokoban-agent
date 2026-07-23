@@ -71,7 +71,7 @@ def build_notebook(output_path: Path) -> None:
                 "    SearchGuardPlanner,\n"
                 ")\n"
                 "from sokoban_agent.planning.llm import (\n"
-                "    OllamaClient,\n"
+                "    LiteLLMClient,\n"
                 "    OllamaSettings,\n"
                 ")\n\npd.set_option('display.max_columns', None)\n\n"
                 f"LEVEL_IDS = {LEVEL_IDS!r}\n"
@@ -118,7 +118,7 @@ def build_notebook(output_path: Path) -> None:
             ),
             _new_markdown_cell("### 3. Run identical cases"),
             _new_code_cell(
-                "client = OllamaClient(settings)\n"
+                "client = LiteLLMClient(settings)\n"
                 "warmup = client.complete('Reply with READY only.')\n"
                 "print({'warmup_seconds': warmup.metrics.total_seconds})\n"
                 "planners = [\n"

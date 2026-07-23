@@ -55,7 +55,7 @@ def build_notebook(output_path: Path) -> None:
                 "    run_research_experiment,\n"
                 ")\n"
                 "from sokoban_agent.planning import LLMPlanner, SearchGuardPlanner\n"
-                "from sokoban_agent.planning.llm import OllamaClient, OllamaSettings\n"
+                "from sokoban_agent.planning.llm import LiteLLMClient, OllamaSettings\n"
                 "from sokoban_agent.planning.llm_planner import serialize_board\n\n"
                 "pd.set_option('display.max_columns', None)\n"
                 "load_dotenv('.env', override=True)\n"
@@ -86,8 +86,8 @@ def build_notebook(output_path: Path) -> None:
             ),
             _markdown("## 동일 사례에서 6개 정책 실행"),
             _code(
-                "primitive_client = OllamaClient(settings)\n"
-                "guard_client = OllamaClient(settings)\n"
+                "primitive_client = LiteLLMClient(settings)\n"
+                "guard_client = LiteLLMClient(settings)\n"
                 "primitive = LLMPlanner(\n"
                 "    primitive_client, model_name=settings.model\n"
                 ")\n"

@@ -19,7 +19,7 @@ from langsmith.utils import (
     LangSmithUserError,
 )
 
-from sokoban_agent.planning.llm import OllamaClient, TextCompletion
+from sokoban_agent.planning.llm import LiteLLMClient, TextCompletion
 
 
 class TransientAgenticError(RuntimeError):
@@ -183,10 +183,10 @@ class LangSmithPromptSource:
         return full_name
 
 
-class OllamaStrategyGenerator:
-    """Generate a structured strategy with the configured Ollama endpoint."""
+class LiteLLMStrategyGenerator:
+    """Generate a structured strategy through LiteLLM and LangChain."""
 
-    def __init__(self, client: OllamaClient | None = None) -> None:
+    def __init__(self, client: LiteLLMClient | None = None) -> None:
         self._client = client
 
     def generate(
@@ -198,7 +198,7 @@ class OllamaStrategyGenerator:
     ) -> TextCompletion:
         """Call Ollama while translating transport failures for retry policy."""
 
-        client = self._client or OllamaClient.from_env()
+        client = self._client or LiteLLMClient.from_env()
         try:
             return client.complete(
                 prompt.user_prompt,

@@ -25,7 +25,7 @@ from sokoban_agent.planning import (
     SearchLimitError,
     solve_astar_result,
 )
-from sokoban_agent.planning.llm import OllamaClient, OllamaSettings
+from sokoban_agent.planning.llm import LiteLLMClient, OllamaSettings
 from sokoban_agent.planning.llm_planner import serialize_board
 
 
@@ -90,7 +90,7 @@ def llm_plan(state: StudioState) -> StudioState:
     """Ask the configured model for actions and a Korean decision summary."""
 
     settings = OllamaSettings.from_env()
-    planner = LLMPlanner(OllamaClient(settings), model_name=settings.model)
+    planner = LLMPlanner(LiteLLMClient(settings), model_name=settings.model)
     planner.reset(seed=state["seed"])
     outcome = planner.plan(
         PlanningContext(

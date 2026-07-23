@@ -14,7 +14,7 @@ dependencies = [
 
 [project.optional-dependencies]
 llm = [
-    "certifi>=2025.0.0",
+    "langchain-litellm>=0.5.0,<1.0.0",
     "pydantic>=2.9.0",
     "python-dotenv>=1.0.1",
 ]
@@ -29,6 +29,7 @@ sokoban-agentic = "sokoban_agent.agentic_cli:main"
 
 [dependency-groups]
 dev = [
+    "langchain-litellm>=0.5.0,<1.0.0",
     "mypy>=1.11.0",
     "pydantic>=2.9.0",
     "pytest>=8.3.0",
