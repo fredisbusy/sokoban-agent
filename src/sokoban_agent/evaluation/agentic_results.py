@@ -18,6 +18,7 @@ class AgenticEpisodeResult:
     truncated: bool
     cycle_detected: bool
     action_count: int
+    action_sequence: tuple[str, ...]
     push_count: int
     strategy_proposals: int
     strategy_schema_rejections: int
@@ -32,6 +33,15 @@ class AgenticEpisodeResult:
     llm_output_tokens: int
     local_search_calls: int
     local_expanded_states: int
+    local_search_elapsed_seconds: float
+    rule_checks: int
+    reachability_calls: int
+    subgoal_attempts: int
+    subgoal_successes: int
+    subgoal_failures: int
+    assignment_revision_count: int
+    hypothesis_revision_count: int
+    actions_derived_from_subgoal: int
     algorithm_calls: int
     prompt_name: str
     prompt_commit: str

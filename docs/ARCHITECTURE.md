@@ -178,6 +178,15 @@ reference 시간은 `policy_elapsed_seconds`에서 제외한다.
 탐색 계측은 cache hit도 포함한 `algorithm_requests`, 실제 solver 실행인
 `algorithm_calls`, `algorithm_cache_hits`, `algorithm_failures`를 분리한다.
 
+구조화 연구 정책은 `rule_checks`, `reachability_calls`,
+`local_search_calls`, `local_expanded_states`,
+`local_search_elapsed_seconds`를 별도로 기록한다. 하위 목표 접지 시도·실패,
+예상 효과 일치·불일치와 실행 행동 sequence도 결과 계약에 포함한다.
+평가 runner는 원시 행동 LLM, direct 구조화, 국소 탐색 구조화, rationale
+제거, full guard와 외부 A* oracle을 동일한 level·seed grid에 투영한다.
+이 비교 runner는 정책 루프를 다시 구현하지 않고 구조화 정책에는
+`AgenticGraphRunner`, baseline에는 기존 `SokobanGraph`를 호출한다.
+
 `guard_disposition`은 `accepted`, `suffix_added`, `replaced`, `failed` 중
 하나이며 제안 행동 수, 합법 prefix 수, 실제 채택 수를 함께 남긴다. 그래프
 실행 중 정확히 같은 보드로 돌아오면 `revisited_states`, 같은 상태에서 같은
@@ -205,7 +214,8 @@ chain-of-thought를 노출하는 기능도 아니다. 로컬 Agent Server가 그
 
 ## 다음 확장
 
-먼저 LangGraph 기반 구조화 상태 계획과 국소 실행을 완성한다. 이후 장기
-기억은 LangGraph Store를 우선 검토하고, 관련 실패 가설과 전략을 검색하는
-`recall` node로 연결한다. 화면 기반 perception, 더 강한 freeze/tunnel
-deadlock과 학습된 전략 모델은 계획 성능을 독립적으로 측정한 뒤 추가한다.
+실제 LangSmith prompt commit으로 Agent Server·viewer·held-out 실험을
+종단간 검증한 뒤, 장기 기억은 LangGraph Store를 우선 검토하고 관련 실패
+가설과 전략을 검색하는 `recall` node로 연결한다. 화면 기반 perception,
+더 강한 freeze/tunnel deadlock과 학습된 전략 모델은 계획 성능을
+독립적으로 측정한 뒤 추가한다.

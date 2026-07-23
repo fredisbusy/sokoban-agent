@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from time import perf_counter
 from typing import Literal, cast
 
 import numpy as np
@@ -11,6 +12,7 @@ from sokoban_agent.planning.base import Observation
 from sokoban_agent.planning.local_execution import (
     SubgoalGroundingError,
     ground_push_subgoal,
+    ground_push_subgoal_direct,
 )
 from sokoban_agent.planning.strategy import (
     BoardAnalysis,
@@ -38,21 +40,41 @@ def ground_agentic_subgoal(state: AgenticState) -> dict[str, object]:
         ProtectedConstraint.model_validate(payload)
         for payload in state["protected_constraints"]
     )
+    local_search = state["grounding_mode"] == "local-search"
+    grounder = ground_push_subgoal if local_search else ground_push_subgoal_direct
+    started_at = perf_counter()
     try:
-        plan = ground_push_subgoal(
+        plan = grounder(
             observation,
             analysis,
             subgoal,
             constraints,
         )
     except SubgoalGroundingError as error:
+        elapsed = perf_counter() - started_at
         failure = {"kind": error.kind, "message": str(error)}
         feedback = f"{error.kind}: {error}"
         return {
             "grounded_plan": None,
             "grounded_actions": [],
             "grounding_failure": failure,
-            "local_search_calls": state["local_search_calls"] + 1,
+            "subgoal_grounding_attempts": (
+                state["subgoal_grounding_attempts"] + 1
+            ),
+            "subgoal_grounding_failures": (
+                state["subgoal_grounding_failures"] + 1
+            ),
+            "rule_checks": state["rule_checks"] + 1,
+            "reachability_calls": (
+                state["reachability_calls"] + int(local_search)
+            ),
+            "local_search_calls": (
+                state["local_search_calls"] + int(local_search)
+            ),
+            "local_search_elapsed_seconds": (
+                state["local_search_elapsed_seconds"]
+                + (elapsed if local_search else 0.0)
+            ),
             "status": "subgoal_grounding_failed",
             "feedback": [feedback],
             "decision_events": [
@@ -64,14 +86,29 @@ def ground_agentic_subgoal(state: AgenticState) -> dict[str, object]:
             ],
         }
 
+    elapsed = perf_counter() - started_at
     actions = [*plan.player_actions, plan.push_action]
     return {
         "grounded_plan": plan.model_dump(mode="json"),
         "grounded_actions": actions,
         "grounding_failure": None,
-        "local_search_calls": state["local_search_calls"] + 1,
+        "subgoal_grounding_attempts": (
+            state["subgoal_grounding_attempts"] + 1
+        ),
+        "rule_checks": state["rule_checks"] + 1,
+        "reachability_calls": (
+            state["reachability_calls"] + int(local_search)
+        ),
+        "local_search_calls": (
+            state["local_search_calls"] + int(local_search)
+        ),
         "local_expanded_states": (
-            state["local_expanded_states"] + plan.expanded_player_states
+            state["local_expanded_states"]
+            + (plan.expanded_player_states if local_search else 0)
+        ),
+        "local_search_elapsed_seconds": (
+            state["local_search_elapsed_seconds"]
+            + (elapsed if local_search else 0.0)
         ),
         "status": "subgoal_grounded",
         "decision_events": [

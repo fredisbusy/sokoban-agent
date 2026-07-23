@@ -31,6 +31,11 @@ def build_parser() -> argparse.ArgumentParser:
         choices=("on", "off"),
         default="on",
     )
+    parser.add_argument(
+        "--grounding-mode",
+        choices=("direct", "local-search"),
+        default="local-search",
+    )
     return parser
 
 
@@ -50,6 +55,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             "prompt_commit": args.prompt_commit,
             "model_name": model_name,
             "rationale_mode": args.rationale_mode,
+            "grounding_mode": args.grounding_mode,
         },
     )
     print(

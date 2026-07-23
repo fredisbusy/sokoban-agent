@@ -183,6 +183,7 @@ class StrategyNodes:
             ]
             return {
                 "strategy_violations": payloads,
+                "rule_checks": state["rule_checks"] + 1,
                 "strategy_semantic_rejections": (
                     state["strategy_semantic_rejections"] + len(violations)
                 ),
@@ -199,6 +200,7 @@ class StrategyNodes:
             }
         return {
             "strategy_violations": [],
+            "rule_checks": state["rule_checks"] + 1,
             "strategy_error": None,
             "active_subgoal": hypothesis.subgoal.model_dump(mode="json"),
             "protected_constraints": [

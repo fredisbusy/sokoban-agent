@@ -16,6 +16,7 @@ from sokoban_agent.planning import analyze_board
 from sokoban_agent.planning.local_execution import (
     SubgoalGroundingError,
     ground_push_subgoal,
+    ground_push_subgoal_direct,
 )
 from sokoban_agent.planning.strategy import (
     BoardAnalysis,
@@ -148,3 +149,36 @@ def test_local_grounder_stops_after_one_push_before_puzzle_success() -> None:
     assert pushes == 1
     assert not is_success(level, state)
     assert state.boxes == {(1, 2)}
+
+
+def test_direct_grounder_requires_player_on_push_support() -> None:
+    observation = _observation(
+        ["#######", "#  .  #", "#  $  #", "# @   #", "#######"]
+    )
+    analysis = analyze_board(observation)
+
+    with pytest.raises(SubgoalGroundingError, match="지지 칸"):
+        ground_push_subgoal_direct(
+            observation,
+            analysis,
+            _subgoal(direction="UP", row=1, col=3),
+            (),
+        )
+
+
+def test_direct_grounder_emits_only_the_available_push() -> None:
+    observation = _observation(
+        ["#######", "#  .  #", "#  $  #", "#  @  #", "#######"]
+    )
+    analysis = analyze_board(observation)
+
+    plan = ground_push_subgoal_direct(
+        observation,
+        analysis,
+        _subgoal(direction="UP", row=1, col=3),
+        (),
+    )
+
+    assert plan.player_actions == ()
+    assert plan.push_action == "UP"
+    assert plan.push_count == 1

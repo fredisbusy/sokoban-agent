@@ -1,0 +1,120 @@
+{
+  "schema_version": 1,
+  "version": "agentic-heldout-v1",
+  "split": "test",
+  "description": "Prompt와 개발 fixture에서 격리한 구조 일반화 소형 코호트",
+  "development_level_ids": [
+    "tiny-push",
+    "tiny-walk",
+    "heldout-turn",
+    "held-out-one-push",
+    "fixture",
+    "identity",
+    "corridor",
+    "two-boxes"
+  ],
+  "cohort_sha256": "b1abf9775eb689a9817c6a63042ce91b9fd055b9953c26c1305da1ef3fde4cc3",
+  "levels": [
+    {
+      "level_id": "eval-open-offset",
+      "rows": [
+        "#######",
+        "#  .  #",
+        "# $   #",
+        "#   @ #",
+        "#######"
+      ],
+      "height": 5,
+      "width": 7,
+      "box_count": 1,
+      "layout_family": "open-room",
+      "corridor_structure": "none",
+      "trap_types": ["static-corners"],
+      "oracle_expectation": "solved"
+    },
+    {
+      "level_id": "eval-corridor-long",
+      "rows": [
+        "#########",
+        "#.   $@ #",
+        "#########"
+      ],
+      "height": 3,
+      "width": 9,
+      "box_count": 1,
+      "layout_family": "straight-corridor",
+      "corridor_structure": "straight",
+      "trap_types": [],
+      "oracle_expectation": "solved"
+    },
+    {
+      "level_id": "eval-turn-wall",
+      "rows": [
+        "#######",
+        "# .   #",
+        "#  #$ #",
+        "#  @  #",
+        "#######"
+      ],
+      "height": 5,
+      "width": 7,
+      "box_count": 1,
+      "layout_family": "turn",
+      "corridor_structure": "right-angle",
+      "trap_types": ["wall-pocket"],
+      "oracle_expectation": "solved"
+    },
+    {
+      "level_id": "eval-two-box-wide",
+      "rows": [
+        "########",
+        "# .  . #",
+        "# $  $ #",
+        "#   @  #",
+        "########"
+      ],
+      "height": 5,
+      "width": 8,
+      "box_count": 2,
+      "layout_family": "multi-box",
+      "corridor_structure": "none",
+      "trap_types": ["assignment-order"],
+      "oracle_expectation": "solved"
+    },
+    {
+      "level_id": "eval-large-two-box",
+      "rows": [
+        "#########",
+        "# .   . #",
+        "#       #",
+        "# $   $ #",
+        "#   @   #",
+        "#########"
+      ],
+      "height": 6,
+      "width": 9,
+      "box_count": 2,
+      "layout_family": "multi-box",
+      "corridor_structure": "open",
+      "trap_types": ["assignment-order", "static-corners"],
+      "oracle_expectation": "solved"
+    },
+    {
+      "level_id": "eval-disconnected-target",
+      "rows": [
+        "########",
+        "# .#   #",
+        "#  # $ #",
+        "#    @ #",
+        "########"
+      ],
+      "height": 5,
+      "width": 8,
+      "box_count": 1,
+      "layout_family": "chambers",
+      "corridor_structure": "blocked-bottleneck",
+      "trap_types": ["unreachable-target"],
+      "oracle_expectation": "oracle-unsolved"
+    }
+  ]
+}

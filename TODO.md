@@ -169,18 +169,21 @@ checkpoint history를 사용한다.
 
 ### 6. 일반화와 인과적 기여 평가
 
-- [ ] 배치, 보드 크기, 상자 수, 통로 구조와 함정 유형별 held-out manifest를
+- [x] 배치, 보드 크기, 상자 수, 통로 구조와 함정 유형별 held-out manifest를
   만든다.
-- [ ] 원시 행동 LLM, 구조화된 LLM, 구조화+국소 탐색, 설명 제거,
+- [x] 원시 행동 LLM, 구조화된 LLM, 구조화+국소 탐색, 설명 제거,
   current-full-guard와 A* oracle을 같은 사례로 비교한다.
-- [ ] 하위 목표 성공률, 배정·가설 수정, 보호 제약 위반, 예상 효과 일치와
+- [x] 하위 목표 성공률, 배정·가설 수정, 보호 제약 위반, 예상 효과 일치와
   설명-행동 인과 지표를 결과에 추가한다.
-- [ ] 규칙·도달성·국소 탐색 호출과 LLM 토큰·시간 비용을 분리한다.
-- [ ] prompt commit, graph 설정, 모델과 seed를 결과 manifest에 고정한다.
-- [ ] 재현 가능한 비교 노트북과 trajectory를 만든다.
+- [x] 규칙·도달성·국소 탐색 호출과 LLM 토큰·시간 비용을 분리한다.
+- [x] prompt commit, graph 설정, 모델과 seed를 결과 manifest에 고정한다.
+- [x] 재현 가능한 비교 노트북과 trajectory를 만든다.
 
 완료 조건: test 코호트가 prompt와 개발 fixture에서 격리되고, 모든 정책의
 성공·비용·일반화·수정 능력을 같은 표에서 비교한다.
+
+구현 계약은 고정 prompt/model fixture의 6정책 비교로 검증한다. 실제 모델
+결과 artifact는 LangSmith prompt commit을 생성한 뒤 같은 runner로 기록한다.
 
 ## 보류
 

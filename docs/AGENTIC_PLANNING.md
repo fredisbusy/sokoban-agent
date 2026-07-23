@@ -317,6 +317,13 @@ CLI·평가·Studio가 동일한 compiled graph와 checkpoint state를 사용한
 완료 조건: 고정 개발·test 코호트에서 모든 정책이 동일한 사례를 실행하고,
 성공·비용·하위 목표·설명-행동 기여 지표를 함께 보고한다.
 
+현재 `agentic_heldout_v1` manifest와 6정책 runner가 구현되어 있다.
+`structured-llm`은 현재 지지 칸에서 가능한 push만 직접 실행하고,
+`structured-local-search`만 지지 칸 경로를 탐색하므로 국소 도구의 기여를
+분리한다. 실행 manifest는 immutable prompt commit, graph revision, 모델
+설정과 seed를 고정한다. 노트북은 정확한 action sequence를 trajectory로
+재구성하고 rationale 제거 개입 전후 행동 변화를 비교한다.
+
 ### 7. 이후 확장
 
 구조화된 상태 기반 에이전트가 안정된 뒤 다음을 별도 실험으로 추가한다.

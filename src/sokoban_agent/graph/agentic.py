@@ -90,6 +90,7 @@ def initialize_agentic_state(
         "prompt_resolved": False,
         "model_name": context.get("model_name", "unconfigured"),
         "rationale_mode": context.get("rationale_mode", "on"),
+        "grounding_mode": context.get("grounding_mode", "local-search"),
         "status": "initialized",
         "board_analysis": None,
         "strategy_hypothesis": None,
@@ -116,6 +117,11 @@ def initialize_agentic_state(
         "llm_output_tokens": 0,
         "local_search_calls": 0,
         "local_expanded_states": 0,
+        "local_search_elapsed_seconds": 0.0,
+        "rule_checks": 0,
+        "reachability_calls": 0,
+        "subgoal_grounding_attempts": 0,
+        "subgoal_grounding_failures": 0,
         "push_count": 0,
         "effect_matches": 0,
         "effect_mismatches": 0,
@@ -153,6 +159,8 @@ def analyze_agentic_board(state: AgenticState) -> dict[str, object]:
         raise TypeError("graph info steps must be an integer")
     return {
         "board_analysis": analysis.model_dump(mode="json"),
+        "rule_checks": state["rule_checks"] + 1,
+        "reachability_calls": state["reachability_calls"] + 1,
         "status": "analyzed",
         "decision_events": [
             {

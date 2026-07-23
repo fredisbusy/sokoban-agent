@@ -1,5 +1,10 @@
 """Public experiment runners and result models."""
 
+from sokoban_agent.evaluation.agentic_cohort import (
+    AgenticCohortManifest,
+    AgenticLevelCase,
+    load_agentic_cohort_manifest,
+)
 from sokoban_agent.evaluation.agentic_results import AgenticEpisodeResult
 from sokoban_agent.evaluation.agentic_runner import run_agentic_episode
 from sokoban_agent.evaluation.cohort import (
@@ -9,6 +14,17 @@ from sokoban_agent.evaluation.cohort import (
 from sokoban_agent.evaluation.reference import (
     ReferenceResult,
     measure_bounded_astar_reference,
+)
+from sokoban_agent.evaluation.research_experiment import (
+    ResearchRunConfig,
+    run_research_experiment,
+)
+from sokoban_agent.evaluation.research_results import (
+    POLICY_NAMES,
+    RationaleIntervention,
+    ResearchEpisodeRecord,
+    ResearchExperiment,
+    ResearchPolicySummary,
 )
 from sokoban_agent.evaluation.results import (
     EpisodeResult,
@@ -25,9 +41,17 @@ from sokoban_agent.evaluation.traces import (
 
 __all__ = [
     "AgenticEpisodeResult",
+    "AgenticCohortManifest",
+    "AgenticLevelCase",
     "PlannerSummary",
     "CohortManifest",
     "ReferenceResult",
+    "ResearchEpisodeRecord",
+    "ResearchExperiment",
+    "ResearchPolicySummary",
+    "ResearchRunConfig",
+    "RationaleIntervention",
+    "POLICY_NAMES",
     "EpisodeFrame",
     "EpisodeResult",
     "EpisodeTrace",
@@ -39,4 +63,6 @@ __all__ = [
     "summarize_by_planner",
     "measure_bounded_astar_reference",
     "load_cohort_manifest",
+    "load_agentic_cohort_manifest",
+    "run_research_experiment",
 ]

@@ -50,6 +50,7 @@ class AgenticState(AgenticInput, total=False):
     prompt_resolved: bool
     model_name: str
     rationale_mode: Literal["on", "off"]
+    grounding_mode: Literal["direct", "local-search"]
     status: str
     board_analysis: dict[str, object] | None
     strategy_hypothesis: dict[str, object] | None
@@ -76,6 +77,11 @@ class AgenticState(AgenticInput, total=False):
     llm_output_tokens: int
     local_search_calls: int
     local_expanded_states: int
+    local_search_elapsed_seconds: float
+    rule_checks: int
+    reachability_calls: int
+    subgoal_grounding_attempts: int
+    subgoal_grounding_failures: int
     push_count: int
     effect_matches: int
     effect_mismatches: int
@@ -94,3 +100,4 @@ class AgenticRuntimeContext(TypedDict, total=False):
     prompt_commit: str
     model_name: str
     rationale_mode: Literal["on", "off"]
+    grounding_mode: Literal["direct", "local-search"]

@@ -23,6 +23,7 @@ class ReferenceResult:
 
     solved: bool
     action_count: int | None = None
+    action_sequence: tuple[str, ...] = ()
     push_count: int | None = None
     expanded_states: int = 0
     elapsed_seconds: float = 0.0
@@ -57,6 +58,7 @@ def measure_bounded_astar_reference(
     return ReferenceResult(
         solved=True,
         action_count=len(result.actions),
+        action_sequence=tuple(action.name for action in result.actions),
         push_count=pushes,
         expanded_states=result.expanded_states,
         elapsed_seconds=result.elapsed_seconds,

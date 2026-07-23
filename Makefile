@@ -1,7 +1,7 @@
 LEVEL ?=
 
 .PHONY: help sync play ollama-check lab studio viewer test lint typecheck check \
-	baseline-notebook experiment-notebook
+	baseline-notebook experiment-notebook agentic-notebook
 
 help:
 	@echo "설치"
@@ -22,6 +22,7 @@ help:
 	@echo "  make typecheck         mypy 타입 검사"
 	@echo "  make baseline-notebook 기준선 노트북 생성 및 실행"
 	@echo "  make experiment-notebook 주 실험 노트북 생성 및 실행"
+	@echo "  make agentic-notebook  구조화 일반화 실험 노트북 생성"
 
 sync:
 	uv sync --all-extras --all-groups
@@ -62,3 +63,6 @@ experiment-notebook:
 	uv run --group notebook python -m jupyter nbconvert \
 		--execute --to notebook --inplace \
 		notebooks/langgraph_planner_comparison.ipynb
+
+agentic-notebook:
+	uv run --group notebook python scripts/build_agentic_research_notebook.py

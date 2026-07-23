@@ -212,7 +212,8 @@ Studio의 **Manage Assistants**에서 다음 context를 설정합니다. `prompt
   "prompt_name": "sokoban-strategy",
   "prompt_commit": "<LANGSMITH_PROMPT_COMMIT>",
   "model_name": "qwen3.6:27b-mlx",
-  "rationale_mode": "on"
+  "rationale_mode": "on",
+  "grounding_mode": "local-search"
 }
 ```
 
@@ -284,6 +285,37 @@ uv run python scripts/run_boxoban_pilot.py
 prefix·실제 채택 행동 수, guard 판정, suffix 탐색량, 처음 상태에서 다시 푼
 bounded A* reference와의 행동·push·확장 상태 차이를 기록합니다. 이
 reference는 탐색 한도가 있는 비교 기준이며 수학적 최적해라고 부르지 않습니다.
+
+### 구조화 문제 해결 일반화 실험
+
+새 주 실험은 개발 fixture와 ID가 겹치지 않는
+`benchmarks/agentic_heldout_v1.json`을 사용합니다. 각 레벨에는 배치,
+보드 크기, 상자 수, 통로 구조와 함정 유형이 기록되고 전체 level payload의
+checksum을 검증합니다.
+
+다음 여섯 정책을 같은 레벨·seed grid에서 비교합니다.
+
+- `primitive-llm`: 원시 방향 행동 LLM baseline
+- `structured-llm`: 구조화된 단일 push를 직접 실행하며 국소 탐색 없음
+- `structured-local-search`: 구조화된 단일 push와 지지 칸까지의 국소 탐색
+- `structured-no-rationale`: 실행 필드는 유지하고 자연어 근거만 제거
+- `current-full-guard`: 기존 LLM+A* 전체 대체 시스템 상한
+- `astar-oracle`: 에피소드 외부의 bounded A* 사후 비교 기준
+
+실행 전에 immutable LangSmith prompt commit이 필요합니다.
+
+```bash
+uv run python scripts/run_agentic_research.py \
+  --prompt-commit <LANGSMITH_PROMPT_COMMIT>
+make agentic-notebook
+```
+
+실행기는 prompt commit, graph revision, 모델 설정, seed와 한도를 결과
+manifest에 고정합니다. 결과에는 action trajectory, 하위 목표 성공·실패,
+배정·가설 수정, 보호 제약 위반, 예상 효과 일치, 규칙·도달성·국소 탐색과
+LLM·전역 알고리즘 비용이 분리되어 들어갑니다. rationale 제거의 기여는
+문자열 유사도가 아니라 같은 사례의 정확한 action sequence와 성공 변화로
+측정합니다.
 
 ## 프로젝트 구조
 

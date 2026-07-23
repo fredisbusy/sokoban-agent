@@ -41,11 +41,17 @@ def run_agentic_episode(
     prompt = state["prompt"]
     feedback = state["feedback"]
     rationale_mode = context.get("rationale_mode", "on")
+    grounding_mode = context.get("grounding_mode", "local-search")
+    revisions = state["plan_revisions"]
     return AgenticEpisodeResult(
         policy_name=(
             "structured-no-rationale"
             if rationale_mode == "off"
-            else "structured-local-search"
+            else (
+                "structured-llm"
+                if grounding_mode == "direct"
+                else "structured-local-search"
+            )
         ),
         level_id=state["level_id"],
         seed=state["seed"],
@@ -55,6 +61,7 @@ def run_agentic_episode(
         truncated=state["status"] == "step_limit",
         cycle_detected=state["cycle_detected"],
         action_count=len(state["action_history"]),
+        action_sequence=tuple(state["action_history"]),
         push_count=state["push_count"],
         strategy_proposals=state["strategy_proposals"],
         strategy_schema_rejections=state["strategy_schema_rejections"],
@@ -71,6 +78,23 @@ def run_agentic_episode(
         llm_output_tokens=state["llm_output_tokens"],
         local_search_calls=state["local_search_calls"],
         local_expanded_states=state["local_expanded_states"],
+        local_search_elapsed_seconds=state[
+            "local_search_elapsed_seconds"
+        ],
+        rule_checks=state["rule_checks"],
+        reachability_calls=state["reachability_calls"],
+        subgoal_attempts=state["subgoal_grounding_attempts"],
+        subgoal_successes=state["effect_matches"],
+        subgoal_failures=(
+            state["subgoal_grounding_failures"]
+            + state["effect_mismatches"]
+        ),
+        assignment_revision_count=sum(
+            "assignments" in revision["changed_fields"]
+            for revision in revisions
+        ),
+        hypothesis_revision_count=len(revisions),
+        actions_derived_from_subgoal=len(state["action_history"]),
         algorithm_calls=0,
         prompt_name=prompt["name"],
         prompt_commit=prompt["commit"],
