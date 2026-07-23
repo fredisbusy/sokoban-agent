@@ -33,6 +33,9 @@ flowchart LR
 - 실행기는 모든 Agent를 같은 레벨·seed 조합에서 실행하고 `EpisodeResult`를
   기록한다. 진단을 제공하는 Agent는 LLM 호출·재시도·오류·응답 시간도
   함께 기록한다.
+- trace 실행기는 같은 에피소드 루프의 step observer를 통해 초기 보드와
+  실행 후 보드를 저장한다. 노트북 애니메이션은 별도 재실행이 아니라 집계에
+  사용된 `EpisodeResult`와 짝지어진 이 trajectory를 재생한다.
 
 ## 기준선 구조
 

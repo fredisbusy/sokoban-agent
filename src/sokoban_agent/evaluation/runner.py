@@ -2,15 +2,24 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from time import perf_counter
 
-from sokoban_agent.agents import Agent, AgentDiagnostics, AgentStopped
+from sokoban_agent.agents import (
+    Agent,
+    AgentDiagnostics,
+    AgentStopped,
+    Observation,
+)
 from sokoban_agent.agents.base import ReportsAgentDiagnostics
-from sokoban_agent.env import SokobanEnv
+from sokoban_agent.env import Action, SokobanEnv
 from sokoban_agent.evaluation.results import EpisodeResult
 
 Clock = Callable[[], float]
+StepObserver = Callable[
+    [Observation, Action | None, Mapping[str, object]],
+    None,
+]
 
 
 def run_episode(
@@ -20,6 +29,7 @@ def run_episode(
     seed: int | None = None,
     level_id: str | None = None,
     clock: Clock | None = None,
+    step_observer: StepObserver | None = None,
 ) -> EpisodeResult:
     """Run one episode and record planning, action, and environment metrics."""
 
@@ -34,6 +44,8 @@ def run_episode(
     truncated = False
     failure_reason: str | None = None
 
+    if step_observer is not None:
+        step_observer(observation.copy(), None, info)
     try:
         agent.reset(observation, info, seed=seed)
         while not bool(info["success"]) and not bool(info["deadlock"]):
@@ -45,6 +57,8 @@ def run_episode(
             action_count += 1
             invalid_moves += int(bool(info["invalid_move"]))
             total_reward += reward
+            if step_observer is not None:
+                step_observer(observation.copy(), action, info)
             if terminated or truncated:
                 break
     except AgentStopped as error:

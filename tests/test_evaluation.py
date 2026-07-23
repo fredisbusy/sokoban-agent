@@ -1,6 +1,7 @@
 from collections import deque
 from collections.abc import Mapping
 
+import numpy as np
 import pytest
 
 from sokoban_agent.agents import (
@@ -18,7 +19,9 @@ from sokoban_agent.env import (
 from sokoban_agent.evaluation import (
     EpisodeResult,
     run_benchmark,
+    run_benchmark_traces,
     run_episode,
+    run_episode_trace,
     summarize_by_agent,
 )
 
@@ -125,6 +128,50 @@ def test_run_episode_records_expected_agent_stop() -> None:
     assert not result.success
     assert result.action_count == 0
     assert result.failure_reason == "no plan"
+
+
+def test_episode_trace_retains_initial_and_executed_boards() -> None:
+    env = SokobanEnv()
+
+    trace = run_episode_trace(
+        env,
+        ScriptedAgent([Action.UP]),
+        seed=4,
+        level_id="tiny-push",
+    )
+
+    assert trace.result.success
+    assert len(trace.frames) == 2
+    assert trace.frames[0].index == 0
+    assert trace.frames[0].action is None
+    assert not trace.frames[0].success
+    assert trace.frames[1].action is Action.UP
+    assert trace.frames[1].pushed
+    assert trace.frames[1].success
+    assert not np.array_equal(
+        trace.frames[0].observation,
+        trace.frames[1].observation,
+    )
+
+
+def test_trace_benchmark_runs_the_same_case_grid() -> None:
+    traces = run_benchmark_traces(
+        SokobanEnv(max_steps=10),
+        [BFSAgent()],
+        level_ids=["tiny-push", "tiny-walk"],
+        seeds=[1, 2],
+    )
+
+    assert len(traces) == 4
+    assert {
+        (trace.result.level_id, trace.result.seed) for trace in traces
+    } == {
+        ("tiny-push", 1),
+        ("tiny-push", 2),
+        ("tiny-walk", 1),
+        ("tiny-walk", 2),
+    }
+    assert all(trace.frames for trace in traces)
 
 
 def test_summarize_by_agent_calculates_required_metrics() -> None:

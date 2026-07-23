@@ -178,6 +178,11 @@ uv run --group notebook python -m jupyter nbconvert \
   --execute --to notebook --inplace notebooks/llm_agent_comparison.ipynb
 ```
 
+실행된 비교 노트북은 모든 에피소드의 실제 상태·행동 trajectory를 함께
+보관한다. 기본 애니메이션은 LLM의 `tiny-walk`, seed 0 경로를 재생하며,
+노트북의 `ANIMATION_CASE`를 바꾸면 같은 실험의 다른 Agent·레벨·seed도
+확인할 수 있다.
+
 노트북은 실험과 시각화에만 사용하고, 재사용 코드는 `src/`에 둡니다.
 
 ## 프로젝트 구조
