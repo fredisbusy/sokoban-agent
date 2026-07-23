@@ -1,7 +1,20 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { parseSseChunk, runIdFromEvent, streamRun } from "../src/stream.js";
+import {
+  parseSseChunk,
+  runIdFromEvent,
+  streamRun,
+  validateRunContext,
+} from "../src/stream.js";
+
+const RUN_CONTEXT = {
+  prompt_name: "sokoban-strategy",
+  prompt_commit: "abc123",
+  model_name: "qwen3.6:27b-mlx",
+  rationale_mode: "on",
+  grounding_mode: "local-search",
+};
 
 test("SSE parser preserves incomplete chunks", () => {
   const first = parseSseChunk("event: updates\nid: 1\ndata: {\"execute\":");
@@ -25,6 +38,43 @@ test("SSE parser supports multiline data and final frame", () => {
 test("run id is read from Agent Server metadata", () => {
   assert.equal(runIdFromEvent({ data: { run_id: "run-1" } }), "run-1");
   assert.equal(runIdFromEvent({ data: { run: { run_id: "run-2" } } }), "run-2");
+});
+
+test("run context rejects mutable prompt selectors", () => {
+  assert.throws(
+    () => validateRunContext({ ...RUN_CONTEXT, prompt_commit: "latest" }),
+    /고정 commit/,
+  );
+  assert.throws(
+    () => validateRunContext({ ...RUN_CONTEXT, model_name: "" }),
+    /model_name/,
+  );
+});
+
+test("stream run sends immutable prompt and model context to LangGraph", async () => {
+  const originalFetch = globalThis.fetch;
+  const calls = [];
+  globalThis.fetch = async (url, options = {}) => {
+    calls.push({ url: String(url), options });
+    return new Response("", { status: 200 });
+  };
+
+  try {
+    await streamRun({
+      apiUrl: "http://agent",
+      threadId: "thread-1",
+      assistantId: "sokoban_agent",
+      input: { level_id: "tiny-walk", seed: 0, max_steps: 15 },
+      context: RUN_CONTEXT,
+      onEvent: () => {},
+    });
+    const body = JSON.parse(calls[0].options.body);
+    assert.deepEqual(body.context, RUN_CONTEXT);
+    assert.equal(body.assistant_id, "sokoban_agent");
+    assert.equal(body.stream_mode, "updates");
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
 });
 
 test("dropped resumable stream rejoins from its last event", async () => {
@@ -62,6 +112,7 @@ test("dropped resumable stream rejoins from its last event", async () => {
       threadId: "thread-1",
       assistantId: "agent",
       input: {},
+      context: RUN_CONTEXT,
       onEvent: (event) => events.push(event),
     });
     assert.deepEqual(events.map((event) => event.id), ["1", "2", "3"]);

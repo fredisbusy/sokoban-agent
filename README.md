@@ -217,6 +217,11 @@ Studio의 **Manage Assistants**에서 다음 context를 설정합니다. `prompt
 }
 ```
 
+실시간 관찰 화면은 같은 다섯 값을 실행 폼에서 받아 Agent Server의 공식
+per-run `context`로 전달합니다. prompt 본문이나 버전 저장소를 브라우저에
+복제하지 않으며, `latest`와 `unresolved`는 연구 재현성을 위해 실행 전에
+거절합니다.
+
 각 단계에서 `board_analysis`, `prompt`, `strategy_input`,
 `strategy_hypothesis`, `strategy_violations`, `active_subgoal`,
 `protected_constraints`, `expected_effect`, `feedback`,

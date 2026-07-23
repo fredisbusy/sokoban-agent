@@ -44,7 +44,7 @@ h2 { font-size: 1.25rem; }
 
 .run-form {
   display: grid;
-  grid-template-columns: minmax(180px, 1.6fr) repeat(4, minmax(90px, 1fr)) auto;
+  grid-template-columns: repeat(5, minmax(110px, 1fr)) auto;
   gap: 1px;
   padding: 1px;
   margin-bottom: 1px;
@@ -54,10 +54,11 @@ h2 { font-size: 1.25rem; }
   overflow: hidden;
 }
 .run-form label { padding: .65rem .8rem; color: var(--muted); font-size: .68rem; background: #141a18; }
-.run-form input {
+.run-form input, .run-form select {
   display: block; width: 100%; margin-top: .2rem; padding: 0;
   border: 0; outline: 0; background: transparent; color: #f2f0e8;
 }
+.run-form select { border-radius: 0; cursor: pointer; }
 button, select {
   border: 1px solid var(--line);
   border-radius: 8px;

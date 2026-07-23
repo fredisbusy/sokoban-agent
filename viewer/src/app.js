@@ -1,7 +1,7 @@
 import { parseBoard } from "./board.js";
 import { applyUpdate, normalizeEvent } from "./events.js";
 import { FrameQueue } from "./queue.js";
-import { createThread, streamRun } from "./stream.js";
+import { createThread, streamRun, validateRunContext } from "./stream.js";
 
 const queue = new FrameQueue();
 const elements = Object.fromEntries(
@@ -38,8 +38,16 @@ async function startRun(event) {
     seed: nullableInteger(elements.seed.value),
     max_steps: Number(elements["max-steps"].value),
   };
+  const context = {
+    prompt_name: elements["prompt-name"].value.trim(),
+    prompt_commit: elements["prompt-commit"].value.trim(),
+    model_name: elements["model-name"].value.trim(),
+    rationale_mode: elements["rationale-mode"].value,
+    grounding_mode: elements["grounding-mode"].value,
+  };
 
   try {
+    validateRunContext(context);
     const threadId = await createThread(elements["api-url"].value, abortController.signal);
     setConnection("live", "실시간 연결");
     await streamRun({
@@ -47,6 +55,7 @@ async function startRun(event) {
       threadId,
       assistantId: elements["assistant-id"].value,
       input,
+      context,
       signal: abortController.signal,
       onEvent: (raw) => receiveEvent(raw, threadId),
     });

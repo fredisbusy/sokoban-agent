@@ -16,9 +16,11 @@ export async function streamRun({
   threadId,
   assistantId,
   input,
+  context,
   signal,
   onEvent,
 }) {
+  validateRunContext(context);
   const response = await fetch(
     `${trimSlash(apiUrl)}/threads/${encodeURIComponent(threadId)}/runs/stream`,
     {
@@ -30,6 +32,7 @@ export async function streamRun({
       body: JSON.stringify({
         assistant_id: assistantId,
         input,
+        context,
         stream_mode: "updates",
         stream_subgraphs: true,
         stream_resumable: true,
@@ -45,6 +48,26 @@ export async function streamRun({
   } catch (error) {
     if (signal?.aborted || !progress.runId) throw error;
     await resumeRun({ apiUrl, threadId, signal, onEvent, progress });
+  }
+}
+
+export function validateRunContext(context) {
+  if (!context || typeof context !== "object") {
+    throw new Error("LangGraph runtime context가 필요합니다");
+  }
+  for (const key of ["prompt_name", "prompt_commit", "model_name"]) {
+    if (typeof context[key] !== "string" || context[key].trim() === "") {
+      throw new Error(`${key} 값을 입력하세요`);
+    }
+  }
+  if (["latest", "unresolved"].includes(context.prompt_commit.trim().toLowerCase())) {
+    throw new Error("prompt_commit에는 latest가 아닌 고정 commit을 입력하세요");
+  }
+  if (!["on", "off"].includes(context.rationale_mode)) {
+    throw new Error("rationale_mode는 on 또는 off여야 합니다");
+  }
+  if (!["direct", "local-search"].includes(context.grounding_mode)) {
+    throw new Error("grounding_mode는 direct 또는 local-search여야 합니다");
   }
 }
 

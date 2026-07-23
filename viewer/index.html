@@ -36,6 +36,27 @@
         <label>Max steps
           <input id="max-steps" type="number" min="1" value="15" required>
         </label>
+        <label>Prompt
+          <input id="prompt-name" value="sokoban-strategy" required>
+        </label>
+        <label>Prompt commit
+          <input id="prompt-commit" placeholder="고정 commit hash" autocomplete="off" required>
+        </label>
+        <label>Model
+          <input id="model-name" value="qwen3.6:27b-mlx" required>
+        </label>
+        <label>Rationale
+          <select id="rationale-mode">
+            <option value="on" selected>on</option>
+            <option value="off">off</option>
+          </select>
+        </label>
+        <label>Grounding
+          <select id="grounding-mode">
+            <option value="local-search" selected>local-search</option>
+            <option value="direct">direct</option>
+          </select>
+        </label>
         <button id="run-button" class="primary" type="submit">실행</button>
       </form>
 
