@@ -6,7 +6,7 @@ from collections.abc import Mapping
 from time import perf_counter
 from typing import Literal, Protocol
 
-from pydantic import BaseModel, ConfigDict, ValidationError
+from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 from sokoban_agent.env import Action, Tile
 from sokoban_agent.env.rules import decode_observation
@@ -15,6 +15,7 @@ from sokoban_agent.planning.base import (
     PlanningContext,
     PlanningOutcome,
 )
+from sokoban_agent.planning.llm import TextCompletion
 
 ActionName = Literal["UP", "RIGHT", "DOWN", "LEFT"]
 _TILE_SYMBOLS: dict[Tile, str] = {
@@ -29,14 +30,15 @@ _TILE_SYMBOLS: dict[Tile, str] = {
 _SYSTEM_PROMPT = """You plan Sokoban actions.
 Return exactly one JSON object matching the supplied schema.
 Avoid walls, blocked boxes, repeated states, and deadlocks.
+Prefer a short executable plan that makes progress toward a solved board.
 Do not include markdown or explanatory text."""
 
 
-class ActionResponse(BaseModel):
+class ActionPlanResponse(BaseModel):
     """Strict structured response accepted from the model."""
 
     model_config = ConfigDict(extra="forbid")
-    action: ActionName
+    actions: list[ActionName] = Field(min_length=1, max_length=8)
 
 
 class StructuredTextClient(Protocol):
@@ -48,8 +50,8 @@ class StructuredTextClient(Protocol):
         *,
         system_prompt: str | None = None,
         seed: int | None = None,
-        response_format: Mapping[str, object] | None = None,
-    ) -> str:
+        response_schema: Mapping[str, object] | None = None,
+    ) -> TextCompletion:
         """Generate one response."""
         ...
 
@@ -64,20 +66,20 @@ def serialize_board(observation: Observation) -> str:
     )
 
 
-def parse_action_response(response: str) -> Action:
-    """Parse a strict JSON action object into the environment enum."""
+def parse_plan_response(response: str) -> tuple[Action, ...]:
+    """Parse a strict JSON action plan into environment enums."""
 
     if not response.strip():
         raise ValueError("model returned an empty response")
     try:
-        parsed = ActionResponse.model_validate_json(response)
+        parsed = ActionPlanResponse.model_validate_json(response)
     except ValidationError as error:
-        raise ValueError("model response does not match the action schema") from error
-    return Action[parsed.action]
+        raise ValueError("model response does not match the plan schema") from error
+    return tuple(Action[name] for name in parsed.actions)
 
 
 class LLMPlanner:
-    """Propose one action; LangGraph owns validation and retry routing."""
+    """Propose a short plan; LangGraph owns validation and retry routing."""
 
     def __init__(self, client: StructuredTextClient, *, model_name: str) -> None:
         if not model_name:
@@ -103,45 +105,58 @@ class LLMPlanner:
         prompt = self._build_prompt(context)
         started_at = perf_counter()
         try:
-            response = self.client.complete(
+            completion = self.client.complete(
                 prompt,
                 system_prompt=_SYSTEM_PROMPT,
                 seed=self._seed,
-                response_format={
-                    "type": "json_schema",
-                    "json_schema": {
-                        "name": "sokoban_action",
-                        "schema": ActionResponse.model_json_schema(),
-                    },
-                },
+                response_schema=ActionPlanResponse.model_json_schema(),
             )
         except Exception as error:
+            elapsed = perf_counter() - started_at
             return PlanningOutcome(
                 error=f"request failed: {type(error).__name__}",
                 error_kind="client",
                 llm_calls=1,
                 llm_client_errors=1,
-                elapsed_seconds=perf_counter() - started_at,
+                llm_elapsed_seconds=elapsed,
+                elapsed_seconds=elapsed,
             )
 
         try:
-            action = parse_action_response(response)
+            actions = parse_plan_response(completion.content)
         except ValueError as error:
+            elapsed = perf_counter() - started_at
             return PlanningOutcome(
                 error=str(error),
                 error_kind="format",
                 llm_calls=1,
                 llm_format_errors=1,
-                elapsed_seconds=perf_counter() - started_at,
+                llm_elapsed_seconds=elapsed,
+                llm_load_seconds=completion.metrics.load_seconds,
+                llm_prompt_eval_seconds=(
+                    completion.metrics.prompt_eval_seconds
+                ),
+                llm_eval_seconds=completion.metrics.eval_seconds,
+                llm_prompt_tokens=completion.metrics.prompt_tokens,
+                llm_output_tokens=completion.metrics.output_tokens,
+                elapsed_seconds=elapsed,
             )
+        elapsed = perf_counter() - started_at
         return PlanningOutcome(
-            actions=(action,),
+            actions=actions,
             llm_calls=1,
-            elapsed_seconds=perf_counter() - started_at,
+            llm_elapsed_seconds=elapsed,
+            llm_load_seconds=completion.metrics.load_seconds,
+            llm_prompt_eval_seconds=completion.metrics.prompt_eval_seconds,
+            llm_eval_seconds=completion.metrics.eval_seconds,
+            llm_prompt_tokens=completion.metrics.prompt_tokens,
+            llm_output_tokens=completion.metrics.output_tokens,
+            elapsed_seconds=elapsed,
         )
 
     def _build_prompt(self, context: PlanningContext) -> str:
-        history = ", ".join(action.name for action in context.action_history)
+        recent_history = context.action_history[-12:]
+        history = ", ".join(action.name for action in recent_history)
         feedback = "; ".join(context.feedback) or "none"
         return (
             "Legend: # wall, . target, $ box, @ player, * box on target, "
@@ -151,5 +166,6 @@ class LLMPlanner:
             f"Rejected proposals: {feedback}\n"
             "Current board:\n"
             f"{serialize_board(context.observation)}\n"
-            'Choose one legal action as JSON, for example {"action":"UP"}.'
+            "Choose 1 to 8 legal actions. Stop before any uncertain move. "
+            'Example: {"actions":["UP","LEFT"]}.'
         )

@@ -53,12 +53,19 @@ def run_episode(
         planning_elapsed_seconds=state["planning_elapsed_seconds"],
         algorithm_calls=state["algorithm_calls"],
         algorithm_fallbacks=state["algorithm_fallbacks"],
+        algorithm_expanded_states=state["algorithm_expanded_states"],
+        algorithm_elapsed_seconds=state["algorithm_elapsed_seconds"],
         llm_calls=state["llm_calls"],
         llm_retries=state["planning_retries"] if state["llm_calls"] else 0,
         llm_client_errors=state["llm_client_errors"],
         llm_format_errors=state["llm_format_errors"],
         llm_invalid_actions=state["llm_invalid_actions"],
         llm_elapsed_seconds=state["llm_elapsed_seconds"],
+        llm_load_seconds=state["llm_load_seconds"],
+        llm_prompt_eval_seconds=state["llm_prompt_eval_seconds"],
+        llm_eval_seconds=state["llm_eval_seconds"],
+        llm_prompt_tokens=state["llm_prompt_tokens"],
+        llm_output_tokens=state["llm_output_tokens"],
     )
 
 

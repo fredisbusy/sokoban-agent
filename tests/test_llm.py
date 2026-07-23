@@ -1,4 +1,3 @@
-from types import SimpleNamespace
 from typing import Any
 
 import pytest
@@ -11,79 +10,98 @@ def test_settings_are_loaded_from_environment(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setenv("OLLAMA_API_BASE", "http://ollama.local:11434/")
-    monkeypatch.setenv("OLLAMA_MODEL", "qwen3:8b")
+    monkeypatch.setenv("OLLAMA_MODEL", "qwen3.6:27b-mlx")
     monkeypatch.setenv("OLLAMA_TIMEOUT_SECONDS", "30")
+    monkeypatch.setenv("OLLAMA_NUM_CTX", "2048")
+    monkeypatch.setenv("OLLAMA_MAX_OUTPUT_TOKENS", "64")
+    monkeypatch.setenv("OLLAMA_KEEP_ALIVE", "1h")
+    monkeypatch.setenv("OLLAMA_THINK", "true")
 
     settings = OllamaSettings.from_env(env_file=None)
 
     assert settings.api_base == "http://ollama.local:11434"
-    assert settings.litellm_model == "ollama/qwen3:8b"
+    assert settings.model == "qwen3.6:27b-mlx"
     assert settings.timeout_seconds == 30
     assert settings.temperature == 0
+    assert settings.num_ctx == 2048
+    assert settings.max_output_tokens == 64
+    assert settings.keep_alive == "1h"
+    assert settings.think
 
 
-def test_client_passes_ollama_configuration_to_litellm(
+def test_client_passes_native_ollama_configuration(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     captured: dict[str, Any] = {}
 
-    def fake_completion(**kwargs: Any) -> SimpleNamespace:
-        captured.update(kwargs)
-        message = SimpleNamespace(content="UP")
-        return SimpleNamespace(choices=[SimpleNamespace(message=message)])
+    def fake_post_json(
+        url: str,
+        payload: dict[str, object],
+        *,
+        timeout: float,
+    ) -> dict[str, Any]:
+        captured.update(url=url, payload=payload, timeout=timeout)
+        return {
+            "message": {"content": '{"actions":["UP"]}'},
+            "total_duration": 2_000_000_000,
+            "load_duration": 100_000_000,
+            "prompt_eval_count": 42,
+            "prompt_eval_duration": 500_000_000,
+            "eval_count": 8,
+            "eval_duration": 800_000_000,
+        }
 
-    monkeypatch.setattr(llm, "completion", fake_completion)
+    monkeypatch.setattr(llm, "_post_json", fake_post_json)
     settings = OllamaSettings(
         api_base="http://localhost:11434",
-        model="llama3.2",
+        model="qwen3.6:27b-mlx",
         timeout_seconds=45,
+        num_ctx=2048,
+        max_output_tokens=64,
     )
+    schema = {"type": "object"}
 
     result = OllamaClient(settings).complete(
-        "다음 행동은?",
-        system_prompt="한 단어로 답해.",
+        "다음 계획은?",
+        system_prompt="JSON으로 답해.",
+        seed=7,
+        response_schema=schema,
     )
 
-    assert result == "UP"
-    assert captured["model"] == "ollama/llama3.2"
-    assert captured["api_base"] == "http://localhost:11434"
+    assert result.content == '{"actions":["UP"]}'
+    assert result.metrics.total_seconds == 2
+    assert result.metrics.prompt_tokens == 42
+    assert result.metrics.output_tokens == 8
+    assert captured["url"] == "http://localhost:11434/api/chat"
     assert captured["timeout"] == 45
-    assert captured["temperature"] == 0
-    assert captured["messages"] == [
-        {"role": "system", "content": "한 단어로 답해."},
-        {"role": "user", "content": "다음 행동은?"},
+    payload = captured["payload"]
+    assert isinstance(payload, dict)
+    assert payload["model"] == "qwen3.6:27b-mlx"
+    assert payload["think"] is False
+    assert payload["keep_alive"] == "30m"
+    assert payload["format"] == schema
+    assert payload["messages"] == [
+        {"role": "system", "content": "JSON으로 답해."},
+        {"role": "user", "content": "다음 계획은?"},
     ]
-
-
-def test_client_passes_seed_and_structured_response_format(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    captured: dict[str, Any] = {}
-
-    def fake_completion(**kwargs: Any) -> SimpleNamespace:
-        captured.update(kwargs)
-        message = SimpleNamespace(content='{"action":"UP"}')
-        return SimpleNamespace(choices=[SimpleNamespace(message=message)])
-
-    monkeypatch.setattr(llm, "completion", fake_completion)
-    client = OllamaClient(
-        OllamaSettings(
-            api_base="http://localhost:11434",
-            temperature=0.25,
-        )
-    )
-    response_format = {
-        "type": "json_schema",
-        "json_schema": {"schema": {"type": "object"}},
+    assert payload["options"] == {
+        "temperature": 0,
+        "num_ctx": 2048,
+        "num_predict": 64,
+        "seed": 7,
     }
-
-    client.complete("다음 행동은?", seed=7, response_format=response_format)
-
-    assert captured["seed"] == 7
-    assert captured["temperature"] == 0.25
-    assert captured["response_format"] == response_format
 
 
 def test_api_base_requires_http_scheme() -> None:
     with pytest.raises(ValueError, match="must start with"):
         OllamaSettings(api_base="localhost:11434")
+
+
+def test_boolean_environment_rejects_unknown_value(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("OLLAMA_API_BASE", "http://localhost:11434")
+    monkeypatch.setenv("OLLAMA_THINK", "sometimes")
+
+    with pytest.raises(ValueError, match="boolean"):
+        OllamaSettings.from_env(env_file=None)

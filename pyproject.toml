@@ -12,7 +12,6 @@ dependencies = [
 
 [project.optional-dependencies]
 llm = [
-    "litellm>=1.83.3,<2.0.0",
     "pydantic>=2.9.0",
     "python-dotenv>=1.0.1",
 ]
@@ -26,7 +25,6 @@ sokoban-play = "sokoban_agent.play:main"
 
 [dependency-groups]
 dev = [
-    "litellm>=1.83.3,<2.0.0",
     "mypy>=1.11.0",
     "pydantic>=2.9.0",
     "pytest>=8.3.0",

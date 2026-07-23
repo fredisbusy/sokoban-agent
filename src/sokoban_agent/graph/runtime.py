@@ -11,7 +11,12 @@ from langgraph.checkpoint.memory import InMemorySaver
 from langgraph.graph import END, START, StateGraph
 
 from sokoban_agent.env import Action, SokobanEnv
-from sokoban_agent.env.rules import apply_action, decode_observation
+from sokoban_agent.env.rules import (
+    apply_action,
+    decode_observation,
+    has_static_corner_deadlock,
+    is_success,
+)
 from sokoban_agent.graph.state import SokobanGraphState
 from sokoban_agent.planning import Observation, Planner, PlanningContext
 
@@ -143,6 +148,14 @@ class SokobanGraph:
             "algorithm_fallbacks": (
                 state["algorithm_fallbacks"] + outcome.algorithm_fallbacks
             ),
+            "algorithm_expanded_states": (
+                state["algorithm_expanded_states"]
+                + outcome.algorithm_expanded_states
+            ),
+            "algorithm_elapsed_seconds": (
+                state["algorithm_elapsed_seconds"]
+                + outcome.algorithm_elapsed_seconds
+            ),
             "llm_calls": state["llm_calls"] + outcome.llm_calls,
             "llm_client_errors": (
                 state["llm_client_errors"] + outcome.llm_client_errors
@@ -152,19 +165,50 @@ class SokobanGraph:
             ),
             "llm_elapsed_seconds": (
                 state["llm_elapsed_seconds"]
-                + (elapsed if outcome.llm_calls else 0.0)
+                + outcome.llm_elapsed_seconds
+            ),
+            "llm_load_seconds": (
+                state["llm_load_seconds"] + outcome.llm_load_seconds
+            ),
+            "llm_prompt_eval_seconds": (
+                state["llm_prompt_eval_seconds"]
+                + outcome.llm_prompt_eval_seconds
+            ),
+            "llm_eval_seconds": (
+                state["llm_eval_seconds"] + outcome.llm_eval_seconds
+            ),
+            "llm_prompt_tokens": (
+                state["llm_prompt_tokens"] + outcome.llm_prompt_tokens
+            ),
+            "llm_output_tokens": (
+                state["llm_output_tokens"] + outcome.llm_output_tokens
             ),
             "last_proposal_used_llm": outcome.llm_calls > 0,
         }
 
     def _validate(self, state: SokobanGraphState) -> dict[str, object]:
-        action = state["plan"][0]
         level, board = decode_observation(state["observation"])
-        move = apply_action(level, board, action)
-        if not move.invalid_move:
-            return {}
+        validated: list[Action] = []
+        message: str | None = None
+        for index, action in enumerate(state["plan"]):
+            move = apply_action(level, board, action)
+            if move.invalid_move:
+                message = (
+                    f"plan action {index + 1} ({action.name}) is blocked"
+                )
+                break
+            board = move.state
+            validated.append(action)
+            if has_static_corner_deadlock(level, board):
+                message = (
+                    f"plan action {index + 1} ({action.name}) causes deadlock"
+                )
+                break
+            if is_success(level, board):
+                return {"plan": tuple(validated)}
 
-        message = f"{action.name} is blocked in the current board"
+        if message is None:
+            return {}
         exhausted = (
             state["planning_attempts"] >= self.max_planning_attempts
         )
@@ -249,10 +293,17 @@ class SokobanGraph:
             "planning_elapsed_seconds": 0.0,
             "algorithm_calls": 0,
             "algorithm_fallbacks": 0,
+            "algorithm_expanded_states": 0,
+            "algorithm_elapsed_seconds": 0.0,
             "llm_calls": 0,
             "llm_client_errors": 0,
             "llm_format_errors": 0,
             "llm_invalid_actions": 0,
             "llm_elapsed_seconds": 0.0,
+            "llm_load_seconds": 0.0,
+            "llm_prompt_eval_seconds": 0.0,
+            "llm_eval_seconds": 0.0,
+            "llm_prompt_tokens": 0,
+            "llm_output_tokens": 0,
             "last_proposal_used_llm": False,
         }

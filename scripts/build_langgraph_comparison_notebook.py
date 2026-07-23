@@ -11,28 +11,25 @@ from nbformat.v4 import new_code_cell, new_markdown_cell, new_notebook
 
 LEVEL_IDS = ["tiny-push", "tiny-walk", "heldout-turn"]
 SEEDS = [0, 1]
-MAX_STEPS = 15
-MAX_ATTEMPTS = 3
-
+MAX_STEPS, MAX_ATTEMPTS = 15, 3
 _new_code_cell = cast(Callable[[str], Any], new_code_cell)
 _new_markdown_cell = cast(Callable[[str], Any], new_markdown_cell)
 _new_notebook = cast(Callable[..., Any], new_notebook)
 _write_notebook = cast(Callable[[Any, Path], None], nbformat.write)
 
-
 def build_notebook(output_path: Path) -> None:
-    """Create the reader-facing LangGraph planner experiment notebook."""
-
     notebook = _new_notebook(
         cells=[
             _new_markdown_cell(
                 "# LangGraph Planner 비교 실험\n\n"
+                "## tl;dr\n\n"
+                "저장 실행: LLM 67%, BFS/A*/하이브리드 100% 성공.\n\n"
                 "## Experiment Goal\n\n"
-                "- Random, BFS, LLM, LLM+BFS Search Guard를 동일한 레벨과 "
-                "seed에서 비교한다.\n"
+                "- Random, BFS, push 기반 A*, LLM, LLM+Search Guard를 "
+                "동일한 레벨과 seed에서 비교한다.\n"
                 "- 성공률, 행동 수, 계획 오류·재시도, 알고리즘 폴백과 LLM "
                 "응답 시간을 측정한다.\n"
-                "- 저장 출력은 없다. 위에서 아래로 실행해 현재 결과를 만든다."
+                "- 위에서 아래로 실행한 현재 결과를 노트북에 저장한다."
             ),
             _new_markdown_cell(
                 "## Context & Methods\n\n"
@@ -67,6 +64,7 @@ def build_notebook(output_path: Path) -> None:
                 "    summarize_by_planner,\n"
                 ")\n"
                 "from sokoban_agent.planning import (\n"
+                "    AStarPlanner,\n"
                 "    BFSPlanner,\n"
                 "    LLMPlanner,\n"
                 "    RandomPlanner,\n"
@@ -75,7 +73,7 @@ def build_notebook(output_path: Path) -> None:
                 "from sokoban_agent.planning.llm import (\n"
                 "    OllamaClient,\n"
                 "    OllamaSettings,\n"
-                ")\n\n"
+                ")\n\npd.set_option('display.max_columns', None)\n\n"
                 f"LEVEL_IDS = {LEVEL_IDS!r}\n"
                 f"SEEDS = {SEEDS!r}\n"
                 f"MAX_STEPS = {MAX_STEPS}\n"
@@ -84,6 +82,9 @@ def build_notebook(output_path: Path) -> None:
                 "experiment_config = {\n"
                 "    'model': settings.model,\n"
                 "    'temperature': settings.temperature,\n"
+                "    'num_ctx': settings.num_ctx,\n"
+                "    'max_output_tokens': settings.max_output_tokens,\n"
+                "    'think': settings.think,\n"
                 "    'level_ids': LEVEL_IDS,\n"
                 "    'seeds': SEEDS,\n"
                 "    'max_steps': MAX_STEPS,\n"
@@ -118,15 +119,23 @@ def build_notebook(output_path: Path) -> None:
             _new_markdown_cell("### 3. Run identical cases"),
             _new_code_cell(
                 "client = OllamaClient(settings)\n"
+                "warmup = client.complete('Reply with READY only.')\n"
+                "print({'warmup_seconds': warmup.metrics.total_seconds})\n"
                 "planners = [\n"
                 "    RandomPlanner(),\n"
                 "    BFSPlanner(),\n"
+                "    AStarPlanner(),\n"
                 "    LLMPlanner(\n"
                 "        client,\n"
                 "        model_name=settings.model,\n"
                 "    ),\n"
                 "    SearchGuardPlanner(\n"
-                "        LLMPlanner(client, model_name=settings.model)\n"
+                "        LLMPlanner(client, model_name=settings.model),\n"
+                "        algorithm='bfs',\n"
+                "    ),\n"
+                "    SearchGuardPlanner(\n"
+                "        LLMPlanner(client, model_name=settings.model),\n"
+                "        algorithm='astar',\n"
                 "    ),\n"
                 "]\n"
                 "env = SokobanEnv(\n"
@@ -164,13 +173,22 @@ def build_notebook(output_path: Path) -> None:
                 "    'mean_actions',\n"
                 "    'mean_actions_on_success',\n"
                 "    'mean_elapsed_seconds',\n"
+                "    'p50_elapsed_seconds',\n"
+                "    'p95_elapsed_seconds',\n"
                 "    'total_algorithm_calls',\n"
                 "    'total_algorithm_fallbacks',\n"
+                "    'total_algorithm_expanded_states',\n"
+                "    'mean_algorithm_elapsed_seconds',\n"
                 "    'total_llm_calls',\n"
                 "    'total_llm_retries',\n"
                 "    'total_llm_format_errors',\n"
                 "    'total_llm_invalid_actions',\n"
                 "    'mean_llm_elapsed_seconds',\n"
+                "    'p50_llm_elapsed_seconds',\n"
+                "    'p95_llm_elapsed_seconds',\n"
+                "    'total_llm_prompt_tokens',\n"
+                "    'total_llm_output_tokens',\n"
+                "    'llm_output_tokens_per_second',\n"
                 "]\n"
                 "summary_df[summary_columns]"
             ),
@@ -194,7 +212,7 @@ def build_notebook(output_path: Path) -> None:
             _new_markdown_cell("### 5. Inspect LLM failures by level and seed"),
             _new_code_cell(
                 "llm_name = f'graph:llm:{settings.model}'\n"
-                "hybrid_name = f'graph:hybrid:{llm_name}+bfs'\n"
+                "hybrid_name = f'graph:hybrid:{llm_name}+astar'\n"
                 "llm_columns = [\n"
                 "    'level_id',\n"
                 "    'seed',\n"
@@ -208,6 +226,8 @@ def build_notebook(output_path: Path) -> None:
                 "    'llm_format_errors',\n"
                 "    'llm_invalid_actions',\n"
                 "    'llm_elapsed_seconds',\n"
+                "    'llm_prompt_tokens',\n"
+                "    'llm_output_tokens',\n"
                 "    'failure_reason',\n"
                 "]\n"
                 "llm_results_df = results_df[\n"
@@ -255,13 +275,9 @@ def build_notebook(output_path: Path) -> None:
             _new_code_cell(
                 "RGB_PALETTE = np.asarray(\n"
                 "    [\n"
-                "        [238, 238, 238],  # floor\n"
-                "        [45, 45, 45],     # wall\n"
-                "        [255, 196, 64],   # target\n"
-                "        [139, 90, 43],    # box\n"
-                "        [55, 126, 184],   # player\n"
-                "        [76, 175, 80],    # box on target\n"
-                "        [126, 87, 194],   # player on target\n"
+                "        [238, 238, 238], [45, 45, 45], [255, 196, 64],\n"
+                "        [139, 90, 43], [55, 126, 184], [76, 175, 80],\n"
+                "        [126, 87, 194],\n"
                 "    ],\n"
                 "    dtype=np.uint8,\n"
                 ")\n\n"
@@ -327,6 +343,7 @@ def build_notebook(output_path: Path) -> None:
                 ")\n"
                 "assert all(cases == expected_cases for cases in case_sets.values())\n"
                 "assert summary_df.loc['graph:bfs', 'success_rate'] == 1.0\n"
+                "assert summary_df.loc['graph:astar', 'success_rate'] == 1.0\n"
                 "assert summary_df.loc[llm_name, 'total_llm_client_errors'] == 0\n"
                 "assert summary_df.loc[hybrid_name, 'total_algorithm_calls'] > 0\n"
                 "assert len(selected_trace.frames) == (\n"
@@ -340,6 +357,7 @@ def build_notebook(output_path: Path) -> None:
                 "llm_summary = summary_df.loc[llm_name]\n"
                 "hybrid_summary = summary_df.loc[hybrid_name]\n"
                 "bfs_summary = summary_df.loc['graph:bfs']\n"
+                "astar_summary = summary_df.loc['graph:astar']\n"
                 "solved_levels = llm_results_df.loc[\n"
                 "    llm_results_df['success'], 'level_id'\n"
                 "].value_counts().to_dict()\n"
@@ -349,8 +367,11 @@ def build_notebook(output_path: Path) -> None:
                 "    f'({llm_summary.success_rate:.0%}).\\n'\n"
                 "    f'- BFS는 같은 cohort에서 '\n"
                 "    f'{bfs_summary.success_rate:.0%} 성공했다.\\n'\n"
-                "    f'- LLM+BFS Search Guard는 '\n"
-                "    f'{hybrid_summary.success_rate:.0%} 성공했고, BFS 폴백은 '\n"
+                "    f'- push 기반 A*는 {astar_summary.success_rate:.0%} 성공했고 '\n"
+                "    f'평균 탐색 시간은 '\n"
+                "    f'{astar_summary.mean_algorithm_elapsed_seconds:.4f}초였다.\\n'\n"
+                "    f'- LLM+A* Search Guard는 '\n"
+                "    f'{hybrid_summary.success_rate:.0%} 성공했고, A* 폴백은 '\n"
                 "    f'{int(hybrid_summary.total_algorithm_fallbacks)}회였다.\\n'\n"
                 "    f'- LLM의 총 호출은 {int(llm_summary.total_llm_calls)}회, '\n"
                 "    f'재시도는 {int(llm_summary.total_llm_retries)}회, '\n"
@@ -362,26 +383,18 @@ def build_notebook(output_path: Path) -> None:
             ),
         ],
         metadata={
-            "kernelspec": {
-                "display_name": "Python 3",
-                "language": "python",
-                "name": "python3",
-            },
+            "kernelspec": {"display_name": "Python 3", "language": "python",
+                           "name": "python3"},
             "language_info": {"name": "python", "version": "3.11"},
         },
     )
     output_path.parent.mkdir(parents=True, exist_ok=True)
     _write_notebook(notebook, output_path)
 
-
 def main() -> None:
-    """Write the notebook at the repository's standard path."""
-
     repository_root = Path(__file__).resolve().parents[1]
-    build_notebook(
-        repository_root / "notebooks" / "langgraph_planner_comparison.ipynb"
-    )
-
+    output = repository_root / "notebooks" / "langgraph_planner_comparison.ipynb"
+    build_notebook(output)
 
 if __name__ == "__main__":
     main()

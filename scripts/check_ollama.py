@@ -6,9 +6,16 @@ from sokoban_agent.planning.llm import OllamaClient
 def main() -> None:
     client = OllamaClient.from_env()
     response = client.complete("연결 확인이라고 짧게 답해줘.")
-    print(response)
+    print(response.content)
+    print(
+        {
+            "total_seconds": response.metrics.total_seconds,
+            "load_seconds": response.metrics.load_seconds,
+            "prompt_tokens": response.metrics.prompt_tokens,
+            "output_tokens": response.metrics.output_tokens,
+        }
+    )
 
 
 if __name__ == "__main__":
     main()
-

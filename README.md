@@ -4,9 +4,10 @@
 연구하는 Python 프로젝트입니다.
 
 LangGraph를 실행 코어로 사용합니다. `plan → validate → execute` 그래프가
-계획, 규칙 검증, 실행, 재시도와 체크포인트를 관리하고 Random/BFS/LLM
-Planner를 같은 흐름에 연결합니다. BFS 같은 탐색 알고리즘은 전체 계획을,
-LLM은 구조화된 행동을 제안하며 환경 규칙 노드가 실행 전에 검증합니다.
+계획, 규칙 검증, 실행, 재시도와 체크포인트를 관리하고
+Random/BFS/A*/LLM Planner를 같은 흐름에 연결합니다. 탐색 알고리즘은 전체
+계획을, LLM은 JSON Schema로 최대 8개 행동을 제안하며 환경 규칙 노드가 전체
+계획을 실행 전에 검증합니다.
 목표와 범위는 [PROJECT](docs/PROJECT.md), 작업 순서는 [TODO](TODO.md)에서
 관리합니다.
 
@@ -126,9 +127,14 @@ uv run python scripts/check_ollama.py
 기본값이 있습니다.
 
 ```dotenv
-OLLAMA_API_BASE=http://localhost:11434
-OLLAMA_MODEL=llama3.2
-OLLAMA_TIMEOUT_SECONDS=120
+OLLAMA_API_BASE=https://model.byfred.io
+OLLAMA_MODEL=qwen3.6:27b-mlx
+OLLAMA_TIMEOUT_SECONDS=300
+OLLAMA_TEMPERATURE=0
+OLLAMA_NUM_CTX=4096
+OLLAMA_MAX_OUTPUT_TOKENS=128
+OLLAMA_KEEP_ALIVE=30m
+OLLAMA_THINK=false
 ```
 
 Python에서는 다음처럼 텍스트 응답을 요청합니다. 이 클라이언트는 아직
@@ -139,7 +145,8 @@ from sokoban_agent.planning.llm import OllamaClient
 
 client = OllamaClient.from_env()
 answer = client.complete("다음 행동을 UP, DOWN, LEFT, RIGHT 중 하나로 답해줘.")
-print(answer)
+print(answer.content)
+print(answer.metrics)
 ```
 
 실제 보드 플레이에는 같은 클라이언트를 `LLMPlanner`에 연결하고,
@@ -158,8 +165,8 @@ state = graph.run(level_id="tiny-push", thread_id="example-episode")
 print(state["info"]["success"], state["action_history"])
 ```
 
-LLM 제안을 BFS로 검사하고 필요할 때 안전한 전체 계획으로 대체할 수도
-있습니다.
+LLM 제안을 push 기반 A*로 검사하고, 안전하면 탐색한 후속 경로를 재사용하며,
+위험하면 현재 상태의 안전한 전체 계획으로 대체할 수도 있습니다.
 
 ```python
 from sokoban_agent.planning import SearchGuardPlanner
@@ -187,8 +194,8 @@ uv run --group notebook python -m jupyter nbconvert \
   --execute --to notebook --inplace notebooks/baseline_comparison.ipynb
 ```
 
-주 실험은 `.env`의 모델을 사용해 Random, BFS, LLM, LLM+BFS Search
-Guard를 비교합니다.
+주 실험은 `.env`의 모델을 사용해 Random, BFS, push 기반 A*, LLM,
+LLM+BFS Guard, LLM+A* Guard를 비교합니다.
 
 ```bash
 uv run --group notebook python scripts/build_langgraph_comparison_notebook.py
@@ -198,8 +205,8 @@ uv run --group notebook python -m jupyter nbconvert \
 
 `baseline_comparison.ipynb`는 LangGraph 실행기와 BFS 기준선을 빠르게
 확인하는 사전 점검용이다. 실제 모델과 하이브리드 성능을 비교할 때는
-`langgraph_planner_comparison.ipynb`를 사용한다. 두 노트북 모두 저장된
-출력 없이 생성되며 실행한 환경의 결과만 표시한다.
+`langgraph_planner_comparison.ipynb`를 사용한다. 주 실험 노트북에는 마지막
+실행의 설정, 표, 차트와 이동 재생 출력을 저장한다.
 
 노트북은 실험과 시각화에만 사용하고, 재사용 코드는 `src/`에 둡니다.
 
@@ -210,7 +217,7 @@ uv run --group notebook python -m jupyter nbconvert \
 ```text
 src/sokoban_agent/
 ├── env/               # 게임 규칙, 렌더링, 레벨 공급자
-├── planning/          # Planner 계약과 Random/BFS/LLM 계획 노드
+├── planning/          # Planner 계약과 Random/BFS/A*/LLM 계획 노드
 ├── graph/             # LangGraph 상태, 검증, 실행, 복구, 체크포인트
 ├── evaluation/        # 그래프 벤치마크, 결과, 집계, trajectory
 └── play.py            # 터미널 플레이

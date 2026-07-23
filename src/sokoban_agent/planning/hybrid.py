@@ -1,99 +1,188 @@
-"""Hybrid planner that guards model proposals with deterministic search."""
+"""Hybrid planner that grounds model plans with cached search."""
 
 from __future__ import annotations
 
 from dataclasses import replace
+from time import perf_counter
+from typing import Literal
 
+from sokoban_agent.env import Action
 from sokoban_agent.env.rules import (
     apply_action,
     decode_observation,
     has_static_corner_deadlock,
+    is_success,
     observation_for,
 )
+from sokoban_agent.planning.astar import solve_astar_result
 from sokoban_agent.planning.base import (
     NoSolutionError,
+    Observation,
     Planner,
     PlanningContext,
     PlanningOutcome,
     SearchLimitError,
+    SearchResult,
 )
-from sokoban_agent.planning.bfs import solve_bfs
+from sokoban_agent.planning.bfs import solve_bfs_result
+
+SearchAlgorithm = Literal["astar", "bfs"]
+_CacheKey = tuple[tuple[int, ...], bytes]
 
 
 class SearchGuardPlanner:
-    """Use BFS to accept a proposal or replace it with a safe plan."""
+    """Validate a primary plan and append a cached grounded search suffix."""
 
     def __init__(
         self,
         primary: Planner,
         *,
+        algorithm: SearchAlgorithm = "astar",
         max_expanded_states: int = 100_000,
     ) -> None:
         if max_expanded_states <= 0:
             raise ValueError("max_expanded_states must be positive")
         self.primary = primary
+        self.algorithm = algorithm
         self.max_expanded_states = max_expanded_states
+        self._cache: dict[_CacheKey, SearchResult] = {}
 
     @property
     def name(self) -> str:
         """Return a planner name that makes the hybrid policy explicit."""
 
-        return f"graph:hybrid:{self.primary.name}+bfs"
+        return f"graph:hybrid:{self.primary.name}+{self.algorithm}"
 
     def reset(self, *, seed: int | None = None) -> None:
-        """Reset the primary planner; BFS has no episode-local state."""
+        """Reset the primary planner and episode-local search cache."""
 
         self.primary.reset(seed=seed)
+        self._cache.clear()
 
     def plan(self, context: PlanningContext) -> PlanningOutcome:
-        """Guard the primary proposal and fall back to BFS when needed."""
+        """Ground the complete proposal and reuse the safe search suffix."""
 
+        started_at = perf_counter()
         primary = self.primary.plan(context)
         if not primary.actions:
-            return self._fallback(context, primary)
+            return self._fallback(context, primary, started_at=started_at)
 
         level, state = decode_observation(context.observation)
-        move = apply_action(level, state, primary.actions[0])
-        if move.invalid_move or has_static_corner_deadlock(level, move.state):
-            return self._fallback(context, primary)
+        accepted: list[Action] = []
+        for action in primary.actions:
+            move = apply_action(level, state, action)
+            if move.invalid_move or has_static_corner_deadlock(level, move.state):
+                return self._fallback(
+                    context,
+                    primary,
+                    started_at=started_at,
+                )
+            state = move.state
+            accepted.append(action)
+            if is_success(level, state):
+                return replace(
+                    primary,
+                    actions=tuple(accepted),
+                    elapsed_seconds=perf_counter() - started_at,
+                )
 
-        next_observation = observation_for(level, move.state)
+        next_observation = observation_for(level, state)
+        search_started = perf_counter()
         try:
-            solve_bfs(
-                next_observation,
-                max_expanded_states=self.max_expanded_states,
-            )
+            suffix, cache_hit = self._search(next_observation)
         except (NoSolutionError, SearchLimitError):
-            return self._fallback(context, primary)
+            return self._fallback(
+                context,
+                primary,
+                started_at=started_at,
+                prior_algorithm_calls=1,
+                prior_algorithm_elapsed=perf_counter() - search_started,
+            )
         return replace(
             primary,
-            algorithm_calls=primary.algorithm_calls + 1,
+            actions=(*accepted, *suffix.actions),
+            algorithm_calls=primary.algorithm_calls + int(not cache_hit),
+            algorithm_expanded_states=(
+                primary.algorithm_expanded_states
+                + (0 if cache_hit else suffix.expanded_states)
+            ),
+            algorithm_elapsed_seconds=(
+                primary.algorithm_elapsed_seconds
+                + (0.0 if cache_hit else suffix.elapsed_seconds)
+            ),
+            elapsed_seconds=perf_counter() - started_at,
         )
 
     def _fallback(
         self,
         context: PlanningContext,
         primary: PlanningOutcome,
+        *,
+        started_at: float,
+        prior_algorithm_calls: int = 0,
+        prior_algorithm_elapsed: float = 0.0,
     ) -> PlanningOutcome:
+        search_started = perf_counter()
         try:
-            actions = solve_bfs(
-                context.observation,
-                max_expanded_states=self.max_expanded_states,
-            )
+            result, cache_hit = self._search(context.observation)
         except (NoSolutionError, SearchLimitError) as error:
+            search_elapsed = perf_counter() - search_started
             return replace(
                 primary,
                 actions=(),
                 error=str(error),
                 error_kind="search",
-                algorithm_calls=primary.algorithm_calls + 1,
+                algorithm_calls=(
+                    primary.algorithm_calls + prior_algorithm_calls + 1
+                ),
                 algorithm_fallbacks=primary.algorithm_fallbacks + 1,
+                algorithm_elapsed_seconds=(
+                    primary.algorithm_elapsed_seconds
+                    + prior_algorithm_elapsed
+                    + search_elapsed
+                ),
+                elapsed_seconds=perf_counter() - started_at,
             )
         return replace(
             primary,
-            actions=actions,
+            actions=result.actions,
             error=None,
             error_kind=None,
-            algorithm_calls=primary.algorithm_calls + 1,
+            algorithm_calls=(
+                primary.algorithm_calls
+                + prior_algorithm_calls
+                + int(not cache_hit)
+            ),
             algorithm_fallbacks=primary.algorithm_fallbacks + 1,
+            algorithm_expanded_states=(
+                primary.algorithm_expanded_states
+                + (0 if cache_hit else result.expanded_states)
+            ),
+            algorithm_elapsed_seconds=(
+                primary.algorithm_elapsed_seconds
+                + prior_algorithm_elapsed
+                + (0.0 if cache_hit else result.elapsed_seconds)
+            ),
+            elapsed_seconds=perf_counter() - started_at,
         )
+
+    def _search(
+        self,
+        observation: Observation,
+    ) -> tuple[SearchResult, bool]:
+        key = (observation.shape, observation.tobytes())
+        cached = self._cache.get(key)
+        if cached is not None:
+            return cached, True
+        if self.algorithm == "astar":
+            result = solve_astar_result(
+                observation,
+                max_expanded_states=self.max_expanded_states,
+            )
+        else:
+            result = solve_bfs_result(
+                observation,
+                max_expanded_states=self.max_expanded_states,
+            )
+        self._cache[key] = result
+        return result, False

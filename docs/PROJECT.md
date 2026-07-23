@@ -45,6 +45,7 @@
 계획 오류와 막힌 행동 재시도를 관리한다. 각 에피소드는 `thread_id`로
 체크포인트된다.
 
-Random, BFS, LiteLLM/Ollama Planner가 같은 그래프를 사용한다. BFS는 전체
-경로를 제안하고 LLM과 Random은 한 행동씩 제안한다. 실행 결과에는 일반
-계획 호출·오류·재시도와 LLM 전용 진단 지표가 함께 기록된다.
+Random, BFS, push 기반 A*, native Ollama Planner가 같은 그래프를 사용한다.
+알고리즘은 전체 경로를, LLM은 최대 8개 행동을 제안한다. 실행 결과에는
+계획 호출·오류·재시도, 탐색 확장 수와 시간, Ollama의 로딩·prompt eval·
+generation 시간과 토큰 지표가 함께 기록된다.

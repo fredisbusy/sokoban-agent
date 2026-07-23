@@ -74,7 +74,7 @@ def test_run_episode_records_success_invalid_moves_and_time() -> None:
     assert result.elapsed_seconds >= 0
 
 
-def test_run_episode_records_deadlock() -> None:
+def test_run_episode_rejects_a_plan_that_causes_deadlock() -> None:
     level = parse_level(
         "deadlock",
         ["#####", "## .#", "# $@#", "#   #", "#####"],
@@ -84,9 +84,10 @@ def test_run_episode_records_deadlock() -> None:
     result = run_episode(env, ScriptedPlanner([Action.LEFT]))
 
     assert not result.success
-    assert result.deadlock
+    assert not result.deadlock
     assert not result.truncated
-    assert result.action_count == 1
+    assert result.action_count == 0
+    assert result.invalid_moves == 1
 
 
 def test_run_episode_records_step_limit() -> None:
@@ -228,6 +229,8 @@ def test_summarize_by_planner_calculates_required_metrics() -> None:
     assert summary.mean_actions_on_success == 3
     assert summary.mean_invalid_moves == 1
     assert summary.mean_elapsed_seconds == pytest.approx(0.2)
+    assert summary.p50_elapsed_seconds == pytest.approx(0.2)
+    assert summary.p95_elapsed_seconds == pytest.approx(0.29)
     assert summary.total_planning_calls == 0
     assert summary.total_llm_calls == 0
     assert summary.total_llm_retries == 0

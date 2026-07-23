@@ -8,6 +8,7 @@ from sokoban_agent.env import (
     parse_level,
 )
 from sokoban_agent.planning import (
+    AStarPlanner,
     BFSPlanner,
     NoSolutionError,
     Planner,
@@ -16,6 +17,7 @@ from sokoban_agent.planning import (
     RandomPlanner,
     SearchGuardPlanner,
     SearchLimitError,
+    solve_astar,
     solve_bfs,
 )
 
@@ -100,6 +102,16 @@ def test_bfs_reports_search_limit() -> None:
         solve_bfs(context.observation, max_expanded_states=1)
 
 
+def test_bfs_planner_records_failed_search_work() -> None:
+    outcome = BFSPlanner(max_expanded_states=1).plan(
+        _initial_context("tiny-walk")
+    )
+
+    assert outcome.error_kind == "search"
+    assert outcome.algorithm_calls == 1
+    assert outcome.algorithm_elapsed_seconds >= 0
+
+
 def test_bfs_planner_returns_a_complete_plan() -> None:
     context = _initial_context("tiny-walk")
     planner = _accept_planner(BFSPlanner())
@@ -110,6 +122,54 @@ def test_bfs_planner_returns_a_complete_plan() -> None:
     assert outcome.error is None
     assert len(outcome.actions) == 5
     assert outcome.elapsed_seconds >= 0
+    assert outcome.algorithm_calls == 1
+    assert outcome.algorithm_expanded_states > 0
+
+
+@pytest.mark.parametrize(
+    ("level_id", "expected_steps"),
+    [("tiny-push", 1), ("tiny-walk", 5)],
+)
+def test_astar_plan_solves_built_in_level(
+    level_id: str,
+    expected_steps: int,
+) -> None:
+    env = SokobanEnv(level_provider=DEFAULT_LEVELS)
+    observation, _ = env.reset(options={"level_id": level_id})
+
+    plan = solve_astar(observation)
+    for action in plan:
+        _, _, terminated, truncated, info = env.step(action)
+
+    assert len(plan) == expected_steps
+    assert terminated
+    assert not truncated
+    assert info["success"]
+
+
+def test_astar_planner_reports_search_metrics() -> None:
+    outcome = AStarPlanner().plan(_initial_context("tiny-walk"))
+
+    assert len(outcome.actions) == 5
+    assert outcome.algorithm_calls == 1
+    assert outcome.algorithm_expanded_states > 0
+    assert outcome.algorithm_elapsed_seconds >= 0
+
+
+def test_astar_solves_a_two_box_level() -> None:
+    level = parse_level(
+        "two-boxes",
+        ["#######", "# . . #", "# $ $ #", "#  @  #", "#######"],
+    )
+    env = SokobanEnv(level_provider=FixedLevelProvider([level]))
+    observation, _ = env.reset()
+
+    plan = solve_astar(observation)
+    for action in plan:
+        _, _, terminated, _, info = env.step(action)
+
+    assert terminated
+    assert info["success"]
 
 
 class FixedPlanner:
@@ -134,9 +194,30 @@ def test_search_guard_keeps_a_solvable_primary_proposal() -> None:
     outcome = planner.plan(_initial_context("tiny-push"))
 
     assert outcome.actions == (Action.UP,)
-    assert outcome.algorithm_calls == 1
+    assert outcome.algorithm_calls == 0
     assert outcome.algorithm_fallbacks == 0
     assert outcome.llm_calls == 1
+
+
+def test_search_guard_appends_and_reuses_grounded_suffix() -> None:
+    planner = SearchGuardPlanner(FixedPlanner(Action.UP))
+    context = _initial_context("tiny-walk")
+
+    first = planner.plan(context)
+    second = planner.plan(context)
+
+    assert first.actions == (
+        Action.UP,
+        Action.RIGHT,
+        Action.DOWN,
+        Action.RIGHT,
+        Action.UP,
+    )
+    assert first.algorithm_calls == 1
+    assert first.algorithm_expanded_states > 0
+    assert second.actions == first.actions
+    assert second.algorithm_calls == 0
+    assert second.algorithm_expanded_states == 0
 
 
 def test_search_guard_falls_back_to_bfs_for_blocked_proposal() -> None:

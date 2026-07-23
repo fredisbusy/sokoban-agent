@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 from dataclasses import dataclass
-from statistics import fmean
+from statistics import fmean, median
 
 
 @dataclass(frozen=True, slots=True)
@@ -28,12 +28,19 @@ class EpisodeResult:
     planning_elapsed_seconds: float = 0.0
     algorithm_calls: int = 0
     algorithm_fallbacks: int = 0
+    algorithm_expanded_states: int = 0
+    algorithm_elapsed_seconds: float = 0.0
     llm_calls: int = 0
     llm_retries: int = 0
     llm_client_errors: int = 0
     llm_format_errors: int = 0
     llm_invalid_actions: int = 0
     llm_elapsed_seconds: float = 0.0
+    llm_load_seconds: float = 0.0
+    llm_prompt_eval_seconds: float = 0.0
+    llm_eval_seconds: float = 0.0
+    llm_prompt_tokens: int = 0
+    llm_output_tokens: int = 0
 
 
 @dataclass(frozen=True, slots=True)
@@ -51,18 +58,27 @@ class PlannerSummary:
     mean_actions_on_success: float | None
     mean_invalid_moves: float
     mean_elapsed_seconds: float
+    p50_elapsed_seconds: float
+    p95_elapsed_seconds: float
     total_planning_calls: int
     total_planning_retries: int
     total_planning_errors: int
     mean_planning_elapsed_seconds: float
     total_algorithm_calls: int
     total_algorithm_fallbacks: int
+    total_algorithm_expanded_states: int
+    mean_algorithm_elapsed_seconds: float
     total_llm_calls: int
     total_llm_retries: int
     total_llm_client_errors: int
     total_llm_format_errors: int
     total_llm_invalid_actions: int
     mean_llm_elapsed_seconds: float
+    p50_llm_elapsed_seconds: float
+    p95_llm_elapsed_seconds: float
+    total_llm_prompt_tokens: int
+    total_llm_output_tokens: int
+    llm_output_tokens_per_second: float | None
 
 
 def summarize_by_planner(
@@ -104,6 +120,13 @@ def summarize_by_planner(
                 mean_elapsed_seconds=fmean(
                     episode.elapsed_seconds for episode in episodes
                 ),
+                p50_elapsed_seconds=median(
+                    episode.elapsed_seconds for episode in episodes
+                ),
+                p95_elapsed_seconds=_percentile(
+                    [episode.elapsed_seconds for episode in episodes],
+                    0.95,
+                ),
                 total_planning_calls=sum(
                     episode.planning_calls for episode in episodes
                 ),
@@ -121,6 +144,12 @@ def summarize_by_planner(
                 ),
                 total_algorithm_fallbacks=sum(
                     episode.algorithm_fallbacks for episode in episodes
+                ),
+                total_algorithm_expanded_states=sum(
+                    episode.algorithm_expanded_states for episode in episodes
+                ),
+                mean_algorithm_elapsed_seconds=fmean(
+                    episode.algorithm_elapsed_seconds for episode in episodes
                 ),
                 total_llm_calls=sum(
                     episode.llm_calls for episode in episodes
@@ -140,6 +169,37 @@ def summarize_by_planner(
                 mean_llm_elapsed_seconds=fmean(
                     episode.llm_elapsed_seconds for episode in episodes
                 ),
+                p50_llm_elapsed_seconds=median(
+                    episode.llm_elapsed_seconds for episode in episodes
+                ),
+                p95_llm_elapsed_seconds=_percentile(
+                    [episode.llm_elapsed_seconds for episode in episodes],
+                    0.95,
+                ),
+                total_llm_prompt_tokens=sum(
+                    episode.llm_prompt_tokens for episode in episodes
+                ),
+                total_llm_output_tokens=sum(
+                    episode.llm_output_tokens for episode in episodes
+                ),
+                llm_output_tokens_per_second=(
+                    sum(episode.llm_output_tokens for episode in episodes)
+                    / sum(episode.llm_eval_seconds for episode in episodes)
+                    if sum(
+                        episode.llm_eval_seconds for episode in episodes
+                    )
+                    > 0
+                    else None
+                ),
             )
         )
     return summaries
+
+
+def _percentile(values: list[float], quantile: float) -> float:
+    ordered = sorted(values)
+    position = (len(ordered) - 1) * quantile
+    lower = int(position)
+    upper = min(lower + 1, len(ordered) - 1)
+    fraction = position - lower
+    return ordered[lower] + (ordered[upper] - ordered[lower]) * fraction

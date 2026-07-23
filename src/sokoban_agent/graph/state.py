@@ -30,9 +30,16 @@ class SokobanGraphState(TypedDict):
     planning_elapsed_seconds: float
     algorithm_calls: int
     algorithm_fallbacks: int
+    algorithm_expanded_states: int
+    algorithm_elapsed_seconds: float
     llm_calls: int
     llm_client_errors: int
     llm_format_errors: int
     llm_invalid_actions: int
     llm_elapsed_seconds: float
+    llm_load_seconds: float
+    llm_prompt_eval_seconds: float
+    llm_eval_seconds: float
+    llm_prompt_tokens: int
+    llm_output_tokens: int
     last_proposal_used_llm: bool

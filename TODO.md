@@ -49,8 +49,11 @@ LLM+BFS Search Guard를 함께 실행한다.
 - [x] 에피소드별 `thread_id` 체크포인트와 일반 계획 지표를 기록한다.
 - [x] 평가와 trajectory가 반드시 같은 그래프 실행기를 사용하게 한다.
 - [x] LLM 등 주 Planner의 제안을 BFS로 검사·대체하는 하이브리드를 추가한다.
-- [ ] A* 휴리스틱 Planner를 추가해 BFS guard와 비교한다.
-- [ ] LangGraph 전환 후 기준선과 LLM 비교 노트북을 다시 실행한다.
+- [x] push 기반 A* 휴리스틱 Planner를 추가해 BFS guard와 비교한다.
+- [x] LLM이 짧은 다중 행동 계획을 제안하고 전체 계획을 검증한다.
+- [x] Search Guard가 BFS/A* 후속 경로와 상태별 캐시를 재사용한다.
+- [x] Ollama와 알고리즘 세부 성능 지표를 분리해 기록한다.
+- [x] LangGraph 전환 후 기준선과 LLM 비교 노트북을 다시 실행한다.
 
 완료 조건: 하이브리드 Planner가 LLM 단독과 같은 레벨에서 실행되고 알고리즘
 검사·폴백 횟수, 재계획과 성공률을 비교할 수 있다.

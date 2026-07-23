@@ -36,9 +36,26 @@ class PlanningOutcome:
     llm_calls: int = 0
     llm_client_errors: int = 0
     llm_format_errors: int = 0
+    llm_elapsed_seconds: float = 0.0
+    llm_load_seconds: float = 0.0
+    llm_prompt_eval_seconds: float = 0.0
+    llm_eval_seconds: float = 0.0
+    llm_prompt_tokens: int = 0
+    llm_output_tokens: int = 0
     algorithm_calls: int = 0
     algorithm_fallbacks: int = 0
+    algorithm_expanded_states: int = 0
+    algorithm_elapsed_seconds: float = 0.0
     elapsed_seconds: float = 0.0
+
+
+@dataclass(frozen=True, slots=True)
+class SearchResult:
+    """A deterministic search plan and its measured work."""
+
+    actions: tuple[Action, ...]
+    expanded_states: int
+    elapsed_seconds: float
 
 
 class Planner(Protocol):

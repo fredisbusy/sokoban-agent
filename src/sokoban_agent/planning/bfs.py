@@ -18,6 +18,7 @@ from sokoban_agent.planning.base import (
     PlanningContext,
     PlanningOutcome,
     SearchLimitError,
+    SearchResult,
 )
 
 _Parent = tuple[SokobanState, Action] | None
@@ -30,12 +31,26 @@ def solve_bfs(
 ) -> tuple[Action, ...]:
     """Find a shortest primitive-action plan for a small board."""
 
+    return solve_bfs_result(
+        observation,
+        max_expanded_states=max_expanded_states,
+    ).actions
+
+
+def solve_bfs_result(
+    observation: Observation,
+    *,
+    max_expanded_states: int = 100_000,
+) -> SearchResult:
+    """Find a BFS plan together with expansion and elapsed-time metrics."""
+
+    started_at = perf_counter()
     if max_expanded_states <= 0:
         raise ValueError("max_expanded_states must be positive")
 
     level, initial = decode_observation(observation)
     if is_success(level, initial):
-        return ()
+        return SearchResult((), 0, perf_counter() - started_at)
     if has_static_corner_deadlock(level, initial):
         raise NoSolutionError("initial state has a static corner deadlock")
 
@@ -61,7 +76,11 @@ def solve_bfs(
 
             parents[next_state] = (state, action)
             if is_success(level, next_state):
-                return _restore_plan(parents, next_state)
+                return SearchResult(
+                    _restore_plan(parents, next_state),
+                    expanded_states,
+                    perf_counter() - started_at,
+                )
             frontier.append(next_state)
 
     raise NoSolutionError("BFS exhausted every reachable state")
@@ -107,17 +126,23 @@ class BFSPlanner:
 
         started_at = perf_counter()
         try:
-            actions = solve_bfs(
+            result = solve_bfs_result(
                 context.observation,
                 max_expanded_states=self.max_expanded_states,
             )
         except (NoSolutionError, SearchLimitError) as error:
+            elapsed = perf_counter() - started_at
             return PlanningOutcome(
                 error=str(error),
                 error_kind="search",
-                elapsed_seconds=perf_counter() - started_at,
+                algorithm_calls=1,
+                algorithm_elapsed_seconds=elapsed,
+                elapsed_seconds=elapsed,
             )
         return PlanningOutcome(
-            actions=actions,
+            actions=result.actions,
+            algorithm_calls=1,
+            algorithm_expanded_states=result.expanded_states,
+            algorithm_elapsed_seconds=result.elapsed_seconds,
             elapsed_seconds=perf_counter() - started_at,
         )
