@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+from collections.abc import Mapping
 from pathlib import Path
 from typing import Any, cast
 
@@ -20,6 +21,7 @@ class OllamaSettings(BaseModel):
     api_base: str
     model: str = "llama3.2"
     timeout_seconds: float = Field(default=120.0, gt=0)
+    temperature: float = Field(default=0.0, ge=0.0, le=2.0)
 
     @field_validator("api_base")
     @classmethod
@@ -54,6 +56,7 @@ class OllamaSettings(BaseModel):
             api_base=api_base,
             model=os.getenv("OLLAMA_MODEL", "llama3.2"),
             timeout_seconds=float(os.getenv("OLLAMA_TIMEOUT_SECONDS", "120")),
+            temperature=float(os.getenv("OLLAMA_TEMPERATURE", "0")),
         )
 
 
@@ -69,7 +72,14 @@ class OllamaClient:
 
         return cls(OllamaSettings.from_env(env_file))
 
-    def complete(self, prompt: str, *, system_prompt: str | None = None) -> str:
+    def complete(
+        self,
+        prompt: str,
+        *,
+        system_prompt: str | None = None,
+        seed: int | None = None,
+        response_format: Mapping[str, object] | None = None,
+    ) -> str:
         """Generate one text response from Ollama."""
 
         messages: list[dict[str, Any]] = []
@@ -77,14 +87,21 @@ class OllamaClient:
             messages.append({"role": "system", "content": system_prompt})
         messages.append({"role": "user", "content": prompt})
 
+        completion_kwargs: dict[str, Any] = {
+            "model": self.settings.litellm_model,
+            "messages": messages,
+            "api_base": self.settings.api_base,
+            "timeout": self.settings.timeout_seconds,
+            "temperature": self.settings.temperature,
+        }
+        if seed is not None:
+            completion_kwargs["seed"] = seed
+        if response_format is not None:
+            completion_kwargs["response_format"] = dict(response_format)
+
         response = cast(
             ModelResponse,
-            completion(
-                model=self.settings.litellm_model,
-                messages=messages,
-                api_base=self.settings.api_base,
-                timeout=self.settings.timeout_seconds,
-            ),
+            completion(**completion_kwargs),
         )
         if not response.choices:
             raise RuntimeError("Ollama returned no choices")
@@ -93,4 +110,3 @@ class OllamaClient:
         if not content:
             raise RuntimeError("Ollama returned an empty response")
         return content
-

@@ -5,7 +5,8 @@ from __future__ import annotations
 from collections.abc import Callable, Sequence
 from time import perf_counter
 
-from sokoban_agent.agents import Agent, AgentStopped
+from sokoban_agent.agents import Agent, AgentDiagnostics, AgentStopped
+from sokoban_agent.agents.base import ReportsAgentDiagnostics
 from sokoban_agent.env import SokobanEnv
 from sokoban_agent.evaluation.results import EpisodeResult
 
@@ -50,6 +51,11 @@ def run_episode(
         failure_reason = str(error)
 
     elapsed_seconds = timer() - started_at
+    diagnostics = (
+        agent.diagnostics
+        if isinstance(agent, ReportsAgentDiagnostics)
+        else AgentDiagnostics()
+    )
     return EpisodeResult(
         agent_name=agent.name,
         level_id=str(info["level_id"]),
@@ -62,6 +68,12 @@ def run_episode(
         total_reward=total_reward,
         elapsed_seconds=elapsed_seconds,
         failure_reason=failure_reason,
+        llm_calls=diagnostics.llm_calls,
+        llm_retries=diagnostics.llm_retries,
+        llm_client_errors=diagnostics.llm_client_errors,
+        llm_format_errors=diagnostics.llm_format_errors,
+        llm_invalid_actions=diagnostics.llm_invalid_actions,
+        llm_elapsed_seconds=diagnostics.llm_elapsed_seconds,
     )
 
 

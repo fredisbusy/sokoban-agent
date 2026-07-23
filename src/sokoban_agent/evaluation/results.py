@@ -22,6 +22,12 @@ class EpisodeResult:
     total_reward: float
     elapsed_seconds: float
     failure_reason: str | None = None
+    llm_calls: int = 0
+    llm_retries: int = 0
+    llm_client_errors: int = 0
+    llm_format_errors: int = 0
+    llm_invalid_actions: int = 0
+    llm_elapsed_seconds: float = 0.0
 
 
 @dataclass(frozen=True, slots=True)
@@ -39,6 +45,12 @@ class AgentSummary:
     mean_actions_on_success: float | None
     mean_invalid_moves: float
     mean_elapsed_seconds: float
+    total_llm_calls: int
+    total_llm_retries: int
+    total_llm_client_errors: int
+    total_llm_format_errors: int
+    total_llm_invalid_actions: int
+    mean_llm_elapsed_seconds: float
 
 
 def summarize_by_agent(
@@ -79,6 +91,24 @@ def summarize_by_agent(
                 ),
                 mean_elapsed_seconds=fmean(
                     episode.elapsed_seconds for episode in episodes
+                ),
+                total_llm_calls=sum(
+                    episode.llm_calls for episode in episodes
+                ),
+                total_llm_retries=sum(
+                    episode.llm_retries for episode in episodes
+                ),
+                total_llm_client_errors=sum(
+                    episode.llm_client_errors for episode in episodes
+                ),
+                total_llm_format_errors=sum(
+                    episode.llm_format_errors for episode in episodes
+                ),
+                total_llm_invalid_actions=sum(
+                    episode.llm_invalid_actions for episode in episodes
+                ),
+                mean_llm_elapsed_seconds=fmean(
+                    episode.llm_elapsed_seconds for episode in episodes
                 ),
             )
         )

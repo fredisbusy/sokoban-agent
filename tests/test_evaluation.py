@@ -178,6 +178,8 @@ def test_summarize_by_agent_calculates_required_metrics() -> None:
     assert summary.mean_actions_on_success == 3
     assert summary.mean_invalid_moves == 1
     assert summary.mean_elapsed_seconds == pytest.approx(0.2)
+    assert summary.total_llm_calls == 0
+    assert summary.total_llm_retries == 0
 
 
 def test_summarize_by_agent_accepts_no_results() -> None:

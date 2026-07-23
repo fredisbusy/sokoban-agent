@@ -3,7 +3,8 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from typing import Protocol
+from dataclasses import dataclass
+from typing import Protocol, runtime_checkable
 
 import numpy as np
 from numpy.typing import NDArray
@@ -12,6 +13,28 @@ from sokoban_agent.env import Action
 
 Observation = NDArray[np.uint8]
 AgentInfo = Mapping[str, object]
+
+
+@dataclass(frozen=True, slots=True)
+class AgentDiagnostics:
+    """Optional per-episode measurements reported by instrumented agents."""
+
+    llm_calls: int = 0
+    llm_retries: int = 0
+    llm_client_errors: int = 0
+    llm_format_errors: int = 0
+    llm_invalid_actions: int = 0
+    llm_elapsed_seconds: float = 0.0
+
+
+@runtime_checkable
+class ReportsAgentDiagnostics(Protocol):
+    """Optional protocol used by the runner to collect diagnostics."""
+
+    @property
+    def diagnostics(self) -> AgentDiagnostics:
+        """Return measurements for the current episode."""
+        ...
 
 
 class AgentStopped(RuntimeError):

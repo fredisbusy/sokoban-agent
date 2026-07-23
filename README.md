@@ -5,8 +5,9 @@
 
 현재 구현된 기능은 Gymnasium 환경, 고정·Boxoban 레벨 로더, 터미널 플레이,
 Random/BFS 기준선, 공통 실행기와 측정 구조, 비교 노트북, LiteLLM 기반
-Ollama 텍스트 클라이언트입니다. 실제로 보드를 푸는 LLM 에이전트는 아직
-구현되지 않았습니다.
+Ollama 클라이언트와 구조화 출력 LLM Agent입니다. LLM Agent는 매 상태에서
+JSON 행동 하나를 생성하고, 형식 오류와 막힌 행동을 제한 횟수 안에서
+재시도합니다.
 목표와 범위는 [PROJECT](docs/PROJECT.md), 작업 순서는 [TODO](TODO.md)에서
 관리합니다.
 
@@ -131,7 +132,7 @@ OLLAMA_TIMEOUT_SECONDS=120
 ```
 
 Python에서는 다음처럼 텍스트 응답을 요청합니다. 이 클라이언트는 아직
-Sokoban 보드나 행동 실행기와 연결되어 있지 않습니다.
+독립적으로 사용할 수도 있습니다.
 
 ```python
 from sokoban_agent.agents.llm import OllamaClient
@@ -139,6 +140,16 @@ from sokoban_agent.agents.llm import OllamaClient
 client = OllamaClient.from_env()
 answer = client.complete("다음 행동을 UP, DOWN, LEFT, RIGHT 중 하나로 답해줘.")
 print(answer)
+```
+
+실제 보드 플레이에는 같은 클라이언트를 `LLMAgent`에 연결합니다.
+
+```python
+from sokoban_agent.agents import LLMAgent
+from sokoban_agent.agents.llm import OllamaClient
+
+client = OllamaClient.from_env()
+agent = LLMAgent(client, model_name=client.settings.model, max_attempts=3)
 ```
 
 ## 연구와 검증
@@ -156,6 +167,15 @@ uv run mypy
 uv run --group notebook python scripts/build_baseline_notebook.py
 uv run --group notebook python -m jupyter nbconvert \
   --execute --to notebook --inplace notebooks/baseline_comparison.ipynb
+```
+
+LLM 비교 실험은 `.env`의 모델을 사용하며 다음 명령으로 재생성하고
+실행합니다.
+
+```bash
+uv run --group notebook python scripts/build_llm_comparison_notebook.py
+uv run --group notebook python -m jupyter nbconvert \
+  --execute --to notebook --inplace notebooks/llm_agent_comparison.ipynb
 ```
 
 노트북은 실험과 시각화에만 사용하고, 재사용 코드는 `src/`에 둡니다.
