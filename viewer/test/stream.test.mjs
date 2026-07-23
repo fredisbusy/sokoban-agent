@@ -77,6 +77,36 @@ test("stream run sends immutable prompt and model context to LangGraph", async (
   }
 });
 
+test("graph error events are not mistaken for resumable disconnects", async () => {
+  const originalFetch = globalThis.fetch;
+  const calls = [];
+  globalThis.fetch = async (url, options = {}) => {
+    calls.push({ url: String(url), options });
+    return new Response(
+      "event: metadata\ndata: {\"run_id\":\"run-1\"}\n\n"
+      + "event: error\ndata: {\"error\":\"PromptConfigurationError\"}\n\n",
+      { status: 200, headers: { "Content-Type": "text/event-stream" } },
+    );
+  };
+
+  try {
+    await assert.rejects(
+      streamRun({
+        apiUrl: "http://agent",
+        threadId: "thread-1",
+        assistantId: "agent",
+        input: {},
+        context: RUN_CONTEXT,
+        onEvent: () => {},
+      }),
+      /PromptConfigurationError/,
+    );
+    assert.equal(calls.length, 1);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
 test("dropped resumable stream rejoins from its last event", async () => {
   const originalFetch = globalThis.fetch;
   const calls = [];

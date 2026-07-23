@@ -1,7 +1,12 @@
 import { parseBoard } from "./board.js";
 import { applyUpdate, normalizeEvent } from "./events.js";
 import { FrameQueue } from "./queue.js";
-import { createThread, streamRun, validateRunContext } from "./stream.js";
+import {
+  createThread,
+  GraphRunError,
+  streamRun,
+  validateRunContext,
+} from "./stream.js";
 
 const queue = new FrameQueue();
 const elements = Object.fromEntries(
@@ -20,6 +25,27 @@ elements.speed.addEventListener("change", schedulePlayback);
 
 async function startRun(event) {
   event.preventDefault();
+  const input = {
+    level_id: elements["level-id"].value,
+    seed: nullableInteger(elements.seed.value),
+    max_steps: Number(elements["max-steps"].value),
+  };
+  const context = {
+    prompt_name: elements["prompt-name"].value.trim(),
+    prompt_commit: elements["prompt-commit"].value.trim(),
+    model_name: elements["model-name"].value.trim(),
+    rationale_mode: elements["rationale-mode"].value,
+    grounding_mode: elements["grounding-mode"].value,
+  };
+  try {
+    validateRunContext(context);
+  } catch (error) {
+    setConnection("error", "설정 오류");
+    setPhase("error");
+    setError(error.message);
+    return;
+  }
+
   abortController?.abort();
   abortController = new AbortController();
   queue.clear();
@@ -33,21 +59,7 @@ async function startRun(event) {
   elements["level-label"].textContent = elements["level-id"].value;
   elements["pause-button"].textContent = "일시정지";
 
-  const input = {
-    level_id: elements["level-id"].value,
-    seed: nullableInteger(elements.seed.value),
-    max_steps: Number(elements["max-steps"].value),
-  };
-  const context = {
-    prompt_name: elements["prompt-name"].value.trim(),
-    prompt_commit: elements["prompt-commit"].value.trim(),
-    model_name: elements["model-name"].value.trim(),
-    rationale_mode: elements["rationale-mode"].value,
-    grounding_mode: elements["grounding-mode"].value,
-  };
-
   try {
-    validateRunContext(context);
     const threadId = await createThread(elements["api-url"].value, abortController.signal);
     setConnection("live", "실시간 연결");
     await streamRun({
@@ -64,9 +76,19 @@ async function startRun(event) {
     setConnection("", queue.size > 0 ? "수신 완료 · 표시 중" : "실행 완료");
   } catch (error) {
     if (error.name !== "AbortError") {
-      setConnection("error", "연결 오류");
       setPhase("error");
-      setError(`${error.message} — 먼저 'make studio'가 실행 중인지 확인하세요.`);
+      if (error instanceof GraphRunError) {
+        clearTimeout(timer);
+        renderFrame(queue.latest());
+        queue.pause();
+        streamComplete = true;
+        setConnection("error", "실행 오류");
+        setPhase("error");
+        setError(error.message);
+      } else {
+        setConnection("error", "연결 오류");
+        setError(`${error.message} — 먼저 'make studio'가 실행 중인지 확인하세요.`);
+      }
     }
   } finally {
     elements["run-button"].disabled = false;
@@ -74,9 +96,6 @@ async function startRun(event) {
 }
 
 function receiveEvent(raw, threadId) {
-  if (raw.event === "error") {
-    throw new Error(typeof raw.data === "string" ? raw.data : JSON.stringify(raw.data));
-  }
   if (!["updates", "messages/partial", "message"].includes(raw.event)) return;
   const payload = Array.isArray(raw.data) && raw.data.length === 2 ? raw.data[1] : raw.data;
   if (!payload || typeof payload !== "object") return;

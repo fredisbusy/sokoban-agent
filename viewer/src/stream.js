@@ -46,8 +46,26 @@ export async function streamRun({
   try {
     await readEventStream(response, signal, onEvent, progress);
   } catch (error) {
-    if (signal?.aborted || !progress.runId) throw error;
+    if (
+      !(error instanceof StreamDisconnectError)
+      || signal?.aborted
+      || !progress.runId
+    ) throw error;
     await resumeRun({ apiUrl, threadId, signal, onEvent, progress });
+  }
+}
+
+export class GraphRunError extends Error {
+  constructor(payload) {
+    const error = typeof payload === "object" && payload !== null
+      ? payload.error
+      : null;
+    const message = typeof payload === "object" && payload !== null
+      ? payload.message
+      : payload;
+    super([error, message].filter(Boolean).join(": ") || "LangGraph run이 실패했습니다");
+    this.name = "GraphRunError";
+    this.payload = payload;
   }
 }
 
@@ -77,16 +95,31 @@ async function readEventStream(response, signal, onEvent, progress) {
   const decoder = new TextDecoder();
   let pending = "";
   while (true) {
-    const { value, done } = await reader.read();
+    let chunk;
+    try {
+      chunk = await reader.read();
+    } catch (error) {
+      throw new StreamDisconnectError(error);
+    }
+    const { value, done } = chunk;
     pending += decoder.decode(value ?? new Uint8Array(), { stream: !done });
     const parsed = parseSseChunk(pending, done);
     pending = parsed.remainder;
     for (const event of parsed.events) {
       if (event.id) progress.lastEventId = event.id;
       progress.runId ??= runIdFromEvent(event);
+      if (event.event === "error") throw new GraphRunError(event.data);
       onEvent(event);
     }
     if (done) break;
+  }
+}
+
+class StreamDisconnectError extends Error {
+  constructor(cause) {
+    super(cause instanceof Error ? cause.message : "Agent Server stream 연결이 끊겼습니다");
+    this.name = "StreamDisconnectError";
+    this.cause = cause;
   }
 }
 
