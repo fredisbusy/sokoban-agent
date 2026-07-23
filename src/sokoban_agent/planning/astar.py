@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from collections import deque
 from heapq import heappop, heappush
 from itertools import count
 from time import perf_counter
@@ -18,13 +17,14 @@ from sokoban_agent.planning.base import (
     SearchLimitError,
     SearchResult,
 )
-
-_DIRECTIONS: tuple[tuple[Action, Position], ...] = (
-    (Action.UP, (-1, 0)),
-    (Action.RIGHT, (0, 1)),
-    (Action.DOWN, (1, 0)),
-    (Action.LEFT, (0, -1)),
+from sokoban_agent.planning.spatial import (
+    DIRECTIONS,
+    add_position,
+    reachable_paths,
+    subtract_position,
+    target_pull_distances,
 )
+
 _StateKey = tuple[frozenset[Position], Position]
 _Parent = tuple[_StateKey, tuple[Action, ...]] | None
 _INF = 10**9
@@ -57,11 +57,11 @@ def solve_astar_result(
     if is_success(level, initial):
         return SearchResult((), 0, perf_counter() - started_at)
 
-    pull_distances = _target_pull_distances(level)
+    pull_distances = target_pull_distances(level)
     if _matching_heuristic(initial.boxes, level.targets, pull_distances) >= _INF:
         raise NoSolutionError("a box cannot reach any target")
 
-    initial_reachable, _ = _reachable_paths(level, initial)
+    initial_reachable, _ = reachable_paths(level, initial)
     initial_key = (initial.boxes, min(initial_reachable))
     states: dict[_StateKey, SokobanState] = {initial_key: initial}
     parents: dict[_StateKey, _Parent] = {initial_key: None}
@@ -84,12 +84,12 @@ def solve_astar_result(
             )
         state = states[key]
         expanded_states += 1
-        reachable, paths = _reachable_paths(level, state)
+        reachable, paths = reachable_paths(level, state)
 
         for box in sorted(state.boxes):
-            for action, delta in _DIRECTIONS:
-                destination = _add(box, delta)
-                support = _subtract(box, delta)
+            for action, delta in DIRECTIONS:
+                destination = add_position(box, delta)
+                support = subtract_position(box, delta)
                 if support not in reachable:
                     continue
                 if destination in level.walls or destination in state.boxes:
@@ -108,7 +108,7 @@ def solve_astar_result(
                         perf_counter() - started_at,
                     )
 
-                next_reachable, _ = _reachable_paths(level, next_state)
+                next_reachable, _ = reachable_paths(level, next_state)
                 next_key = (boxes, min(next_reachable))
                 next_cost = cost + len(segment)
                 if next_cost >= best_cost.get(next_key, _INF):
@@ -177,55 +177,6 @@ class AStarPlanner:
         )
 
 
-def _reachable_paths(
-    level: SokobanLevel,
-    state: SokobanState,
-) -> tuple[set[Position], dict[Position, tuple[Action, ...]]]:
-    reachable = {state.player}
-    paths: dict[Position, tuple[Action, ...]] = {state.player: ()}
-    frontier = deque([state.player])
-    while frontier:
-        position = frontier.popleft()
-        for action, delta in _DIRECTIONS:
-            destination = _add(position, delta)
-            if (
-                destination in reachable
-                or destination in level.walls
-                or destination in state.boxes
-            ):
-                continue
-            reachable.add(destination)
-            paths[destination] = (*paths[position], action)
-            frontier.append(destination)
-    return reachable, paths
-
-
-def _target_pull_distances(
-    level: SokobanLevel,
-) -> dict[Position, dict[Position, int]]:
-    result: dict[Position, dict[Position, int]] = {}
-    for target in level.targets:
-        distances = {target: 0}
-        frontier = deque([target])
-        while frontier:
-            box = frontier.popleft()
-            for _, delta in _DIRECTIONS:
-                predecessor = _subtract(box, delta)
-                support = _subtract(predecessor, delta)
-                if (
-                    predecessor in distances
-                    or predecessor in level.walls
-                    or support in level.walls
-                    or not _inside(level, predecessor)
-                    or not _inside(level, support)
-                ):
-                    continue
-                distances[predecessor] = distances[box] + 1
-                frontier.append(predecessor)
-        result[target] = distances
-    return result
-
-
 def _matching_heuristic(
     boxes: frozenset[Position],
     targets: frozenset[Position],
@@ -281,7 +232,7 @@ def _has_deadlock(
 
 
 def _key_for(level: SokobanLevel, state: SokobanState) -> _StateKey:
-    reachable, _ = _reachable_paths(level, state)
+    reachable, _ = reachable_paths(level, state)
     return state.boxes, min(reachable)
 
 
@@ -298,18 +249,3 @@ def _restore_plan(
         key, segment = parent
         segments.append(segment)
     return tuple(action for segment in reversed(segments) for action in segment)
-
-
-def _add(position: Position, delta: Position) -> Position:
-    return position[0] + delta[0], position[1] + delta[1]
-
-
-def _subtract(position: Position, delta: Position) -> Position:
-    return position[0] - delta[0], position[1] - delta[1]
-
-
-def _inside(level: SokobanLevel, position: Position) -> bool:
-    return (
-        0 <= position[0] < level.height
-        and 0 <= position[1] < level.width
-    )

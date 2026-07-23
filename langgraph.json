@@ -2,7 +2,7 @@
   "$schema": "https://langgra.ph/schema.json",
   "dependencies": ["."],
   "graphs": {
-    "sokoban_agent": "./src/sokoban_agent/graph/studio.py:graph"
+    "sokoban_agent": "./src/sokoban_agent/graph/agentic.py:graph"
   },
   "env": ".env"
 }

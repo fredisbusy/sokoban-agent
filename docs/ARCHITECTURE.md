@@ -152,8 +152,9 @@ Prompt Management를 우선 사용한다.
 
 평가 실행기는 별도 행동 루프를 구현하지 않는다. 반드시 `SokobanGraph`를
 호출하므로 기준선과 LLM이 같은 검증·복구 정책을 통과한다. 새 그래프가
-도입되면 Python wrapper는 환경과 runtime context를 주입하고 compiled
-graph를 호출하는 역할만 한다.
+도입되면 Python wrapper는 Agent Server assistant context와 JSON 입력을
+compiled graph에 전달하는 역할만 한다. 환경 객체는 context나 checkpoint에
+넣지 않고 관찰·실행 결과만 graph state에 보존한다.
 
 ## 측정
 

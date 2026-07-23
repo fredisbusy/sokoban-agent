@@ -28,7 +28,11 @@ def _board_analysis() -> BoardAnalysis:
                     "direction": "UP",
                     "support": {"row": 3, "col": 2},
                     "destination": {"row": 1, "col": 2},
+                    "creates_static_deadlock": False,
                 }
+            ],
+            "reverse_pull_distances": [
+                {"box_id": "B1", "target_id": "T1", "distance": 1}
             ],
         }
     )

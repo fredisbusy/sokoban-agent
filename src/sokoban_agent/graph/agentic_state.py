@@ -2,11 +2,8 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
 from operator import add
 from typing import Annotated, NotRequired, TypedDict
-
-from sokoban_agent.env import SokobanEnv
 
 
 class AgenticInput(TypedDict):
@@ -60,11 +57,9 @@ class AgenticState(AgenticInput, total=False):
     decision_events: Annotated[list[DecisionEvent], add]
 
 
-@dataclass(frozen=True, slots=True)
-class AgenticRuntimeContext:
-    """Static dependencies and pinned model configuration for one run."""
+class AgenticRuntimeContext(TypedDict, total=False):
+    """JSON-safe assistant context supplied by LangGraph Agent Server."""
 
-    env: SokobanEnv
     prompt_name: str
     prompt_commit: str
     model_name: str

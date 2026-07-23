@@ -53,10 +53,19 @@ class TargetFact(StrategyModel):
 class PushOption(StrategyModel):
     """One currently reachable and geometrically legal push."""
 
-    box_id: str
+    box_id: str = Field(pattern=r"^B[1-9][0-9]*$")
     direction: Direction
     support: Cell
     destination: Cell
+    creates_static_deadlock: bool
+
+
+class PullDistance(StrategyModel):
+    """Wall-aware reverse-pull distance for one box-target pair."""
+
+    box_id: str = Field(pattern=r"^B[1-9][0-9]*$")
+    target_id: str = Field(pattern=r"^T[1-9][0-9]*$")
+    distance: int | None = Field(default=None, ge=0)
 
 
 class BoardAnalysis(StrategyModel):
@@ -67,6 +76,7 @@ class BoardAnalysis(StrategyModel):
     dead_squares: tuple[Cell, ...]
     reachable_cells: tuple[Cell, ...]
     push_options: tuple[PushOption, ...]
+    reverse_pull_distances: tuple[PullDistance, ...]
 
     @model_validator(mode="after")
     def reject_duplicate_ids(self) -> BoardAnalysis:

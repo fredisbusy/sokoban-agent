@@ -16,6 +16,7 @@ from sokoban_agent.planning.base import (
     SearchResult,
 )
 from sokoban_agent.planning.bfs import BFSPlanner, solve_bfs, solve_bfs_result
+from sokoban_agent.planning.board_analysis import analyze_board
 from sokoban_agent.planning.hybrid import SearchGuardPlanner
 from sokoban_agent.planning.llm_planner import (
     ActionPlan,
@@ -60,4 +61,5 @@ __all__ = [
     "solve_bfs",
     "solve_bfs_result",
     "validate_strategy",
+    "analyze_board",
 ]

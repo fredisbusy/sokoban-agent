@@ -77,7 +77,8 @@ LangGraph 기능을 우선 사용한다. 세부 설계와 평가 원칙은
 - [x] 보드 분석, 전략 가설, 상자-목표 배정, 보호 제약, 하위 목표, 예상 효과,
   실패 조건과 계획 수정을 표현하는 state schema와 JSON fixture를 정의한다.
 - [x] 누적 decision·revision event에 LangGraph state reducer를 적용한다.
-- [x] prompt·모델 설정과 환경 의존성은 LangGraph runtime context로 주입한다.
+- [x] prompt·모델 설정은 Agent Server가 직렬화할 수 있는 LangGraph runtime
+  context로 주입하고, 환경 관찰은 checkpoint 가능한 state로 유지한다.
 - [x] 전역 bounded A*를 평가 oracle seam으로 분리하고 주 `StateGraph`가
   oracle 결과를 참조하지 않는 테스트를 작성한다.
 - [x] 기존 원시 행동 LLM, full-guard와 A* 정책의 결과·지표 형식을 baseline
@@ -88,12 +89,12 @@ graph에서 전역 oracle 호출이 0회임을 테스트로 증명한다.
 
 ### 2. 보드 분석
 
-- [ ] 관찰에서 상자·목표의 안정적인 논리 ID와 플레이어 도달 영역을 계산한다.
-- [ ] 가능한 push 방향, 정적 dead square와 목표별 reverse-pull 사실을
+- [x] 관찰에서 상자·목표의 안정적인 논리 ID와 플레이어 도달 영역을 계산한다.
+- [x] 가능한 push 방향, 정적 dead square와 목표별 reverse-pull 사실을
   하나의 보드 분석 Module에서 반환한다.
-- [ ] 회전, 좁은 통로, 복수 상자 fixture로 분석의 결정성과 규칙 정합성을
+- [x] 회전, 좁은 통로, 복수 상자 fixture로 분석의 결정성과 규칙 정합성을
   검증한다.
-- [ ] `analyze` node update를 LangGraph Studio checkpoint에서 확인한다.
+- [x] `analyze` node update를 LangGraph Studio checkpoint에서 확인한다.
 
 완료 조건: 전략 node가 공간 알고리즘의 구현 세부를 알지 않고
 `BoardAnalysis` state만으로 동일한 사실을 소비한다.
