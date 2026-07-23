@@ -1,0 +1,73 @@
+import assert from "node:assert/strict";
+import test from "node:test";
+
+import { parseSseChunk, runIdFromEvent, streamRun } from "../src/stream.js";
+
+test("SSE parser preserves incomplete chunks", () => {
+  const first = parseSseChunk("event: updates\nid: 1\ndata: {\"execute\":");
+  assert.equal(first.events.length, 0);
+  const second = parseSseChunk(`${first.remainder}"ok"}\n\n`);
+  assert.deepEqual(second.events, [{
+    event: "updates",
+    id: "1",
+    data: { execute: "ok" },
+  }]);
+});
+
+test("SSE parser supports multiline data and final frame", () => {
+  const parsed = parseSseChunk(
+    "event: updates\ndata: {\"node\":\ndata: {\"status\":\"ok\"}}\n\n",
+    true,
+  );
+  assert.deepEqual(parsed.events[0].data, { node: { status: "ok" } });
+});
+
+test("run id is read from Agent Server metadata", () => {
+  assert.equal(runIdFromEvent({ data: { run_id: "run-1" } }), "run-1");
+  assert.equal(runIdFromEvent({ data: { run: { run_id: "run-2" } } }), "run-2");
+});
+
+test("dropped resumable stream rejoins from its last event", async () => {
+  const originalFetch = globalThis.fetch;
+  const calls = [];
+  let pulls = 0;
+  const broken = new ReadableStream({
+    pull(controller) {
+      pulls += 1;
+      if (pulls === 1) {
+        controller.enqueue(new TextEncoder().encode(
+          "event: metadata\nid: 1\ndata: {\"run_id\":\"run-1\"}\n\n"
+          + "event: updates\nid: 2\ndata: {\"observe\":{\"status\":\"ok\"}}\n\n",
+        ));
+      } else {
+        controller.error(new Error("network dropped"));
+      }
+    },
+  });
+  const resumed = new Response(
+    "event: updates\nid: 3\ndata: {\"execute\":{\"status\":\"success\"}}\n\n",
+    { status: 200, headers: { "Content-Type": "text/event-stream" } },
+  );
+  globalThis.fetch = async (url, options = {}) => {
+    calls.push({ url: String(url), options });
+    return calls.length === 1
+      ? new Response(broken, { status: 200 })
+      : resumed;
+  };
+
+  try {
+    const events = [];
+    await streamRun({
+      apiUrl: "http://agent",
+      threadId: "thread-1",
+      assistantId: "agent",
+      input: {},
+      onEvent: (event) => events.push(event),
+    });
+    assert.deepEqual(events.map((event) => event.id), ["1", "2", "3"]);
+    assert.match(calls[1].url, /threads\/thread-1\/runs\/run-1\/stream/);
+    assert.equal(calls[1].options.headers["Last-Event-ID"], "2");
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});

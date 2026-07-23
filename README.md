@@ -312,3 +312,28 @@ docs/                  # 목표와 아키텍처
 - [의존성과 기술 선택](docs/DEPENDENCIES.md)
 - [현재 우선순위와 완료 조건](TODO.md)
 - [에이전트 작업 규칙](AGENTS.md)
+
+## 실시간 Sokoban 관찰 화면
+
+에이전트 실행과 동시에 플레이어·상자 이동 및 구조화된 전략 상태를 보려면
+두 터미널에서 Agent Server와 관찰 화면을 각각 실행한다.
+
+```bash
+# 터미널 1
+make studio
+
+# 터미널 2
+make viewer
+```
+
+브라우저에서 <http://127.0.0.1:4173>을 열고 `실행`을 누른다. 기본값은
+`sokoban_agent`, `tiny-walk`, seed `0`, 최대 15행동이다. 화면의 일시정지는
+표시 queue만 멈추며 실제 LangGraph 실행은 계속된다. `한 단계`와 `최신으로`
+버튼으로 대기 중인 state update를 탐색할 수 있다.
+
+관찰 화면 자체 테스트는 다음처럼 실행한다.
+
+```bash
+cd viewer
+npm test
+```

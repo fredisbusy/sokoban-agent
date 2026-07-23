@@ -1,6 +1,6 @@
 LEVEL ?=
 
-.PHONY: help sync play ollama-check lab studio test lint typecheck check \
+.PHONY: help sync play ollama-check lab studio viewer test lint typecheck check \
 	baseline-notebook experiment-notebook
 
 help:
@@ -13,6 +13,7 @@ help:
 	@echo "  make ollama-check      Ollama 연결 확인"
 	@echo "  make lab               JupyterLab 실행"
 	@echo "  make studio            LangGraph Studio 실행"
+	@echo "  make viewer            실시간 Sokoban 관찰 화면 실행"
 	@echo ""
 	@echo "검증과 실험"
 	@echo "  make check             테스트, 린트, 타입 검사"
@@ -36,6 +37,9 @@ lab:
 
 studio:
 	uv run --group studio langgraph dev --host localhost
+
+viewer:
+	cd viewer && npm run dev
 
 test:
 	uv run pytest

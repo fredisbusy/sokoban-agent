@@ -154,14 +154,14 @@ checkpoint history를 사용한다.
 
 세부 화면, stream 계약과 완료 기준은 `docs/LIVE_VIEWER.md`를 따른다.
 
-- [ ] Agent Server streaming run에서 node state update를 브라우저로 받는다.
-- [ ] 실제 `board` state를 CSS Grid의 벽·목표·상자·플레이어로 렌더링한다.
-- [ ] 행동 event마다 `@`, `$`, `*` 위치를 실시간으로 갱신한다.
-- [ ] 오른쪽 패널에 node, 행동, 전략 가설, 하위 목표, 보호 제약, 예상 효과와
+- [x] Agent Server streaming run에서 node state update를 브라우저로 받는다.
+- [x] 실제 `board` state를 CSS Grid의 벽·목표·상자·플레이어로 렌더링한다.
+- [x] 행동 event마다 `@`, `$`, `*` 위치를 실시간으로 갱신한다.
+- [x] 오른쪽 패널에 node, 행동, 전략 가설, 하위 목표, 보호 제약, 예상 효과와
   실제 결과를 같은 event ID 기준으로 표시한다.
-- [ ] graph node를 지연하지 않는 브라우저 표시 queue와 재생 속도 controls를
+- [x] graph node를 지연하지 않는 브라우저 표시 queue와 재생 속도 controls를
   구현한다.
-- [ ] 연결 복구, 성공·데드락·제한·오류와 reduced-motion을 검증한다.
+- [x] 연결 복구, 성공·데드락·제한·오류와 reduced-motion을 검증한다.
 
 완료 조건: `tiny-walk` run이 끝나기 전에 첫 행동이 웹에 나타나고, 표시된
 최종 board가 graph 최종 state와 일치한다. 시각화 지연은 정책 시간에
