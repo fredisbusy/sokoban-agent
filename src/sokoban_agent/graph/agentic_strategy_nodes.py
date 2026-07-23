@@ -29,7 +29,7 @@ from sokoban_agent.planning.strategy_runtime import (
 StrategyRoute = Literal[
     "compose_strategy_input",
     "verify_strategy",
-    "ground_subgoal",
+    "detect_repetition",
     "__end__",
 ]
 
@@ -55,6 +55,7 @@ class StrategyNodes:
         reference = self._prompt_source().resolve(name, selector)
         return {
             "prompt": {"name": reference.name, "commit": reference.commit},
+            "prompt_resolved": True,
             "status": "prompt_resolved",
             "decision_events": [
                 {
@@ -231,7 +232,7 @@ def route_after_strategy_verification(state: AgenticState) -> StrategyRoute:
     """Route semantic violations to bounded correction."""
 
     if not state["strategy_violations"]:
-        return "ground_subgoal"
+        return "detect_repetition"
     if state["strategy_attempts"] < 3:
         return "compose_strategy_input"
     return "__end__"

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any, cast
+from typing import Any, Literal, cast
 
 import numpy as np
 from langgraph.checkpoint.memory import InMemorySaver
@@ -11,6 +11,14 @@ from langgraph.runtime import Runtime
 from langgraph.types import RetryPolicy
 
 from sokoban_agent.env import SokobanEnv
+from sokoban_agent.graph.agentic_execution_nodes import (
+    detect_agentic_repetition,
+    execute_agentic_until_push,
+    observe_agentic_state,
+    reflect_agentic_execution,
+    route_after_reflection,
+    route_after_repetition,
+)
 from sokoban_agent.graph.agentic_grounding_node import (
     ground_agentic_subgoal,
     route_after_grounding,
@@ -64,6 +72,7 @@ def initialize_agentic_state(
             "name": context.get("prompt_name", "sokoban-strategy"),
             "commit": context.get("prompt_commit", "unresolved"),
         },
+        "prompt_resolved": False,
         "model_name": context.get("model_name", "unconfigured"),
         "rationale_mode": context.get("rationale_mode", "on"),
         "status": "initialized",
@@ -77,6 +86,12 @@ def initialize_agentic_state(
         "grounded_plan": None,
         "grounded_actions": [],
         "grounding_failure": None,
+        "action_history": [],
+        "execution_result": None,
+        "reflection_result": None,
+        "completed_subgoals": [],
+        "attempt_keys": [],
+        "cycle_detected": False,
         "protected_constraints": [],
         "expected_effect": None,
         "failure_conditions": [],
@@ -125,6 +140,18 @@ def analyze_agentic_board(state: AgenticState) -> dict[str, object]:
     }
 
 
+def route_after_analysis(
+    state: AgenticState,
+) -> Literal["resolve_prompt", "compose_strategy_input"]:
+    """Resolve the managed prompt once, then reuse its pinned commit."""
+
+    return (
+        "compose_strategy_input"
+        if state["prompt_resolved"]
+        else "resolve_prompt"
+    )
+
+
 def build_agentic_graph(
     *,
     checkpointer: InMemorySaver | None = None,
@@ -164,10 +191,21 @@ def build_agentic_graph(
         retry_policy=retry_policy,
     )
     builder.add_node("verify_strategy", strategy_nodes.verify_strategy)
+    builder.add_node("detect_repetition", detect_agentic_repetition)
     builder.add_node("ground_subgoal", ground_agentic_subgoal)
+    builder.add_node("execute_until_push", execute_agentic_until_push)
+    builder.add_node("reflect", reflect_agentic_execution)
+    builder.add_node("observe", observe_agentic_state)
     builder.add_edge(START, "initialize")
     builder.add_edge("initialize", "analyze")
-    builder.add_edge("analyze", "resolve_prompt")
+    builder.add_conditional_edges(
+        "analyze",
+        route_after_analysis,
+        {
+            "resolve_prompt": "resolve_prompt",
+            "compose_strategy_input": "compose_strategy_input",
+        },
+    )
     builder.add_edge("resolve_prompt", "compose_strategy_input")
     builder.add_edge("compose_strategy_input", "propose_strategy")
     builder.add_conditional_edges(
@@ -184,6 +222,14 @@ def build_agentic_graph(
         route_after_strategy_verification,
         {
             "compose_strategy_input": "compose_strategy_input",
+            "detect_repetition": "detect_repetition",
+            "__end__": END,
+        },
+    )
+    builder.add_conditional_edges(
+        "detect_repetition",
+        route_after_repetition,
+        {
             "ground_subgoal": "ground_subgoal",
             "__end__": END,
         },
@@ -193,9 +239,17 @@ def build_agentic_graph(
         route_after_grounding,
         {
             "compose_strategy_input": "compose_strategy_input",
+            "execute_until_push": "execute_until_push",
             "__end__": END,
         },
     )
+    builder.add_edge("execute_until_push", "reflect")
+    builder.add_conditional_edges(
+        "reflect",
+        route_after_reflection,
+        {"observe": "observe", "__end__": END},
+    )
+    builder.add_edge("observe", "analyze")
     return builder.compile(checkpointer=checkpointer)
 
 

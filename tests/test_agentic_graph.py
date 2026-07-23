@@ -92,9 +92,9 @@ def test_agentic_graph_initializes_json_safe_checkpoint_state() -> None:
     assert result["level_id"] == "tiny-push"
     assert result["observation"] == [
         [1, 1, 1, 1, 1],
-        [1, 0, 2, 0, 1],
-        [1, 0, 3, 0, 1],
+        [1, 0, 5, 0, 1],
         [1, 0, 4, 0, 1],
+        [1, 0, 0, 0, 1],
         [1, 1, 1, 1, 1],
     ]
     assert result["prompt"] == {
@@ -145,8 +145,23 @@ def test_agentic_graph_initializes_json_safe_checkpoint_state() -> None:
         },
         {
             "step": 0,
+            "stage": "detect_repetition",
+            "summary": "새 보드와 하위 목표 조합을 승인했습니다",
+        },
+        {
+            "step": 0,
             "stage": "ground_subgoal",
             "summary": "플레이어 이동 0회와 push 1회를 접지했습니다",
+        },
+        {
+            "step": 1,
+            "stage": "execute_until_push",
+            "summary": "행동 1개를 실행하고 push 1회에서 멈췄습니다",
+        },
+        {
+            "step": 1,
+            "stage": "reflect",
+            "summary": "퍼즐을 해결했습니다",
         },
     ]
     assert graph.get_state(config).values["board_analysis"] == result[
@@ -175,14 +190,20 @@ def test_agentic_graph_reducer_accumulates_decision_events_per_thread() -> None:
         "compose_strategy_input",
         "propose_strategy",
         "verify_strategy",
+        "detect_repetition",
         "ground_subgoal",
+        "execute_until_push",
+        "reflect",
         "initialize",
         "analyze",
         "resolve_prompt",
         "compose_strategy_input",
         "propose_strategy",
         "verify_strategy",
+        "detect_repetition",
         "ground_subgoal",
+        "execute_until_push",
+        "reflect",
     ]
 
 

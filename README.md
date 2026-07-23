@@ -183,9 +183,11 @@ print(state["algorithm_calls"], state["algorithm_fallbacks"])
 ## LangGraph Studio
 
 로컬 Studio에서는 `initialize`, `analyze`, `resolve_prompt`,
-`compose_strategy_input`, `propose_strategy`, `verify_strategy` 노드를
-단계별로 살펴볼 수 있습니다. 전역 A* 정답 경로나 전체 계획 대체는 이
-주 그래프에 연결하지 않습니다.
+`compose_strategy_input`, `propose_strategy`, `verify_strategy`,
+`detect_repetition`, `ground_subgoal`, `execute_until_push`, `reflect`,
+`observe` 노드를 단계별로 살펴볼 수 있습니다. 각 실행 node는 첫 push에서
+멈춘 뒤 실행 효과를 성찰하며, 미해결이면 새 관찰로 돌아갑니다. 전역 A*
+정답 경로나 전체 계획 대체는 이 주 그래프에 연결하지 않습니다.
 Studio용 의존성 설치와 개발 서버 실행은 다음 명령으로 한 번에 처리합니다.
 
 ```bash
@@ -217,8 +219,9 @@ Studio의 **Manage Assistants**에서 다음 context를 설정합니다. `prompt
 각 단계에서 `board_analysis`, `prompt`, `strategy_input`,
 `strategy_hypothesis`, `strategy_violations`, `active_subgoal`,
 `protected_constraints`, `expected_effect`, `feedback`,
-`decision_events`를 확인할 수 있습니다. prompt 본문과 숨은 추론 원문은
-checkpoint에 저장하지 않습니다.
+`grounded_actions`, `execution_result`, `reflection_result`,
+`plan_revisions`, `action_history`, `decision_events`를 확인할 수 있습니다.
+prompt 본문과 숨은 추론 원문은 checkpoint에 저장하지 않습니다.
 
 Studio 진입점은 `langgraph.json`과
 `src/sokoban_agent/graph/agentic.py`에 정의되어 있습니다.

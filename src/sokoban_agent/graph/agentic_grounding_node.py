@@ -18,7 +18,11 @@ from sokoban_agent.planning.strategy import (
     PushSubgoal,
 )
 
-GroundingRoute = Literal["compose_strategy_input", "__end__"]
+GroundingRoute = Literal[
+    "compose_strategy_input",
+    "execute_until_push",
+    "__end__",
+]
 
 
 def ground_agentic_subgoal(state: AgenticState) -> dict[str, object]:
@@ -82,7 +86,7 @@ def route_after_grounding(state: AgenticState) -> GroundingRoute:
     """Send grounding failures back to bounded strategy correction."""
 
     if state["grounding_failure"] is None:
-        return "__end__"
+        return "execute_until_push"
     if state["strategy_attempts"] < 3:
         return "compose_strategy_input"
     return "__end__"

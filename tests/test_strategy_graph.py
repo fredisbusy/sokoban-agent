@@ -62,7 +62,15 @@ class SequenceStrategyGenerator(StrategyGenerator):
         return TextCompletion(response, CompletionMetrics())
 
 
-def _strategy_json(*, target_id: str = "T1") -> str:
+def _strategy_json(
+    *,
+    target_id: str = "T1",
+    direction: str = "UP",
+    from_row: int = 2,
+    from_col: int = 2,
+    to_row: int = 1,
+    to_col: int = 2,
+) -> str:
     return StrategyHypothesis.model_validate(
         {
             "summary": "B1을 T1로 올리는 첫 push를 검증한다",
@@ -78,13 +86,13 @@ def _strategy_json(*, target_id: str = "T1") -> str:
                 "kind": "push",
                 "box_id": "B1",
                 "target_id": target_id,
-                "direction": "UP",
-                "destination": {"row": 1, "col": 2},
+                "direction": direction,
+                "destination": {"row": to_row, "col": to_col},
             },
             "expected_effect": {
                 "box_id": "B1",
-                "from_position": {"row": 2, "col": 2},
-                "to_position": {"row": 1, "col": 2},
+                "from_position": {"row": from_row, "col": from_col},
+                "to_position": {"row": to_row, "col": to_col},
             },
             "failure_conditions": [
                 {
@@ -126,7 +134,7 @@ def test_strategy_nodes_use_pinned_prompt_and_board_analysis() -> None:
 
     result = _invoke(prompt_source, generator)
 
-    assert result["status"] == "subgoal_grounded"
+    assert result["status"] == "success"
     assert result["prompt"] == {
         "name": "sokoban-strategy",
         "commit": "fixture-commit",
@@ -136,7 +144,8 @@ def test_strategy_nodes_use_pinned_prompt_and_board_analysis() -> None:
     active_subgoal = cast(dict[str, object], result["active_subgoal"])
     assert subgoal["box_id"] == "B1"
     assert active_subgoal["direction"] == "UP"
-    assert result["strategy_attempts"] == 1
+    assert result["strategy_attempts"] == 0
+    assert generator.calls == 1
     assert result["grounded_actions"] == ["UP"]
     assert result["grounding_failure"] is None
     variables = prompt_source.rendered_variables[0]
@@ -159,8 +168,8 @@ def test_schema_error_routes_back_to_strategy_proposal() -> None:
 
     result = _invoke(prompt_source, generator)
 
-    assert result["status"] == "subgoal_grounded"
-    assert result["strategy_attempts"] == 2
+    assert result["status"] == "success"
+    assert result["strategy_attempts"] == 0
     assert generator.calls == 2
     assert any("스키마" in feedback for feedback in result["feedback"])
     assert len(prompt_source.rendered_variables) == 2
@@ -175,8 +184,8 @@ def test_semantic_violation_routes_back_with_structured_feedback() -> None:
 
     result = _invoke(prompt_source, generator)
 
-    assert result["status"] == "subgoal_grounded"
-    assert result["strategy_attempts"] == 2
+    assert result["status"] == "success"
+    assert result["strategy_attempts"] == 0
     assert any("unknown_target" in feedback for feedback in result["feedback"])
 
 
@@ -186,7 +195,7 @@ def test_langgraph_retry_policy_retries_transient_prompt_failure() -> None:
 
     result = _invoke(prompt_source, generator)
 
-    assert result["status"] == "subgoal_grounded"
+    assert result["status"] == "success"
     assert prompt_source.resolve_calls == 2
 
 
@@ -228,3 +237,78 @@ def test_no_rationale_ablation_keeps_execution_fields() -> None:
         "failure_conditions",
     ):
         assert without_rationale[field] == with_rationale[field]
+
+
+def test_agentic_loop_replans_after_each_push_until_success() -> None:
+    prompt_source = FixedPromptSource()
+    generator = SequenceStrategyGenerator(
+        _strategy_json(),
+        _strategy_json(
+            direction="RIGHT",
+            from_row=1,
+            from_col=2,
+            to_row=1,
+            to_col=3,
+        ),
+    )
+    graph = build_agentic_graph(
+        prompt_source=prompt_source,
+        strategy_generator=generator,
+    )
+
+    result = cast(
+        AgenticState,
+        graph.invoke(
+            {"level_id": "tiny-walk", "seed": 7, "max_steps": 15},
+            context={
+                "prompt_name": "sokoban-strategy",
+                "prompt_commit": "fixture-commit",
+                "model_name": "fixture-model",
+            },
+        ),
+    )
+
+    assert result["status"] == "success"
+    assert result["info"]["success"] is True
+    assert result["action_history"] == [
+        "RIGHT",
+        "UP",
+        "LEFT",
+        "UP",
+        "RIGHT",
+    ]
+    assert len(result["completed_subgoals"]) == 2
+    assert generator.calls == 2
+    assert [
+        event["stage"]
+        for event in result["decision_events"]
+        if event["stage"] == "execute_until_push"
+    ] == ["execute_until_push", "execute_until_push"]
+
+
+def test_agentic_loop_stops_when_step_limit_prevents_push() -> None:
+    prompt_source = FixedPromptSource()
+    generator = SequenceStrategyGenerator(_strategy_json())
+    graph = build_agentic_graph(
+        prompt_source=prompt_source,
+        strategy_generator=generator,
+    )
+
+    result = cast(
+        AgenticState,
+        graph.invoke(
+            {"level_id": "tiny-walk", "seed": 7, "max_steps": 1},
+            context={
+                "prompt_name": "sokoban-strategy",
+                "prompt_commit": "fixture-commit",
+                "model_name": "fixture-model",
+            },
+        ),
+    )
+
+    assert result["status"] == "step_limit"
+    assert result["info"]["steps"] == 1
+    assert result["action_history"] == ["RIGHT"]
+    execution_result = cast(dict[str, object], result["execution_result"])
+    assert execution_result["push_count"] == 0
+    assert generator.calls == 1

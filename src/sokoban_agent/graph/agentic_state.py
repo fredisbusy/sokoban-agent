@@ -44,6 +44,7 @@ class AgenticState(AgenticInput, total=False):
     observation: list[list[int]]
     info: dict[str, object]
     prompt: PromptReference
+    prompt_resolved: bool
     model_name: str
     rationale_mode: Literal["on", "off"]
     status: str
@@ -57,6 +58,12 @@ class AgenticState(AgenticInput, total=False):
     grounded_plan: dict[str, object] | None
     grounded_actions: list[str]
     grounding_failure: dict[str, object] | None
+    action_history: list[str]
+    execution_result: dict[str, object] | None
+    reflection_result: dict[str, object] | None
+    completed_subgoals: list[dict[str, object]]
+    attempt_keys: list[str]
+    cycle_detected: bool
     protected_constraints: list[dict[str, object]]
     expected_effect: dict[str, object] | None
     failure_conditions: list[dict[str, object]]

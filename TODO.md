@@ -135,14 +135,14 @@ node·commit·입력 변수를 확인할 수 있다. 같은 commit·입력·seed
 
 - [ ] 현재 일반 실행과 Studio의 중복 node·routing을 하나의 `StateGraph`로
   통합하고 `langgraph.json`이 이 graph를 직접 가리키게 한다.
-- [ ] 고정 전이는 normal edge, 상태 분기는 conditional edge, update와
+- [x] 고정 전이는 normal edge, 상태 분기는 conditional edge, update와
   routing을 함께 해야 하는 node만 `Command`를 사용한다.
-- [ ] 실행은 최대 한 번의 push 후 반드시 `observe`로 돌아가게 한다.
-- [ ] 실행 전후 보드를 비교해 예상 효과의 충족 여부를 구조화한다.
-- [ ] 성공한 하위 목표를 완료하고 다음 하위 목표를 선택한다.
-- [ ] 반증된 가설과 수정된 필드를 `PlanRevision`으로 체크포인트한다.
-- [ ] 같은 상태·가설·하위 목표의 반복을 탐지하고 유한하게 종료한다.
-- [ ] 별도 checkpoint 저장 계층 없이 local은 `InMemorySaver`, Agent Server는
+- [x] 실행은 최대 한 번의 push 후 반드시 `observe`로 돌아가게 한다.
+- [x] 실행 전후 보드를 비교해 예상 효과의 충족 여부를 구조화한다.
+- [x] 성공한 하위 목표를 완료하고 다음 하위 목표를 선택한다.
+- [x] 반증된 가설과 수정된 필드를 `PlanRevision`으로 체크포인트한다.
+- [x] 같은 상태·가설·하위 목표의 반복을 탐지하고 유한하게 종료한다.
+- [x] 별도 checkpoint 저장 계층 없이 local은 `InMemorySaver`, Agent Server는
   제공 persistence를 사용한다.
 
 완료 조건: 의도적인 실패 fixture에서 관련 하위 목표나 가설만 수정하고 같은
