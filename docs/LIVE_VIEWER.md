@@ -24,7 +24,8 @@ LangSmith prompt commit을 만든 뒤 검증한다.
 첫 버전은 다음 기능을 제공한다.
 
 - 실행할 레벨, seed와 행동 제한 입력
-- 고정된 LangSmith prompt commit, 모델과 ablation runtime context 입력
+- LangSmith prompt의 최신 commit 자동 해석, 모델과 ablation runtime
+  context 입력
 - LangGraph run 시작과 실시간 연결 상태 표시
 - 현재 Sokoban 보드를 CSS 타일로 렌더링
 - 행동 단위의 플레이어·상자 이동 애니메이션
@@ -89,12 +90,11 @@ flowchart LR
 직접 연결이 불가능한 배포에서만 얇은 stream proxy를 둔다.
 
 prompt 본문을 브라우저나 graph 코드에 복제하지 않는다. 브라우저는
-`prompt_name`, 고정 `prompt_commit`, `model_name`, `rationale_mode`,
-`grounding_mode`만 Agent Server의 공식 per-run `context`로 전달한다.
-LangGraph의 `resolve_prompt` node가 그 commit을 LangSmith Prompt
-Management에서 해석하고, 이후 조립·모델 호출 node가 같은 실행 수명 주기를
-이어간다. `latest`와 `unresolved`는 재현 가능한 실행이 아니므로 화면에서
-거절한다.
+`prompt_name`, `model_name`, `rationale_mode`, `grounding_mode`를 실행
+폼에서 받고 `prompt_commit`에는 `latest`를 자동으로 넣어 Agent Server의
+공식 per-run `context`로 전달한다. LangGraph의 `resolve_prompt` node가 이를
+실행 시점의 실제 immutable commit으로 해석하고 state에 기록한다. 엄격한
+재현성이 필요한 연구 배치에서는 기존처럼 고정 commit을 직접 주입한다.
 
 ## event 계약
 

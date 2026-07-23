@@ -78,8 +78,8 @@ export function validateRunContext(context) {
       throw new Error(`${key} 값을 입력하세요`);
     }
   }
-  if (["latest", "unresolved"].includes(context.prompt_commit.trim().toLowerCase())) {
-    throw new Error("prompt_commit에는 latest가 아닌 고정 commit을 입력하세요");
+  if (context.prompt_commit.trim().toLowerCase() === "unresolved") {
+    throw new Error("prompt_commit을 해석할 수 없습니다");
   }
   if (!["on", "off"].includes(context.rationale_mode)) {
     throw new Error("rationale_mode는 on 또는 off여야 합니다");

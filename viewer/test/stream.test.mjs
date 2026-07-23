@@ -40,10 +40,13 @@ test("run id is read from Agent Server metadata", () => {
   assert.equal(runIdFromEvent({ data: { run: { run_id: "run-2" } } }), "run-2");
 });
 
-test("run context rejects mutable prompt selectors", () => {
-  assert.throws(
+test("run context accepts automatic latest selector and rejects unresolved values", () => {
+  assert.doesNotThrow(
     () => validateRunContext({ ...RUN_CONTEXT, prompt_commit: "latest" }),
-    /고정 commit/,
+  );
+  assert.throws(
+    () => validateRunContext({ ...RUN_CONTEXT, prompt_commit: "unresolved" }),
+    /해석할 수 없습니다/,
   );
   assert.throws(
     () => validateRunContext({ ...RUN_CONTEXT, model_name: "" }),

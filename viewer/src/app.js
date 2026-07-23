@@ -8,6 +8,7 @@ import {
   validateRunContext,
 } from "./stream.js";
 
+const AUTO_PROMPT_SELECTOR = "latest";
 const queue = new FrameQueue();
 const elements = Object.fromEntries(
   [...document.querySelectorAll("[id]")].map((element) => [element.id, element]),
@@ -32,7 +33,7 @@ async function startRun(event) {
   };
   const context = {
     prompt_name: elements["prompt-name"].value.trim(),
-    prompt_commit: elements["prompt-commit"].value.trim(),
+    prompt_commit: AUTO_PROMPT_SELECTOR,
     model_name: elements["model-name"].value.trim(),
     rationale_mode: elements["rationale-mode"].value,
     grounding_mode: elements["grounding-mode"].value,

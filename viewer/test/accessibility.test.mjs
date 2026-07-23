@@ -7,3 +7,9 @@ test("styles provide a reduced-motion fallback", async () => {
   assert.match(css, /prefers-reduced-motion:\s*reduce/);
   assert.match(css, /transition:\s*none\s*!important/);
 });
+
+test("interactive form does not ask users for an internal prompt commit", async () => {
+  const html = await readFile(new URL("../index.html", import.meta.url), "utf8");
+  assert.doesNotMatch(html, /id="prompt-commit"/);
+  assert.doesNotMatch(html, />Prompt commit</);
+});
