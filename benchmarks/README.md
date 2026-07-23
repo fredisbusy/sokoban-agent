@@ -1,8 +1,15 @@
-# Boxoban LLM contribution pilot
+# Boxoban LLM contribution baseline
 
 `boxoban_pilot_v1.json`은 Google DeepMind의
 [boxoban-levels](https://github.com/google-deepmind/boxoban-levels)에서
-선택한 재현 가능한 평가 코호트다. 원본 라이선스는 Apache-2.0이다.
+선택한 재현 가능한 LLM prefix 기여도 baseline 코호트다. 원본 라이선스는
+Apache-2.0이다.
+
+이 v1 코호트와 runner는 원시 행동 LLM과 A* Search Guard의 기존 결과를
+보존한다. 구조화된 가설·하위 목표 에이전트의 일반화 실험은 v1 결과 형식을
+변경하지 않고 별도 manifest와 runner로 추가한다. 새 주 정책의 실행 중에는
+전역 A* 정답 suffix나 전체 대체를 사용하지 않으며, bounded A*는 에피소드
+후 평가 oracle로만 호출한다.
 
 - 원본 커밋과 파일 SHA-256을 고정한다.
 - `boxoban-pilot-v1:<level_id>`의 SHA-256 오름차순으로 50개를 선택한다.
