@@ -24,32 +24,32 @@ def build_studio_graph() -> Any:
     """Compile the graph loaded by the local LangGraph Agent Server."""
 
     builder = StateGraph(StudioState, input_schema=StudioInput)
-    builder.add_node("초기화", initialize)
-    builder.add_node("LLM_계획", llm_plan)
-    builder.add_node("AStar_검사", astar_guard)
-    builder.add_node("계획_검증", validate_plan)
-    builder.add_node("행동_실행", execute_action)
-    builder.add_edge(START, "초기화")
-    builder.add_edge("초기화", "LLM_계획")
+    builder.add_node("initialize", initialize)
+    builder.add_node("llm_plan", llm_plan)
+    builder.add_node("astar_guard", astar_guard)
+    builder.add_node("validate_plan", validate_plan)
+    builder.add_node("execute_action", execute_action)
+    builder.add_edge(START, "initialize")
+    builder.add_edge("initialize", "llm_plan")
     builder.add_conditional_edges(
-        "LLM_계획",
+        "llm_plan",
         route_after_llm,
-        {"llm_plan": "LLM_계획", "astar_guard": "AStar_검사", "end": END},
+        {"llm_plan": "llm_plan", "astar_guard": "astar_guard", "end": END},
     )
     builder.add_conditional_edges(
-        "AStar_검사",
+        "astar_guard",
         route_after_guard,
-        {"validate": "계획_검증", "end": END},
+        {"validate": "validate_plan", "end": END},
     )
     builder.add_conditional_edges(
-        "계획_검증",
+        "validate_plan",
         route_after_validation,
-        {"llm_plan": "LLM_계획", "execute": "행동_실행", "end": END},
+        {"llm_plan": "llm_plan", "execute": "execute_action", "end": END},
     )
     builder.add_conditional_edges(
-        "행동_실행",
+        "execute_action",
         route_after_execution,
-        {"llm_plan": "LLM_계획", "execute": "행동_실행", "end": END},
+        {"llm_plan": "llm_plan", "execute": "execute_action", "end": END},
     )
     return builder.compile()
 

@@ -63,10 +63,11 @@ p95와 출력 tokens/s가 포함된다.
 
 Studio 전용 그래프는 실행 단계를 다음 노드로 분리해 표시한다.
 
-`초기화 → LLM_계획 → AStar_검사 → 계획_검증 → 행동_실행`
+`initialize → llm_plan → astar_guard → validate_plan → execute_action`
 
-상태에는 보드와 행동뿐 아니라 한국어 `목표`, `판단 요약`, `위험`,
-`알고리즘 검사 결과`와 단계별 `decision_log`가 들어간다. 이는 모델의 숨은
+그래프 노드와 상태 필드 같은 기술 식별자는 영어를 사용한다. 상태에는
+보드와 행동뿐 아니라 한국어로 생성된 `goal`, `decision_summary`, `risk`,
+`guard_summary`와 단계별 `decision_log`가 들어간다. 이는 모델의 숨은
 chain-of-thought를 노출하는 기능이 아니라 실행 결정에 사용된 짧고 검증
 가능한 설명을 구조화해 남기는 방식이다. 로컬 Agent Server가 그래프 상태와
 노드 전이를 Studio에 전달하며 기본 설정에서는 LangSmith 원격 추적을 끈다.

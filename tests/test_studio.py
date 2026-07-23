@@ -11,11 +11,11 @@ from sokoban_agent.planning.llm import OllamaSettings
 def test_studio_graph_exposes_each_decision_stage() -> None:
     mermaid = graph.get_graph().draw_mermaid()
 
-    assert "초기화" in mermaid
-    assert "LLM_계획" in mermaid
-    assert "AStar_검사" in mermaid
-    assert "계획_검증" in mermaid
-    assert "행동_실행" in mermaid
+    assert "initialize" in mermaid
+    assert "llm_plan" in mermaid
+    assert "astar_guard" in mermaid
+    assert "validate_plan" in mermaid
+    assert "execute_action" in mermaid
 
 
 def test_studio_graph_records_korean_decisions(

@@ -50,6 +50,7 @@ Random, BFS, push 기반 A*, native Ollama Planner가 같은 그래프를 사용
 계획 호출·오류·재시도, 탐색 확장 수와 시간, Ollama의 로딩·prompt eval·
 generation 시간과 토큰 지표가 함께 기록된다.
 
-LangGraph Studio용 그래프는 `LLM 계획 → A* 검사 → 계획 검증 → 행동 실행`을
-각각 관찰 가능한 노드로 제공한다. 모델 프롬프트와 목표·판단·위험·검사
-요약은 한국어이며 로컬 실행이 기본이다.
+LangGraph Studio용 그래프는 `llm_plan → astar_guard → validate_plan →
+execute_action`을 각각 관찰 가능한 노드로 제공한다. 노드와 상태 필드 이름은
+영어이고, 모델 프롬프트와 목표·판단·위험·검사 요약 내용은 한국어이며 로컬
+실행이 기본이다.
