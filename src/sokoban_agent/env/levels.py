@@ -55,12 +55,15 @@ class LevelProvider(Protocol):
     @property
     def shape(self) -> tuple[int, int]:
         """Return the shape shared by every level."""
+        ...
 
     def get(self, level_id: str) -> SokobanLevel:
         """Return a level by its stable identifier."""
+        ...
 
     def sample(self, rng: np.random.Generator) -> SokobanLevel:
         """Sample a level using the environment RNG."""
+        ...
 
 
 def parse_level(level_id: str, rows: Sequence[str]) -> SokobanLevel:
