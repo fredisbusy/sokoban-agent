@@ -11,7 +11,8 @@ from sokoban_agent.env.levels import (
     parse_boxoban_text,
     parse_level,
 )
-from sokoban_agent.env.sokoban import Action, RewardConfig, SokobanEnv, Tile
+from sokoban_agent.env.model import Action, SokobanState, Tile
+from sokoban_agent.env.sokoban import RewardConfig, SokobanEnv
 
 ENV_ID = "SokobanAgent-v0"
 
@@ -38,6 +39,7 @@ __all__ = [
     "RewardConfig",
     "SokobanEnv",
     "SokobanLevel",
+    "SokobanState",
     "Tile",
     "parse_boxoban_text",
     "parse_level",

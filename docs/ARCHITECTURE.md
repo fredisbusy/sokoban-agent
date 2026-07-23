@@ -10,12 +10,13 @@
 flowchart LR
     L["LevelProvider<br/>고정 레벨 · Boxoban"] --> E["SokobanEnv<br/>규칙 · 상태 전이 · 판정"]
     T["터미널 플레이"] --> E
-    E --> X["에피소드 실행기<br/>다음 구현"]
-    X --> A["Agent<br/>Random · BFS/A* · LLM<br/>다음 구현"]
+    E --> X["에피소드 실행기"]
+    X --> A["Agent<br/>Random · BFS"]
     A --> X
     X --> E
-    X --> R["EpisodeResult<br/>성공 · 행동 · 무효 이동 · 시간<br/>다음 구현"]
-    O["OllamaClient<br/>텍스트 호출만 구현"] -.-> A
+    X --> R["EpisodeResult<br/>성공 · 행동 · 무효 이동 · 시간"]
+    O["OllamaClient<br/>텍스트 호출만 구현"] -.-> F["향후 LLM Agent"]
+    F -.-> X
 ```
 
 ## 구현된 경계
@@ -27,15 +28,19 @@ flowchart LR
   구분한다.
 - 터미널 플레이는 환경을 조작하는 UI일 뿐 별도 게임 규칙을 갖지 않는다.
 - `OllamaClient`는 텍스트 호출만 담당하며 아직 Agent 계약을 구현하지 않는다.
+- Random과 BFS는 같은 `Agent` Protocol을 구현한다.
+- 실행기는 모든 Agent를 같은 레벨·seed 조합에서 실행하고 `EpisodeResult`를
+  기록한다.
 
-## 다음 최소 구조
+## 기준선 구조
 
-다음 단계에서는 세 가지 계약만 추가한다.
+기준선은 세 가지 계약으로 구성한다.
 
-1. `Agent`: 관찰과 실행 정보를 받아 다음 행동을 반환한다.
+1. `Agent`: 초기 관찰로 에피소드를 준비하고 다음 행동을 반환한다.
 2. 에피소드 실행기: reset, Agent 호출, step, 종료와 행동 제한을 관리한다.
 3. `EpisodeResult`: 성공, 행동 수, 무효 이동, 데드락과 시간을 기록한다.
 
+BFS와 환경은 이동·밀기·정적 코너 데드락의 순수 규칙 함수를 공유한다.
 상태 분석기, Planner, Controller 같은 세부 계층은 실제 구현 사이에 서로
-다른 책임이 확인될 때 추가한다. 우선순위와 완료 조건은
-[TODO](../TODO.md)에서 관리한다.
+다른 책임이 확인될 때만 추가한다. 우선순위는 [TODO](../TODO.md)에서
+관리한다.

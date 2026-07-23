@@ -39,9 +39,10 @@
 
 ## 현재 상태
 
-자체 Gymnasium Sokoban 환경, 고정·Boxoban 레벨 로더와 내장 레벨 터미널
-플레이가 구현됐다. LiteLLM 기반 Ollama 텍스트 클라이언트도 구현됐지만,
-실행 중인 외부 서버가 필요하며 아직 Sokoban 에이전트는 아니다.
+자체 Gymnasium Sokoban 환경, 고정·Boxoban 레벨 로더, 터미널 플레이,
+공통 Agent 계약, Random/BFS 기준선, 에피소드 실행기와 결과 측정 구조가
+구현됐다. 첫 노트북은 같은 내장 레벨과 seed에서 두 기준선을 비교한다.
 
-다음 목표는 공통 Agent 계약, Random 및 BFS/A* 기준선, 에피소드 실행기와
-결과 측정 구조다.
+LiteLLM 기반 Ollama 텍스트 클라이언트는 실행 중인 외부 서버가 필요하며
+아직 Sokoban Agent는 아니다. 다음 목표는 보드 직렬화와 구조화 행동을
+갖춘 LLM Agent다.

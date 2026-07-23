@@ -6,13 +6,18 @@ readme = "README.md"
 requires-python = ">=3.11,<3.14"
 dependencies = [
     "gymnasium>=1.0.0",
-    "litellm>=1.83.3,<2.0.0",
-    "matplotlib>=3.9.0",
     "numpy>=2.0.0",
-    "opencv-python>=4.10.0.84",
-    "pillow>=10.4.0",
+]
+
+[project.optional-dependencies]
+llm = [
+    "litellm>=1.83.3,<2.0.0",
     "pydantic>=2.9.0",
     "python-dotenv>=1.0.1",
+]
+vision = [
+    "opencv-python>=4.10.0.84",
+    "pillow>=10.4.0",
 ]
 
 [project.scripts]
@@ -20,13 +25,20 @@ sokoban-play = "sokoban_agent.play:main"
 
 [dependency-groups]
 dev = [
+    "litellm>=1.83.3,<2.0.0",
+    "mypy>=1.11.0",
+    "pydantic>=2.9.0",
+    "pytest>=8.3.0",
+    "python-dotenv>=1.0.1",
+    "ruff>=0.6.0",
+]
+notebook = [
     "ipykernel>=6.29.0",
     "jupyterlab>=4.2.0",
-    "mypy>=1.11.0",
+    "matplotlib>=3.9.0",
     "nbclient>=0.10.0",
     "nbformat>=5.10.0",
-    "pytest>=8.3.0",
-    "ruff>=0.6.0",
+    "pandas>=2.2.0",
 ]
 
 [build-system]

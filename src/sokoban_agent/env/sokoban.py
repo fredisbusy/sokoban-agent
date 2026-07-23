@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from enum import IntEnum
 from typing import Any
 
 import gymnasium as gym
@@ -13,30 +12,16 @@ from gymnasium import spaces
 from sokoban_agent.env.levels import (
     DEFAULT_LEVELS,
     LevelProvider,
-    Position,
     SokobanLevel,
 )
-
-
-class Action(IntEnum):
-    """Four primitive actions shared by every agent."""
-
-    UP = 0
-    RIGHT = 1
-    DOWN = 2
-    LEFT = 3
-
-
-class Tile(IntEnum):
-    """Integer encoding returned in board observations."""
-
-    FLOOR = 0
-    WALL = 1
-    TARGET = 2
-    BOX = 3
-    PLAYER = 4
-    BOX_ON_TARGET = 5
-    PLAYER_ON_TARGET = 6
+from sokoban_agent.env.model import Action, SokobanState, Tile
+from sokoban_agent.env.rules import (
+    apply_action,
+    has_static_corner_deadlock,
+    initial_state,
+    is_success,
+    observation_for,
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -51,13 +36,6 @@ class RewardConfig:
 
 
 _DEFAULT_REWARD_CONFIG = RewardConfig()
-
-_DIRECTIONS: dict[Action, Position] = {
-    Action.UP: (-1, 0),
-    Action.RIGHT: (0, 1),
-    Action.DOWN: (1, 0),
-    Action.LEFT: (0, -1),
-}
 
 _COLORS = np.asarray(
     [
@@ -122,8 +100,7 @@ class SokobanEnv(gym.Env[np.ndarray, int]):
         )
 
         self._level: SokobanLevel | None = None
-        self._boxes: set[Position] = set()
-        self._player: Position | None = None
+        self._state: SokobanState | None = None
         self._steps = 0
         self._episode_done = False
 
@@ -150,8 +127,7 @@ class SokobanEnv(gym.Env[np.ndarray, int]):
             raise ValueError("selected level does not match the observation shape")
 
         self._level = level
-        self._boxes = set(level.boxes)
-        self._player = level.player
+        self._state = initial_state(level)
         self._steps = 0
         self._episode_done = False
 
@@ -166,48 +142,27 @@ class SokobanEnv(gym.Env[np.ndarray, int]):
     ) -> tuple[np.ndarray, float, bool, bool, dict[str, Any]]:
         """Apply one primitive move and report win, truncation, or deadlock."""
 
-        level, player = self._require_state()
+        level, state = self._require_state()
         if self._episode_done:
             raise RuntimeError("reset() must be called after an episode ends")
         if not self.action_space.contains(action):
             raise ValueError(f"invalid action: {action}")
 
         selected_action = Action(int(action))
-        row_delta, column_delta = _DIRECTIONS[selected_action]
-        destination = (player[0] + row_delta, player[1] + column_delta)
-        invalid_move = destination in level.walls
-        pushed = False
-        box_left_target = False
-        box_entered_target = False
-
-        if not invalid_move and destination in self._boxes:
-            beyond = (
-                destination[0] + row_delta,
-                destination[1] + column_delta,
-            )
-            if beyond in level.walls or beyond in self._boxes:
-                invalid_move = True
-            else:
-                pushed = True
-                box_left_target = destination in level.targets
-                box_entered_target = beyond in level.targets
-                self._boxes.remove(destination)
-                self._boxes.add(beyond)
-
-        if not invalid_move:
-            self._player = destination
+        move = apply_action(level, state, selected_action)
+        self._state = move.state
 
         self._steps += 1
-        success = self._boxes == set(level.targets)
-        deadlock = not success and self._has_static_corner_deadlock()
+        success = is_success(level, move.state)
+        deadlock = not success and has_static_corner_deadlock(level, move.state)
         terminated = success or deadlock
         truncated = self._steps >= self.max_steps and not terminated
         self._episode_done = terminated or truncated
 
         reward = self.reward_config.step
-        if pushed and box_left_target:
+        if move.pushed and move.box_left_target:
             reward += self.reward_config.box_off_target
-        if pushed and box_entered_target:
+        if move.pushed and move.box_entered_target:
             reward += self.reward_config.box_on_target
         if success:
             reward += self.reward_config.completion
@@ -215,7 +170,10 @@ class SokobanEnv(gym.Env[np.ndarray, int]):
             reward += self.reward_config.deadlock
 
         observation = self._observation()
-        info = self._info(invalid_move=invalid_move, pushed=pushed)
+        info = self._info(
+            invalid_move=move.invalid_move,
+            pushed=move.pushed,
+        )
         if self.render_mode == "human":
             self.render()
         return observation, reward, terminated, truncated, info
@@ -244,27 +202,13 @@ class SokobanEnv(gym.Env[np.ndarray, int]):
         return text
 
     def _observation(self) -> np.ndarray:
-        level, player = self._require_state()
-        board = np.full(level.shape, int(Tile.FLOOR), dtype=np.uint8)
-        for row, column in level.walls:
-            board[row, column] = int(Tile.WALL)
-        for row, column in level.targets:
-            board[row, column] = int(Tile.TARGET)
-        for row, column in self._boxes:
-            board[row, column] = int(
-                Tile.BOX_ON_TARGET
-                if (row, column) in level.targets
-                else Tile.BOX
-            )
-        board[player] = int(
-            Tile.PLAYER_ON_TARGET if player in level.targets else Tile.PLAYER
-        )
-        return board
+        level, state = self._require_state()
+        return observation_for(level, state)
 
     def _info(self, *, invalid_move: bool, pushed: bool) -> dict[str, Any]:
-        level, _ = self._require_state()
-        boxes_on_targets = len(self._boxes & set(level.targets))
-        success = self._boxes == set(level.targets)
+        level, state = self._require_state()
+        boxes_on_targets = len(state.boxes & level.targets)
+        success = is_success(level, state)
         return {
             "level_id": level.level_id,
             "steps": self._steps,
@@ -272,23 +216,11 @@ class SokobanEnv(gym.Env[np.ndarray, int]):
             "pushed": pushed,
             "boxes_on_targets": boxes_on_targets,
             "success": success,
-            "deadlock": not success and self._has_static_corner_deadlock(),
+            "deadlock": not success
+            and has_static_corner_deadlock(level, state),
         }
 
-    def _has_static_corner_deadlock(self) -> bool:
-        level, _ = self._require_state()
-        for row, column in self._boxes - set(level.targets):
-            up = (row - 1, column) in level.walls
-            right = (row, column + 1) in level.walls
-            down = (row + 1, column) in level.walls
-            left = (row, column - 1) in level.walls
-            if (up and right) or (right and down) or (down and left) or (
-                left and up
-            ):
-                return True
-        return False
-
-    def _require_state(self) -> tuple[SokobanLevel, Position]:
-        if self._level is None or self._player is None:
+    def _require_state(self) -> tuple[SokobanLevel, SokobanState]:
+        if self._level is None or self._state is None:
             raise RuntimeError("reset() must be called before using the environment")
-        return self._level, self._player
+        return self._level, self._state

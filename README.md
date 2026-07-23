@@ -4,8 +4,9 @@
 연구하는 Python 프로젝트입니다.
 
 현재 구현된 기능은 Gymnasium 환경, 고정·Boxoban 레벨 로더, 터미널 플레이,
-LiteLLM 기반 Ollama 텍스트 클라이언트입니다. Random/BFS 기준선, 실제로
-보드를 푸는 LLM 에이전트, 공통 실행기와 측정 구조는 아직 구현되지 않았습니다.
+Random/BFS 기준선, 공통 실행기와 측정 구조, 비교 노트북, LiteLLM 기반
+Ollama 텍스트 클라이언트입니다. 실제로 보드를 푸는 LLM 에이전트는 아직
+구현되지 않았습니다.
 목표와 범위는 [PROJECT](docs/PROJECT.md), 작업 순서는 [TODO](TODO.md)에서
 관리합니다.
 
@@ -21,6 +22,24 @@ uv run sokoban-play --level tiny-push
 ```
 
 Ollama 없이도 환경과 터미널 플레이를 사용할 수 있습니다.
+
+### 필요한 기능만 설치
+
+기본 환경과 기준선만 설치하려면 개발 의존성을 제외합니다.
+
+```bash
+uv sync --no-dev
+```
+
+LLM, vision, notebook 기능은 각각 명시적으로 설치합니다.
+
+```bash
+uv sync --no-dev --extra llm
+uv sync --no-dev --extra vision
+uv sync --group notebook
+```
+
+기능별 선택 기준은 [의존성과 기술 선택](docs/DEPENDENCIES.md)에 정리했습니다.
 
 ## Sokoban 환경 사용
 
@@ -131,7 +150,15 @@ uv run mypy
 ```
 
 `make test`, `make lint`, `make typecheck`는 같은 검사의 단축 명령입니다.
-향후 노트북은 실험과 시각화에만 사용하고, 재사용 코드는 `src/`에 둡니다.
+기준선 비교 노트북은 다음 명령으로 다시 생성하고 실행할 수 있습니다.
+
+```bash
+uv run --group notebook python scripts/build_baseline_notebook.py
+uv run --group notebook python -m jupyter nbconvert \
+  --execute --to notebook --inplace notebooks/baseline_comparison.ipynb
+```
+
+노트북은 실험과 시각화에만 사용하고, 재사용 코드는 `src/`에 둡니다.
 
 ## 프로젝트 구조
 
@@ -140,10 +167,12 @@ uv run mypy
 ```text
 src/sokoban_agent/
 ├── env/               # 게임 규칙, 렌더링, 레벨 공급자
-├── agents/llm.py      # Ollama 설정과 텍스트 클라이언트
+├── agents/            # Agent 계약과 Random/BFS/LLM 클라이언트
+├── evaluation/        # 에피소드 실행, 결과와 집계
 └── play.py            # 터미널 플레이
 assets/levels/         # 저장소에 포함된 예제 레벨
-scripts/               # Ollama 연결 확인
+notebooks/             # 실행 결과를 포함한 기준선 비교
+scripts/               # Ollama 확인과 노트북 생성
 tests/                 # 환경, 레벨, 클라이언트, 플레이 검증
 docs/                  # 목표와 아키텍처
 ```
@@ -152,5 +181,6 @@ docs/                  # 목표와 아키텍처
 
 - [프로젝트 목표와 연구 범위](docs/PROJECT.md)
 - [핵심 아키텍처와 실행 흐름](docs/ARCHITECTURE.md)
+- [의존성과 기술 선택](docs/DEPENDENCIES.md)
 - [현재 우선순위와 완료 조건](TODO.md)
 - [에이전트 작업 규칙](AGENTS.md)

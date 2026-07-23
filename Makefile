@@ -4,7 +4,7 @@ sync:
 	uv sync
 
 lab:
-	uv run jupyter lab
+	uv run --group notebook jupyter lab
 
 test:
 	uv run pytest
@@ -14,4 +14,3 @@ lint:
 
 typecheck:
 	uv run mypy
-
