@@ -30,7 +30,8 @@ def build_notebook(output_path: Path) -> None:
             ),
             _markdown(
                 "## 재현성 계약\n\n"
-                "- `benchmarks/agentic_heldout_v1.json`의 checksum과 구조 태그\n"
+                "- `benchmarks/boxoban_research_v1.json`의 checksum, "
+                "공식 난이도와 구조 태그\n"
                 "- `SOKOBAN_PROMPT_COMMIT`의 immutable LangSmith commit\n"
                 "- git graph revision, Ollama 모델 설정, seed와 탐색 한도\n"
                 "- 개발 fixture와 test level ID의 비중복"
@@ -60,7 +61,7 @@ def build_notebook(output_path: Path) -> None:
                 "load_dotenv('.env', override=True)\n"
                 "prompt_commit = os.environ['SOKOBAN_PROMPT_COMMIT']\n"
                 "cohort = load_agentic_cohort_manifest(\n"
-                "    'benchmarks/agentic_heldout_v1.json'\n"
+                "    'benchmarks/boxoban_research_v1.json'\n"
                 ")\n"
                 "settings = OllamaSettings.from_env()\n"
                 "git_commit = subprocess.check_output(\n"
@@ -116,7 +117,7 @@ def build_notebook(output_path: Path) -> None:
                 "display(pd.pivot_table(\n"
                 "    records,\n"
                 "    index='policy_name',\n"
-                "    columns='layout_family',\n"
+                "    columns='difficulty',\n"
                 "    values='success',\n"
                 "    aggfunc='mean',\n"
                 "))\n"

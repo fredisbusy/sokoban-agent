@@ -175,6 +175,7 @@ def _legacy_record(
     return ResearchEpisodeRecord(
         policy_name=policy_name,
         level_id=case.level_id,
+        difficulty=case.difficulty,
         seed=seed,
         layout_family=case.layout_family,
         corridor_structure=case.corridor_structure,
@@ -215,6 +216,7 @@ def _agentic_record(
     return ResearchEpisodeRecord(
         policy_name=result.policy_name,
         level_id=case.level_id,
+        difficulty=case.difficulty,
         seed=seed,
         layout_family=case.layout_family,
         corridor_structure=case.corridor_structure,
@@ -268,6 +270,7 @@ def _oracle_record(
     return ResearchEpisodeRecord(
         policy_name="astar-oracle",
         level_id=case.level_id,
+        difficulty=case.difficulty,
         seed=seed,
         layout_family=case.layout_family,
         corridor_structure=case.corridor_structure,

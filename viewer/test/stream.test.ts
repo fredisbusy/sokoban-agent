@@ -68,7 +68,12 @@ test("stream run sends immutable prompt and model context to LangGraph", async (
       apiUrl: "http://agent",
       threadId: "thread-1",
       assistantId: "sokoban_agent",
-      input: { level_id: "tiny-walk", seed: 0, max_steps: 15 },
+      input: {
+        level_id: "boxoban-medium-56",
+        level_rows: ["#####", "#@$.#", "#####"],
+        seed: 0,
+        max_steps: 120,
+      },
       context: RUN_CONTEXT,
       onEvent: () => {},
     });
@@ -76,6 +81,7 @@ test("stream run sends immutable prompt and model context to LangGraph", async (
     assert.deepEqual(body.context, RUN_CONTEXT);
     assert.equal(body.assistant_id, "sokoban_agent");
     assert.equal(body.stream_mode, "updates");
+    assert.deepEqual(body.input.level_rows, ["#####", "#@$.#", "#####"]);
   } finally {
     globalThis.fetch = originalFetch;
   }

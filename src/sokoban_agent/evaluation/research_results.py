@@ -21,6 +21,7 @@ class ResearchEpisodeRecord:
 
     policy_name: str
     level_id: str
+    difficulty: str
     seed: int
     layout_family: str
     corridor_structure: str

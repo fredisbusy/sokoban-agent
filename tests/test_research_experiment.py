@@ -90,6 +90,7 @@ def _manifest() -> AgenticCohortManifest:
         corridor_structure="none",
         trap_types=(),
         oracle_expectation="solved",
+        difficulty="fixture",
     )
     return AgenticCohortManifest(
         schema_version=1,
@@ -139,6 +140,7 @@ def test_research_experiment_runs_six_policies_on_identical_cases() -> None:
     assert by_policy["structured-local-search"].local_search_calls == 1
     assert by_policy["astar-oracle"].algorithm_calls == 1
     assert by_policy["astar-oracle"].success
+    assert {record.difficulty for record in experiment.records} == {"fixture"}
     assert experiment.run_manifest["prompt_commit"] == "fixture-commit"
     assert experiment.run_manifest["cohort_sha256"] == "fixture-sha"
     assert len(experiment.summaries) == 6

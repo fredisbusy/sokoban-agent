@@ -27,3 +27,22 @@ uv run python scripts/run_boxoban_pilot.py
 JSONL은 중간 결과와 재개 상태를, 같은 이름의 `.summary.json`은 정책별 집계를
 담는다. 모델 비교에는 최소 30개 독립 레벨을 사용하고 한 레벨 스모크 결과를
 성능 결론으로 사용하지 않는다.
+
+## 구조화 에이전트 공식 난이도 코호트
+
+`boxoban_research_v1.json`은 같은 원본 commit에서 Boxoban 공식 난이도
+`unfiltered`, `medium`, `hard`를 각각 5개씩 고정한다. 각 원본 파일의
+SHA-256과 인라인 보드 payload checksum을 모두 검증하며, 선정 규칙은
+`sha256('boxoban-research-v1:' + difficulty + ':' + source_level_id)`
+오름차순이다. 따라서 보기 좋은 맵만 사후 선별하지 않는다.
+
+```bash
+make boxoban-research-data
+uv run python scripts/run_agentic_research.py \
+  --prompt-commit <IMMUTABLE_LANGSMITH_COMMIT>
+```
+
+원본 3개 파일은 `data/boxoban/`에 내려받고 Git에서 제외한다. 연구 manifest의
+15개 보드만 웹 선택과 정확한 실행 입력을 위해 출처·commit·Apache-2.0
+라이선스와 함께 저장한다. bounded A* reference는 보드 무결성 및 사후 비교
+기준이며 구조화 정책에 정답 경로로 전달하지 않는다.

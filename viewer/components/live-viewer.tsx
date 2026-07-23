@@ -15,6 +15,7 @@ import {
   streamRun,
   validateRunContext,
 } from "../lib/stream";
+import type { LevelOption } from "../lib/levels";
 import type {
   GraphState,
   Phase,
@@ -24,12 +25,19 @@ import type {
 } from "../lib/types";
 import { Board } from "./board";
 import { Inspector } from "./inspector";
+import { RunForm } from "./run-form";
 
 const AUTO_PROMPT_SELECTOR = "latest";
 
 type ConnectionKind = "" | "connecting" | "live" | "error";
 
-export function LiveViewer() {
+interface LiveViewerProps {
+  levels: LevelOption[];
+}
+
+export function LiveViewer({ levels }: LiveViewerProps) {
+  const defaultLevel = levels.find((level) => level.id === "tiny-walk")
+    ?? levels[0];
   const queueRef = useRef(new FrameQueue<ViewEvent>());
   const graphStateRef = useRef<GraphState>({});
   const abortRef = useRef<AbortController | null>(null);
@@ -39,7 +47,7 @@ export function LiveViewer() {
   const [speed, setSpeed] = useState(350);
   const [streamComplete, setStreamComplete] = useState(false);
   const [running, setRunning] = useState(false);
-  const [levelLabel, setLevelLabel] = useState("tiny-walk");
+  const [levelLabel, setLevelLabel] = useState(defaultLevel.displayName);
   const [phase, setPhase] = useState<Phase>("disconnected");
   const [connection, setConnection] = useState<{
     kind: ConnectionKind;
@@ -94,7 +102,15 @@ export function LiveViewer() {
     setPhase("planning");
     setRunning(true);
     const levelId = textField(form, "level_id");
-    setLevelLabel(levelId);
+    const selectedLevel = levels.find((level) => level.id === levelId);
+    if (!selectedLevel) {
+      setRunning(false);
+      setPhase("error");
+      setConnection({ kind: "error", text: "맵 설정 오류" });
+      setErrorMessage(`알 수 없는 맵입니다: ${levelId}`);
+      return;
+    }
+    setLevelLabel(selectedLevel.displayName);
 
     try {
       const apiUrl = textField(form, "api_url");
@@ -106,6 +122,7 @@ export function LiveViewer() {
         assistantId: textField(form, "assistant_id"),
         input: {
           level_id: levelId,
+          level_rows: selectedLevel.rows,
           seed: nullableInteger(form.get("seed")),
           max_steps: Number(form.get("max_steps")),
         },
@@ -191,7 +208,12 @@ export function LiveViewer() {
         </div>
       </header>
 
-      <RunForm running={running} onSubmit={startRun} />
+      <RunForm
+        levels={levels}
+        running={running}
+        onLevelChange={(level) => setLevelLabel(level.displayName)}
+        onSubmit={startRun}
+      />
 
       <section className="workspace">
         <article className="stage panel">
@@ -224,61 +246,6 @@ export function LiveViewer() {
       </section>
       {errorMessage && <p className="error-message" role="alert">{errorMessage}</p>}
     </main>
-  );
-}
-
-interface RunFormProps {
-  running: boolean;
-  onSubmit: (event: FormEvent<HTMLFormElement>) => void;
-}
-
-function RunForm({ running, onSubmit }: RunFormProps) {
-  return (
-    <form className="run-form" onSubmit={onSubmit}>
-      <Field label="Agent Server" name="api_url" defaultValue="http://localhost:2024" type="url" />
-      <Field label="Assistant" name="assistant_id" defaultValue="sokoban_agent" />
-      <Field label="Level" name="level_id" defaultValue="tiny-walk" />
-      <Field label="Seed" name="seed" defaultValue="0" type="number" required={false} />
-      <Field label="Max steps" name="max_steps" defaultValue="15" type="number" min="1" />
-      <Field label="Prompt" name="prompt_name" defaultValue="sokoban-strategy" />
-      <Field label="Model" name="model_name" defaultValue="qwen3.6:27b-mlx" />
-      <SelectField label="Rationale" name="rationale_mode" options={["on", "off"]} />
-      <SelectField
-        label="Grounding"
-        name="grounding_mode"
-        options={["local-search", "direct"]}
-      />
-      <button className="primary" type="submit" disabled={running}>실행</button>
-    </form>
-  );
-}
-
-interface FieldProps {
-  label: string;
-  name: string;
-  defaultValue: string;
-  type?: string;
-  min?: string;
-  required?: boolean;
-}
-
-function Field({ label, required = true, ...inputProps }: FieldProps) {
-  return <label>{label}<input {...inputProps} required={required} /></label>;
-}
-
-interface SelectFieldProps {
-  label: string;
-  name: string;
-  options: string[];
-}
-
-function SelectField({ label, name, options }: SelectFieldProps) {
-  return (
-    <label>{label}
-      <select name={name} defaultValue={options[0]}>
-        {options.map((option) => <option value={option} key={option}>{option}</option>)}
-      </select>
-    </label>
   );
 }
 

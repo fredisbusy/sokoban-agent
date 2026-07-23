@@ -24,6 +24,7 @@ class AgenticLevelCase:
     corridor_structure: str
     trap_types: tuple[str, ...]
     oracle_expectation: str
+    difficulty: str = "custom"
 
     def to_level(self) -> SokobanLevel:
         """Parse the exact level rows represented by this case."""
@@ -105,6 +106,7 @@ def _level_case(payload: object) -> AgenticLevelCase:
         corridor_structure=_text(payload, "corridor_structure"),
         trap_types=tuple(trap_types),
         oracle_expectation=_text(payload, "oracle_expectation"),
+        difficulty=_optional_text(payload, "difficulty", default="custom"),
     )
     level = case.to_level()
     if level.shape != (case.height, case.width):
@@ -126,6 +128,18 @@ def _cohort_digest(level_payloads: list[object]) -> str:
 
 def _text(payload: dict[str, object], key: str) -> str:
     value = payload.get(key)
+    if not isinstance(value, str) or not value:
+        raise ValueError(f"agentic cohort {key} must be text")
+    return value
+
+
+def _optional_text(
+    payload: dict[str, object],
+    key: str,
+    *,
+    default: str,
+) -> str:
+    value = payload.get(key, default)
     if not isinstance(value, str) or not value:
         raise ValueError(f"agentic cohort {key} must be text")
     return value

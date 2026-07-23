@@ -13,6 +13,9 @@ from sokoban_agent.planning.astar import solve_astar_result
 MANIFEST = (
     Path(__file__).parents[1] / "benchmarks" / "agentic_heldout_v1.json"
 )
+BOXOBAN_MANIFEST = (
+    Path(__file__).parents[1] / "benchmarks" / "boxoban_research_v1.json"
+)
 
 
 def test_agentic_cohort_is_structurally_tagged_and_dev_isolated() -> None:
@@ -76,3 +79,18 @@ def test_agentic_cohort_oracle_labels_match_bounded_astar() -> None:
         else:
             with pytest.raises(NoSolutionError):
                 solve_astar_result(observation)
+
+
+def test_boxoban_research_cohort_balances_official_difficulties() -> None:
+    manifest = load_agentic_cohort_manifest(BOXOBAN_MANIFEST)
+
+    assert manifest.version == "boxoban-research-v1"
+    assert len(manifest.levels) == 15
+    assert {
+        difficulty: sum(
+            case.difficulty == difficulty for case in manifest.levels
+        )
+        for difficulty in ("unfiltered", "medium", "hard")
+    } == {"unfiltered": 5, "medium": 5, "hard": 5}
+    assert {case.box_count for case in manifest.levels} == {4}
+    assert {case.to_level().shape for case in manifest.levels} == {(10, 10)}

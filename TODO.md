@@ -101,7 +101,7 @@ graph에서 전역 oracle 호출이 0회임을 테스트로 증명한다.
 
 ### 3. prompt 수명 주기와 전략 Planner
 
-- [ ] LangSmith Prompt Management에 구조화 전략 prompt를 만들고 연구
+- [x] LangSmith Prompt Management에 구조화 전략 prompt를 만들고 연구
   실행에서 prompt commit을 고정한다.
 - [x] `resolve_prompt → compose_strategy_input → propose_strategy`를
   관찰 가능한 LangGraph node로 구성한다.
@@ -154,14 +154,16 @@ checkpoint history를 사용한다.
 
 세부 화면, stream 계약과 완료 기준은 `docs/LIVE_VIEWER.md`를 따른다.
 
-- [ ] Agent Server streaming run에서 node state update를 브라우저로 받는다.
-- [ ] 실제 `board` state를 CSS Grid의 벽·목표·상자·플레이어로 렌더링한다.
-- [ ] 행동 event마다 `@`, `$`, `*` 위치를 실시간으로 갱신한다.
-- [ ] 오른쪽 패널에 node, 행동, 전략 가설, 하위 목표, 보호 제약, 예상 효과와
+- [x] Agent Server streaming run에서 node state update를 브라우저로 받는다.
+- [x] 실제 `board` state를 CSS Grid의 벽·목표·상자·플레이어로 렌더링한다.
+- [x] 행동 event마다 `@`, `$`, `*` 위치를 실시간으로 갱신한다.
+- [x] 오른쪽 패널에 node, 행동, 전략 가설, 하위 목표, 보호 제약, 예상 효과와
   실제 결과를 같은 event ID 기준으로 표시한다.
-- [ ] graph node를 지연하지 않는 브라우저 표시 queue와 재생 속도 controls를
+- [x] graph node를 지연하지 않는 브라우저 표시 queue와 재생 속도 controls를
   구현한다.
-- [ ] 연결 복구, 성공·데드락·제한·오류와 reduced-motion을 검증한다.
+- [x] 연결 복구, 성공·데드락·제한·오류와 reduced-motion을 검증한다.
+- [x] 개발용 맵과 Boxoban 공식 난이도별 연구 맵을 웹에서 선택하고 같은
+  `level_rows`를 Agent Server graph input으로 전달한다.
 
 완료 조건: `tiny-walk` run이 끝나기 전에 첫 행동이 웹에 나타나고, 표시된
 최종 board가 graph 최종 state와 일치한다. 시각화 지연은 정책 시간에
@@ -178,12 +180,15 @@ checkpoint history를 사용한다.
 - [x] 규칙·도달성·국소 탐색 호출과 LLM 토큰·시간 비용을 분리한다.
 - [x] prompt commit, graph 설정, 모델과 seed를 결과 manifest에 고정한다.
 - [x] 재현 가능한 비교 노트북과 trajectory를 만든다.
+- [x] Boxoban 공식 `unfiltered`, `medium`, `hard`에서 결정적으로 5개씩
+  선정하고 원본 commit·파일 checksum·bounded A* reference를 고정한다.
 
 완료 조건: test 코호트가 prompt와 개발 fixture에서 격리되고, 모든 정책의
 성공·비용·일반화·수정 능력을 같은 표에서 비교한다.
 
 구현 계약은 고정 prompt/model fixture의 6정책 비교로 검증한다. 실제 모델
-결과 artifact는 LangSmith prompt commit을 생성한 뒤 같은 runner로 기록한다.
+결과 artifact는 검증된 immutable LangSmith prompt commit을 고정해 같은
+runner로 기록한다.
 
 ## 보류
 
