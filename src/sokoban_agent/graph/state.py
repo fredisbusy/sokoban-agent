@@ -16,6 +16,13 @@ class SokobanGraphState(TypedDict):
     seed: int | None
     level_id: str
     plan: tuple[Action, ...]
+    proposed_plan: tuple[Action, ...]
+    planner_goal: str | None
+    decision_summary: str | None
+    risk: str | None
+    guard_summary: str | None
+    validation_summary: str | None
+    execution_summary: str | None
     action_history: tuple[Action, ...]
     feedback: tuple[str, ...]
     planning_attempts: int

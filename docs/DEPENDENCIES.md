@@ -13,6 +13,7 @@ dependency group으로 분리한다.
 | vision | OpenCV, Pillow | `uv sync --no-dev --extra vision` |
 | dev | pytest, Ruff, mypy와 LLM 테스트 의존성 | `uv sync` |
 | notebook | Jupyter, nbclient, nbformat, pandas, Matplotlib | `uv sync --group notebook` |
+| studio | LangGraph CLI, 로컬 in-memory Agent Server | `uv sync --group studio` |
 
 `dev`에는 optional LLM 기능까지 항상 테스트하기 위해 LLM 패키지를
 의도적으로 다시 선언한다. 배포 패키지의 기본 의존성에는 포함되지 않는다.
@@ -31,6 +32,12 @@ LangGraph는 선택 기능이 아니라 실행 코어다. `StateGraph`의 조건
 계획, 검증, 실행과 복구를 연결하고 `InMemorySaver`가 에피소드 상태를
 `thread_id`별로 체크포인트한다. Planner 구현은 LangChain에 의존하지 않으며
 알고리즘과 native Ollama 클라이언트를 같은 그래프 경계에 연결한다.
+
+### Studio
+
+`studio` 그룹은 로컬 시각화와 디버깅에만 필요하다. `langgraph dev`가
+`langgraph.json`의 Studio 전용 그래프를 읽어 로컬 Agent Server를 띄운다.
+원격 LangSmith 추적은 `.env`의 `LANGSMITH_TRACING=false`로 기본 비활성화한다.
 
 ## 분석
 

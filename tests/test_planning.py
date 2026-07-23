@@ -197,6 +197,7 @@ def test_search_guard_keeps_a_solvable_primary_proposal() -> None:
     assert outcome.algorithm_calls == 0
     assert outcome.algorithm_fallbacks == 0
     assert outcome.llm_calls == 1
+    assert "보강이 필요 없습니다" in str(outcome.guard_summary)
 
 
 def test_search_guard_appends_and_reuses_grounded_suffix() -> None:
@@ -218,6 +219,7 @@ def test_search_guard_appends_and_reuses_grounded_suffix() -> None:
     assert second.actions == first.actions
     assert second.algorithm_calls == 0
     assert second.algorithm_expanded_states == 0
+    assert "후속 행동" in str(first.guard_summary)
 
 
 def test_search_guard_falls_back_to_bfs_for_blocked_proposal() -> None:
@@ -229,3 +231,4 @@ def test_search_guard_falls_back_to_bfs_for_blocked_proposal() -> None:
     assert outcome.algorithm_calls == 1
     assert outcome.algorithm_fallbacks == 1
     assert outcome.llm_calls == 1
+    assert "막혀 있습니다" in str(outcome.guard_summary)

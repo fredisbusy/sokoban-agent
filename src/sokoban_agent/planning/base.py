@@ -31,6 +31,11 @@ class PlanningOutcome:
     """A proposed action sequence plus generic planning diagnostics."""
 
     actions: tuple[Action, ...] = ()
+    proposed_actions: tuple[Action, ...] = ()
+    goal: str | None = None
+    decision_summary: str | None = None
+    risk: str | None = None
+    guard_summary: str | None = None
     error: str | None = None
     error_kind: PlanningErrorKind | None = None
     llm_calls: int = 0

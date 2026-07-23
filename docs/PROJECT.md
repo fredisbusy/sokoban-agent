@@ -49,3 +49,7 @@ Random, BFS, push 기반 A*, native Ollama Planner가 같은 그래프를 사용
 알고리즘은 전체 경로를, LLM은 최대 8개 행동을 제안한다. 실행 결과에는
 계획 호출·오류·재시도, 탐색 확장 수와 시간, Ollama의 로딩·prompt eval·
 generation 시간과 토큰 지표가 함께 기록된다.
+
+LangGraph Studio용 그래프는 `LLM 계획 → A* 검사 → 계획 검증 → 행동 실행`을
+각각 관찰 가능한 노드로 제공한다. 모델 프롬프트와 목표·판단·위험·검사
+요약은 한국어이며 로컬 실행이 기본이다.

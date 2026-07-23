@@ -132,9 +132,10 @@ OLLAMA_MODEL=qwen3.6:27b-mlx
 OLLAMA_TIMEOUT_SECONDS=300
 OLLAMA_TEMPERATURE=0
 OLLAMA_NUM_CTX=4096
-OLLAMA_MAX_OUTPUT_TOKENS=128
+OLLAMA_MAX_OUTPUT_TOKENS=256
 OLLAMA_KEEP_ALIVE=30m
 OLLAMA_THINK=false
+LANGSMITH_TRACING=false
 ```
 
 Python에서는 다음처럼 텍스트 응답을 요청합니다. 이 클라이언트는 아직
@@ -176,6 +177,32 @@ graph = SokobanGraph(SokobanEnv(), hybrid)
 state = graph.run(level_id="tiny-push")
 print(state["algorithm_calls"], state["algorithm_fallbacks"])
 ```
+
+## LangGraph Studio
+
+로컬 Studio에서는 계획, 알고리즘 검사, 검증, 실행을 노드별로 살펴볼 수
+있습니다. Studio용 의존성을 설치하고 개발 서버를 실행합니다.
+
+```bash
+uv sync --group studio
+uv run --group studio langgraph dev
+```
+
+Studio 입력에는 다음처럼 내장 레벨과 실행 한도를 지정합니다.
+
+```json
+{"level_id": "tiny-walk", "seed": 0, "max_steps": 15}
+```
+
+각 단계에서 `board`, `planner_goal`, `decision_summary`, `risk`,
+`proposed_plan`, `guard_summary`, `decision_log`를 확인할 수 있습니다.
+`decision_log`는 숨은 추론 원문이 아니라 에이전트가 실제로 사용한 목표,
+판단 근거, 위험, A* 검사 결과를 한국어로 기록합니다.
+
+Studio 진입점은 `langgraph.json`과
+`src/sokoban_agent/graph/studio.py`에 정의되어 있습니다.
+`LANGSMITH_TRACING=false`가 기본값이므로 실행 기록은 외부 LangSmith로
+전송하지 않습니다.
 
 ## 연구와 검증
 

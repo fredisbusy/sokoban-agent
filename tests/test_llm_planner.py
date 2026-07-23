@@ -1,3 +1,4 @@
+import json
 from collections import deque
 from collections.abc import Mapping
 
@@ -56,6 +57,18 @@ def _initial_state() -> tuple[Observation, dict[str, object]]:
     return observation, info
 
 
+def _plan_response(*actions: str) -> str:
+    return json.dumps(
+        {
+            "goal": "상자를 목표 위치로 이동",
+            "decision_summary": "상자 아래에서 위쪽으로 민다",
+            "risk": "벽 쪽으로 잘못 미는 행동을 피한다",
+            "actions": list(actions),
+        },
+        ensure_ascii=False,
+    )
+
+
 def test_board_is_serialized_with_standard_sokoban_symbols() -> None:
     observation, _ = _initial_state()
 
@@ -71,9 +84,9 @@ def test_board_is_serialized_with_standard_sokoban_symbols() -> None:
 @pytest.mark.parametrize(
     ("response", "expected"),
     [
-        ('{"actions":["UP"]}', (Action.UP,)),
+        (_plan_response("UP"), (Action.UP,)),
         (
-            '{"actions":["RIGHT","DOWN"]}',
+            _plan_response("RIGHT", "DOWN"),
             (Action.RIGHT, Action.DOWN),
         ),
     ],
@@ -82,7 +95,12 @@ def test_structured_plan_response_is_parsed(
     response: str,
     expected: tuple[Action, ...],
 ) -> None:
-    assert parse_plan_response(response) == expected
+    plan = parse_plan_response(response)
+
+    assert plan.actions == expected
+    assert plan.goal == "상자를 목표 위치로 이동"
+    assert "위쪽" in plan.decision_summary
+    assert "피한다" in plan.risk
 
 
 @pytest.mark.parametrize(
@@ -93,6 +111,7 @@ def test_structured_plan_response_is_parsed(
         '{"actions":[]}',
         '{"actions":["JUMP"]}',
         '{"actions":["UP"],"reason":"x"}',
+        '{"goal":"목표","decision_summary":"판단","risk":"위험"}',
     ],
 )
 def test_invalid_plan_response_is_rejected(response: str) -> None:
@@ -116,9 +135,7 @@ def test_llm_planner_reports_format_error_without_retrying_itself() -> None:
 
 
 def test_graph_retries_format_and_blocked_llm_proposals() -> None:
-    client = SequenceClient(
-        ["", '{"actions":["DOWN"]}', '{"actions":["UP"]}']
-    )
+    client = SequenceClient(["", _plan_response("DOWN"), _plan_response("UP")])
     planner = LLMPlanner(client, model_name="test-model")
 
     result = run_episode(
@@ -136,12 +153,14 @@ def test_graph_retries_format_and_blocked_llm_proposals() -> None:
     assert result.llm_invalid_actions == 1
     assert result.llm_prompt_tokens == 60
     assert result.llm_output_tokens == 15
-    assert "Rejected proposals:" in str(client.requests[2]["prompt"])
+    assert "이전에 거절된 계획:" in str(client.requests[2]["prompt"])
+    assert "현재 보드:" in str(client.requests[2]["prompt"])
+    assert "한국어" in str(client.requests[2]["system_prompt"])
 
 
 def test_graph_executes_a_valid_multi_action_plan_without_replanning() -> None:
     client = SequenceClient(
-        ['{"actions":["RIGHT","UP","LEFT","UP","RIGHT"]}']
+        [_plan_response("RIGHT", "UP", "LEFT", "UP", "RIGHT")]
     )
     planner = LLMPlanner(client, model_name="test-model")
 
@@ -171,6 +190,6 @@ def test_graph_stops_after_client_errors_exhaust_attempts() -> None:
     )
 
     assert not result.success
-    assert result.failure_reason == "request failed: RuntimeError"
+    assert result.failure_reason == "모델 요청 실패: RuntimeError"
     assert result.llm_calls == 2
     assert result.llm_client_errors == 2

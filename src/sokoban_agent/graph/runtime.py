@@ -125,13 +125,19 @@ class SokobanGraph:
         attempts = state["planning_attempts"] + 1
         error = outcome.error
         if not outcome.actions and error is None:
-            error = "planner returned no actions"
+            error = "플래너가 행동 계획을 반환하지 않았습니다"
         exhausted = error is not None and attempts >= self.max_planning_attempts
         feedback = state["feedback"]
         if error is not None:
             feedback = (*feedback, error)
         return {
             "plan": outcome.actions,
+            "proposed_plan": outcome.proposed_actions or outcome.actions,
+            "planner_goal": outcome.goal,
+            "decision_summary": outcome.decision_summary,
+            "risk": outcome.risk,
+            "guard_summary": outcome.guard_summary,
+            "validation_summary": None,
             "feedback": feedback,
             "planning_attempts": attempts,
             "failure_reason": error if exhausted else None,
@@ -194,21 +200,28 @@ class SokobanGraph:
             move = apply_action(level, board, action)
             if move.invalid_move:
                 message = (
-                    f"plan action {index + 1} ({action.name}) is blocked"
+                    f"계획의 {index + 1}번째 행동 "
+                    f"{action.name}이 현재 보드에서 막혀 있습니다"
                 )
                 break
             board = move.state
             validated.append(action)
             if has_static_corner_deadlock(level, board):
                 message = (
-                    f"plan action {index + 1} ({action.name}) causes deadlock"
+                    f"계획의 {index + 1}번째 행동 "
+                    f"{action.name}이 데드락을 만듭니다"
                 )
                 break
             if is_success(level, board):
-                return {"plan": tuple(validated)}
+                return {
+                    "plan": tuple(validated),
+                    "validation_summary": (
+                        "전체 계획이 유효하며 실행 중 퍼즐을 해결합니다"
+                    ),
+                }
 
         if message is None:
-            return {}
+            return {"validation_summary": "전체 계획이 유효합니다"}
         exhausted = (
             state["planning_attempts"] >= self.max_planning_attempts
         )
@@ -218,6 +231,7 @@ class SokobanGraph:
             "invalid_moves": state["invalid_moves"] + 1,
             "planning_retries": state["planning_retries"] + int(not exhausted),
             "failure_reason": message if exhausted else None,
+            "validation_summary": message,
             "llm_invalid_actions": state["llm_invalid_actions"]
             + int(state["last_proposal_used_llm"]),
         }
@@ -239,6 +253,10 @@ class SokobanGraph:
             "total_reward": state["total_reward"] + reward,
             "truncated": truncated,
             "failure_reason": None,
+            "execution_summary": (
+                f"{action.name} 행동을 실행했습니다. "
+                f"남은 계획은 {len(state['plan']) - 1}개입니다"
+            ),
         }
 
     def _route_after_plan(self, state: SokobanGraphState) -> Route:
@@ -279,6 +297,13 @@ class SokobanGraph:
             "seed": seed,
             "level_id": str(info["level_id"]),
             "plan": (),
+            "proposed_plan": (),
+            "planner_goal": None,
+            "decision_summary": None,
+            "risk": None,
+            "guard_summary": None,
+            "validation_summary": None,
+            "execution_summary": None,
             "action_history": (),
             "feedback": (),
             "planning_attempts": 0,

@@ -39,6 +39,9 @@ notebook = [
     "nbformat>=5.10.0",
     "pandas>=2.2.0",
 ]
+studio = [
+    "langgraph-cli[inmem]>=0.4.31",
+]
 
 [build-system]
 requires = ["hatchling"]

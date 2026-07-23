@@ -17,6 +17,7 @@ from sokoban_agent.planning.base import (
 from sokoban_agent.planning.bfs import BFSPlanner, solve_bfs, solve_bfs_result
 from sokoban_agent.planning.hybrid import SearchGuardPlanner
 from sokoban_agent.planning.llm_planner import (
+    ActionPlan,
     ActionPlanResponse,
     LLMPlanner,
     parse_plan_response,
@@ -26,6 +27,7 @@ from sokoban_agent.planning.random import RandomPlanner
 
 __all__ = [
     "ActionPlanResponse",
+    "ActionPlan",
     "AStarPlanner",
     "BFSPlanner",
     "LLMPlanner",

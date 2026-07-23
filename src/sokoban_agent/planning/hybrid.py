@@ -65,17 +65,36 @@ class SearchGuardPlanner:
         started_at = perf_counter()
         primary = self.primary.plan(context)
         if not primary.actions:
-            return self._fallback(context, primary, started_at=started_at)
+            return self._fallback(
+                context,
+                primary,
+                started_at=started_at,
+                reason=primary.error or "LLM이 행동 계획을 제안하지 못했습니다",
+            )
 
         level, state = decode_observation(context.observation)
         accepted: list[Action] = []
-        for action in primary.actions:
+        for index, action in enumerate(primary.actions):
             move = apply_action(level, state, action)
-            if move.invalid_move or has_static_corner_deadlock(level, move.state):
+            if move.invalid_move:
                 return self._fallback(
                     context,
                     primary,
                     started_at=started_at,
+                    reason=(
+                        f"LLM 계획의 {index + 1}번째 행동 "
+                        f"{action.name}이 막혀 있습니다"
+                    ),
+                )
+            if has_static_corner_deadlock(level, move.state):
+                return self._fallback(
+                    context,
+                    primary,
+                    started_at=started_at,
+                    reason=(
+                        f"LLM 계획의 {index + 1}번째 행동 "
+                        f"{action.name}이 데드락을 만듭니다"
+                    ),
                 )
             state = move.state
             accepted.append(action)
@@ -83,6 +102,9 @@ class SearchGuardPlanner:
                 return replace(
                     primary,
                     actions=tuple(accepted),
+                    guard_summary=(
+                        "LLM 계획만으로 해결 가능하여 A* 보강이 필요 없습니다"
+                    ),
                     elapsed_seconds=perf_counter() - started_at,
                 )
 
@@ -95,12 +117,18 @@ class SearchGuardPlanner:
                 context,
                 primary,
                 started_at=started_at,
+                reason="LLM 계획 이후 상태에서 A*가 해답을 찾지 못했습니다",
                 prior_algorithm_calls=1,
                 prior_algorithm_elapsed=perf_counter() - search_started,
             )
         return replace(
             primary,
             actions=(*accepted, *suffix.actions),
+            guard_summary=(
+                "LLM 계획이 안전합니다. "
+                f"{self.algorithm.upper()}가 후속 행동 "
+                f"{len(suffix.actions)}개를 보강했습니다"
+            ),
             algorithm_calls=primary.algorithm_calls + int(not cache_hit),
             algorithm_expanded_states=(
                 primary.algorithm_expanded_states
@@ -119,6 +147,7 @@ class SearchGuardPlanner:
         primary: PlanningOutcome,
         *,
         started_at: float,
+        reason: str,
         prior_algorithm_calls: int = 0,
         prior_algorithm_elapsed: float = 0.0,
     ) -> PlanningOutcome:
@@ -132,6 +161,10 @@ class SearchGuardPlanner:
                 actions=(),
                 error=str(error),
                 error_kind="search",
+                guard_summary=(
+                    f"{reason}. 현재 상태의 {self.algorithm.upper()} "
+                    f"대체 계획도 실패했습니다: {error}"
+                ),
                 algorithm_calls=(
                     primary.algorithm_calls + prior_algorithm_calls + 1
                 ),
@@ -148,6 +181,10 @@ class SearchGuardPlanner:
             actions=result.actions,
             error=None,
             error_kind=None,
+            guard_summary=(
+                f"{reason}. {self.algorithm.upper()}가 안전한 전체 계획 "
+                f"{len(result.actions)}개 행동으로 대체했습니다"
+            ),
             algorithm_calls=(
                 primary.algorithm_calls
                 + prior_algorithm_calls

@@ -26,7 +26,7 @@ class OllamaSettings(BaseModel):
     timeout_seconds: float = Field(default=300.0, gt=0)
     temperature: float = Field(default=0.0, ge=0.0, le=2.0)
     num_ctx: int = Field(default=4096, gt=0)
-    max_output_tokens: int = Field(default=128, gt=0, le=512)
+    max_output_tokens: int = Field(default=256, gt=0, le=512)
     keep_alive: str = "30m"
     think: bool = False
 
@@ -58,7 +58,7 @@ class OllamaSettings(BaseModel):
             temperature=float(os.getenv("OLLAMA_TEMPERATURE", "0")),
             num_ctx=int(os.getenv("OLLAMA_NUM_CTX", "4096")),
             max_output_tokens=int(
-                os.getenv("OLLAMA_MAX_OUTPUT_TOKENS", "128")
+                os.getenv("OLLAMA_MAX_OUTPUT_TOKENS", "256")
             ),
             keep_alive=os.getenv("OLLAMA_KEEP_ALIVE", "30m"),
             think=_env_bool("OLLAMA_THINK", default=False),
