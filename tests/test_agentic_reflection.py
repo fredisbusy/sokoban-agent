@@ -28,6 +28,28 @@ def _reflection_state() -> AgenticState:
                 "direction": "UP",
                 "destination": {"row": 1, "col": 2},
             },
+            "board_analysis": {
+                "boxes": [
+                    {"box_id": "B1", "position": {"row": 2, "col": 2}}
+                ],
+                "targets": [
+                    {"target_id": "T1", "position": {"row": 1, "col": 2}}
+                ],
+                "dead_squares": [],
+                "reachable_cells": [{"row": 3, "col": 2}],
+                "push_options": [
+                    {
+                        "box_id": "B1",
+                        "direction": "UP",
+                        "support": {"row": 3, "col": 2},
+                        "destination": {"row": 1, "col": 2},
+                        "creates_static_deadlock": False,
+                    }
+                ],
+                "reverse_pull_distances": [
+                    {"box_id": "B1", "target_id": "T1", "distance": 1}
+                ],
+            },
             "execution_result": {
                 "before_boxes": [[2, 2]],
                 "after_boxes": [[2, 3]],
@@ -58,17 +80,18 @@ def test_reflection_revises_only_falsified_subgoal() -> None:
             "evidence": "B1이 예상 위치 (1, 2)로 이동하지 않았습니다",
         }
     ]
+    assert update["latest_strategy_feedback"] == [
+        "unexpected_state: B1이 예상 위치 (1, 2)로 이동하지 않았습니다"
+    ]
     assert "strategy_hypothesis" not in update
 
 
-def test_repetition_detection_terminates_same_board_and_subgoal() -> None:
+def test_repetition_ignores_player_position_for_same_planner_state() -> None:
     state = _reflection_state()
     state["observation"] = [[1, 1], [1, 1]]
-    state["attempt_keys"] = [
-        '{"observation":[[1,1],[1,1]],"subgoal":{"box_id":"B1",'
-        '"destination":{"col":2,"row":1},"direction":"UP","kind":"push",'
-        '"target_id":"T1"}}'
-    ]
+    first = detect_agentic_repetition(state)
+    state["attempt_keys"] = cast(list[str], first["attempt_keys"])
+    state["observation"] = [[1, 2], [1, 1]]
 
     update = detect_agentic_repetition(state)
 

@@ -6,6 +6,11 @@ from sokoban_agent.planning import (
     PlanRevision,
     StrategyHypothesis,
     validate_strategy,
+    validate_strategy_progress,
+)
+from sokoban_agent.planning.strategy_decision import (
+    StrategyDecision,
+    materialize_strategy,
 )
 
 
@@ -181,4 +186,38 @@ def test_strategy_validation_rejects_static_deadlock_push() -> None:
 
     assert [violation.code for violation in violations] == [
         "static_deadlock_push"
+    ]
+
+
+def test_decision_prose_is_truncated_without_rejecting_control_fields() -> None:
+    decision = StrategyDecision(
+        summary="가" * 300,
+        push_id="B1:UP",
+        target_id="T1",
+        protected_cells=(),
+        risk="나" * 300,
+    )
+
+    strategy = materialize_strategy(_board_analysis(), decision)
+
+    assert len(strategy.summary) == 240
+    assert len(strategy.assignments[0].reason) == 160
+    assert len(strategy.failure_conditions[0].description) == 200
+
+
+def test_strategy_progress_rejects_immediate_inverse_push() -> None:
+    previous = _strategy_hypothesis().subgoal
+    payload = _strategy_hypothesis().model_dump(mode="json")
+    payload["subgoal"]["direction"] = "DOWN"
+    payload["subgoal"]["destination"] = {"row": 2, "col": 2}
+    payload["expected_effect"]["from_position"] = {"row": 1, "col": 2}
+    payload["expected_effect"]["to_position"] = {"row": 2, "col": 2}
+
+    violations = validate_strategy_progress(
+        previous,
+        StrategyHypothesis.model_validate(payload),
+    )
+
+    assert [violation.code for violation in violations] == [
+        "immediate_reverse"
     ]

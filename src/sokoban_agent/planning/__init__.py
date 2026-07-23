@@ -36,6 +36,7 @@ from sokoban_agent.planning.strategy import (
     StrategyHypothesis,
     StrategyViolation,
     validate_strategy,
+    validate_strategy_progress,
 )
 
 __all__ = [
@@ -68,4 +69,5 @@ __all__ = [
     "solve_bfs",
     "solve_bfs_result",
     "validate_strategy",
+    "validate_strategy_progress",
 ]

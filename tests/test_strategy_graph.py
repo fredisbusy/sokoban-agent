@@ -46,6 +46,7 @@ class SequenceStrategyGenerator(StrategyGenerator):
     def __init__(self, *responses: str) -> None:
         self.responses = list(responses)
         self.calls = 0
+        self.schemas: list[Mapping[str, object]] = []
 
     def generate(
         self,
@@ -56,7 +57,7 @@ class SequenceStrategyGenerator(StrategyGenerator):
     ) -> TextCompletion:
         assert prompt.system_prompt == "fixture system"
         assert seed == 7
-        assert response_schema["title"] == "StrategyHypothesis"
+        self.schemas.append(response_schema)
         response = self.responses[self.calls]
         self.calls += 1
         return TextCompletion(response, CompletionMetrics())
@@ -102,6 +103,19 @@ def _strategy_json(
             ],
         }
     ).model_dump_json()
+
+
+def _decision_json() -> str:
+    return json.dumps(
+        {
+            "summary": "B1을 T1로 올리는 안전한 push를 선택한다",
+            "push_id": "B1:UP",
+            "target_id": "T1",
+            "protected_cells": [],
+            "risk": "상자가 예상 위치와 다르면 전략을 수정한다",
+        },
+        ensure_ascii=False,
+    )
 
 
 def _invoke(
@@ -157,8 +171,44 @@ def test_strategy_nodes_use_pinned_prompt_and_board_analysis() -> None:
         "rationale_mode",
     }
     assert "observation" not in variables
-    assert json.loads(str(variables["board_analysis_json"])) == result[
-        "board_analysis"
+    compact_analysis = json.loads(str(variables["board_analysis_json"]))
+    assert set(compact_analysis) == {
+        "boxes",
+        "targets",
+        "safe_push_options",
+        "reverse_pull_distances",
+        "recent_pushes",
+    }
+    assert "reachable_cells" not in compact_analysis
+    assert "dead_squares" not in compact_analysis
+    schema = generator.schemas[0]
+    assert schema["title"] == "StrategyDecision"
+    properties = cast(dict[str, object], schema["properties"])
+    assert set(properties) == {
+        "summary",
+        "push_id",
+        "target_id",
+        "protected_cells",
+        "risk",
+    }
+    assert "expected_effect" not in properties
+    assert "failure_conditions" not in properties
+
+
+def test_compact_decision_materializes_complete_strategy_artifact() -> None:
+    result = _invoke(FixedPromptSource(), SequenceStrategyGenerator(_decision_json()))
+    assert result["status"] == "success"
+    hypothesis = cast(dict[str, object], result["strategy_hypothesis"])
+    assert hypothesis["expected_effect"] == {
+        "box_id": "B1",
+        "from_position": {"row": 2, "col": 2},
+        "to_position": {"row": 1, "col": 2},
+    }
+    assert hypothesis["failure_conditions"] == [
+        {
+            "kind": "unexpected_state",
+            "description": "상자가 예상 위치와 다르면 전략을 수정한다",
+        }
     ]
 
 
@@ -181,7 +231,7 @@ def test_schema_error_routes_back_to_strategy_proposal() -> None:
 
 def test_schema_error_exposes_bounded_validation_issues() -> None:
     prompt_source = FixedPromptSource()
-    generator = SequenceStrategyGenerator("{}", "{}", "{}")
+    generator = SequenceStrategyGenerator("{}", "{}")
 
     result = _invoke(prompt_source, generator)
 
@@ -315,6 +365,11 @@ def test_agentic_loop_replans_after_each_push_until_success() -> None:
         False,
         True,
     ]
+    next_context = json.loads(
+        str(prompt_source.rendered_variables[1]["board_analysis_json"])
+    )
+    assert next_context["recent_pushes"] == ["B1:UP"]
+    assert "B1:DOWN" not in json.dumps(next_context["safe_push_options"])
 
 
 def test_agentic_loop_stops_when_step_limit_prevents_push() -> None:

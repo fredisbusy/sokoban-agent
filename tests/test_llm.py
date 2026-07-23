@@ -44,7 +44,7 @@ def test_structured_output_default_allows_complete_strategy_json(
     settings = OllamaSettings.from_env(env_file=None)
 
     assert settings.max_output_tokens == 512
-    assert settings.strategy_max_output_tokens == 2048
+    assert settings.strategy_max_output_tokens == 512
 
 
 def test_client_uses_langchain_chat_model_with_structured_output() -> None:
@@ -86,6 +86,7 @@ def test_client_uses_langchain_chat_model_with_structured_output() -> None:
     assert result.content == '{"actions":["UP"]}'
     assert result.metrics.prompt_tokens == 42
     assert result.metrics.output_tokens == 8
+    assert result.metrics.total_seconds >= 0
     assert captured["messages"] == [
         SystemMessage(content="JSON으로 답해."),
         HumanMessage(content="다음 계획은?"),

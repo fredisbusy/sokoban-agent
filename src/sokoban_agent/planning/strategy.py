@@ -22,6 +22,7 @@ ViolationCode = Literal[
     "expected_effect_mismatch",
     "protected_cell_conflict",
     "static_deadlock_push",
+    "immediate_reverse",
 ]
 
 
@@ -277,6 +278,35 @@ def validate_strategy(
             )
         )
     return violations
+
+
+def validate_strategy_progress(
+    previous: PushSubgoal | None,
+    strategy: StrategyHypothesis,
+) -> list[StrategyViolation]:
+    """Reject a push that immediately restores the previous box position."""
+
+    if previous is None:
+        return []
+    current = strategy.subgoal
+    opposite = {
+        "UP": "DOWN",
+        "RIGHT": "LEFT",
+        "DOWN": "UP",
+        "LEFT": "RIGHT",
+    }
+    if (
+        previous.box_id == current.box_id
+        and opposite[previous.direction] == current.direction
+        and previous.destination == strategy.expected_effect.from_position
+    ):
+        return [
+            _violation(
+                "immediate_reverse",
+                "직전 push를 즉시 되돌려 이전 상자 배치를 반복합니다",
+            )
+        ]
+    return []
 
 
 def _violation(code: ViolationCode, message: str) -> StrategyViolation:

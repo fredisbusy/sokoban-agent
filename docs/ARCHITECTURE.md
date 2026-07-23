@@ -111,7 +111,7 @@ Implementation만 제공한다.
 - `analyze`: 보드의 결정론적 사실 추출
 - `resolve_prompt`: 고정된 LangSmith prompt commit을 해석
 - `compose_strategy_input`: graph state를 prompt 변수로 조립
-- `propose_strategy`: 모델의 구조화된 가설과 하위 목표 생성
+- `propose_strategy`: 작은 push decision을 받아 완전한 전략 artifact로 합성
 - `verify_strategy`: 참조·제약·국소 실현성 검증
 - `ground_subgoal`: 선택된 한 하위 목표를 제한된 행동으로 접지
 - `execute_until_push`: 최대 한 번의 push까지만 환경 전이
@@ -135,6 +135,8 @@ Prompt Management를 우선 사용한다.
 - transient한 pull·모델 오류는 node retry policy로 처리한다.
 - schema·의미 오류는 예외 재시도가 아니라 state update와 conditional
   edge로 전략 수정 경로에 보낸다.
+- 모델에는 현재 안전한 push 후보와 bounded recent pushes만 전달하고,
+  목적지·예상 효과·실패 조건은 도메인 Adapter가 결정론적으로 채운다.
 - 자체 prompt registry, version database, cache와 배포 workflow를 만들지
   않는다.
 - offline 단위 테스트는 고정 fixture를 사용하되 같은 node Interface와

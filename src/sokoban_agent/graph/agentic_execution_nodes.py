@@ -17,7 +17,8 @@ from sokoban_agent.env.rules import (
 )
 from sokoban_agent.graph.agentic_state import AgenticState
 from sokoban_agent.planning.base import Observation
-from sokoban_agent.planning.strategy import ExpectedEffect
+from sokoban_agent.planning.strategy import BoardAnalysis, ExpectedEffect
+from sokoban_agent.planning.strategy_decision import compact_board_analysis
 
 ExecutionRoute = Literal["observe", "__end__"]
 ActionRoute = Literal["execute_until_push", "reflect"]
@@ -25,11 +26,12 @@ RepetitionRoute = Literal["ground_subgoal", "__end__"]
 
 
 def detect_agentic_repetition(state: AgenticState) -> dict[str, object]:
-    """Terminate a repeated board-and-subgoal decision before execution."""
+    """Detect repetition at the same abstraction shown to the planner."""
 
+    analysis = BoardAnalysis.model_validate(state["board_analysis"])
     key = json.dumps(
         {
-            "observation": state["observation"],
+            "board": compact_board_analysis(analysis),
             "subgoal": state["active_subgoal"],
         },
         ensure_ascii=False,
@@ -252,6 +254,7 @@ def reflect_agentic_execution(state: AgenticState) -> dict[str, object]:
         "plan_revisions": [revision],
         "effect_mismatches": state["effect_mismatches"] + 1,
         "feedback": [f"unexpected_state: {evidence}"],
+        "latest_strategy_feedback": [f"unexpected_state: {evidence}"],
         "status": status,
         "decision_events": [
             {

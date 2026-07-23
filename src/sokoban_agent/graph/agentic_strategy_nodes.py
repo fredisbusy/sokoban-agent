@@ -18,8 +18,16 @@ from sokoban_agent.graph.agentic_state import (
 from sokoban_agent.planning.llm import TextCompletion
 from sokoban_agent.planning.strategy import (
     BoardAnalysis,
+    PushSubgoal,
     StrategyHypothesis,
     validate_strategy,
+    validate_strategy_progress,
+)
+from sokoban_agent.planning.strategy_decision import (
+    StrategyDecision,
+    compact_board_analysis,
+    materialize_strategy,
+    without_immediate_reverse,
 )
 from sokoban_agent.planning.strategy_runtime import (
     LangSmithPromptSource,
@@ -78,19 +86,31 @@ class StrategyNodes:
     ) -> dict[str, object]:
         """Compose safe prompt variables from BoardAnalysis and feedback."""
 
+        analysis = BoardAnalysis.model_validate(state["board_analysis"])
+        model_context = compact_board_analysis(analysis)
+        recent_pushes = [
+            f"{subgoal['box_id']}:{subgoal['direction']}"
+            for subgoal in state["completed_subgoals"][-4:]
+        ]
+        model_context = without_immediate_reverse(
+            model_context,
+            recent_pushes[-1] if recent_pushes else None,
+        )
+        model_context["recent_pushes"] = recent_pushes
         variables: dict[str, object] = {
             "level_id": state["level_id"],
             "board_analysis_json": json.dumps(
-                state["board_analysis"],
+                model_context,
                 ensure_ascii=False,
                 sort_keys=True,
+                separators=(",", ":"),
             ),
             "feedback_json": json.dumps(
                 state["latest_strategy_feedback"],
                 ensure_ascii=False,
             ),
             "plan_revisions_json": json.dumps(
-                state["plan_revisions"],
+                state["plan_revisions"][-3:],
                 ensure_ascii=False,
             ),
             "rationale_mode": state["rationale_mode"],
@@ -122,11 +142,19 @@ class StrategyNodes:
         completion = self._strategy_generator().generate(
             rendered,
             seed=state["seed"],
-            response_schema=StrategyHypothesis.model_json_schema(),
+            response_schema=StrategyDecision.model_json_schema(),
         )
         attempt = state["strategy_attempts"] + 1
         try:
-            hypothesis = _validate_strategy_response(completion.content)
+            response = _validate_strategy_response(completion.content)
+            hypothesis = (
+                response
+                if isinstance(response, StrategyHypothesis)
+                else materialize_strategy(
+                    BoardAnalysis.model_validate(state["board_analysis"]),
+                    response,
+                )
+            )
         except ValidationError as error:
             issues = _schema_issues(error)
             feedback = [_schema_feedback(issue) for issue in issues]
@@ -182,6 +210,12 @@ class StrategyNodes:
             state["strategy_hypothesis"]
         )
         violations = validate_strategy(analysis, hypothesis)
+        previous = (
+            PushSubgoal.model_validate(state["completed_subgoals"][-1])
+            if state["completed_subgoals"]
+            else None
+        )
+        violations.extend(validate_strategy_progress(previous, hypothesis))
         if violations:
             payloads = [
                 violation.model_dump(mode="json") for violation in violations
@@ -247,7 +281,7 @@ def route_after_strategy_proposal(state: AgenticState) -> StrategyRoute:
 
     if state.get("strategy_error") is None:
         return "verify_strategy"
-    if state["strategy_attempts"] < 3:
+    if state["strategy_attempts"] < 2:
         return "compose_strategy_input"
     return "__end__"
 
@@ -257,7 +291,7 @@ def route_after_strategy_verification(state: AgenticState) -> StrategyRoute:
 
     if not state["strategy_violations"]:
         return "detect_repetition"
-    if state["strategy_attempts"] < 3:
+    if state["strategy_attempts"] < 2:
         return "compose_strategy_input"
     return "__end__"
 
@@ -270,10 +304,18 @@ def _step(state: AgenticState) -> int:
 
 
 @traceable(name="validate_strategy_response", run_type="parser")
-def _validate_strategy_response(content: str) -> StrategyHypothesis:
-    """Trace the exact structured response and any schema validation error."""
+def _validate_strategy_response(
+    content: str,
+) -> StrategyDecision | StrategyHypothesis:
+    """Parse the compact contract while accepting pinned legacy fixtures."""
 
-    return StrategyHypothesis.model_validate_json(content)
+    try:
+        return StrategyDecision.model_validate_json(content)
+    except ValidationError as decision_error:
+        try:
+            return StrategyHypothesis.model_validate_json(content)
+        except ValidationError:
+            raise decision_error from None
 
 
 def _schema_issues(error: ValidationError) -> list[StrategySchemaIssue]:

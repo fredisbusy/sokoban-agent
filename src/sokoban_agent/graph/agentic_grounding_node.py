@@ -77,6 +77,7 @@ def ground_agentic_subgoal(state: AgenticState) -> dict[str, object]:
             ),
             "status": "subgoal_grounding_failed",
             "feedback": [feedback],
+            "latest_strategy_feedback": [feedback],
             "decision_events": [
                 {
                     "step": _step(state),
@@ -129,7 +130,7 @@ def route_after_grounding(state: AgenticState) -> GroundingRoute:
 
     if state["grounding_failure"] is None:
         return "execute_until_push"
-    if state["strategy_attempts"] < 3:
+    if state["strategy_attempts"] < 2:
         return "compose_strategy_input"
     return "__end__"
 

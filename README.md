@@ -225,7 +225,7 @@ Studio의 **Manage Assistants**에서 다음 context를 설정합니다. `prompt
 ```json
 {
   "prompt_name": "sokoban-strategy",
-  "prompt_commit": "260e758c4cf715223b40ea1b40235a8b864164c146dc8efc652bdcb13471562a",
+  "prompt_commit": "731d3f516b225cc0e1d11b87cfc5abe45c1a92ed63b41ef3e23796e805006b77",
   "model_name": "qwen3.6:27b-mlx",
   "rationale_mode": "on",
   "grounding_mode": "local-search"
@@ -337,11 +337,11 @@ reference는 탐색 한도가 있는 비교 기준이며 수학적 최적해라�
 ```bash
 uv run python scripts/run_agentic_research.py \
   --prompt-commit \
-  260e758c4cf715223b40ea1b40235a8b864164c146dc8efc652bdcb13471562a
+  731d3f516b225cc0e1d11b87cfc5abe45c1a92ed63b41ef3e23796e805006b77
 
 uv run python scripts/run_agentic_research.py \
   --prompt-commit \
-  260e758c4cf715223b40ea1b40235a8b864164c146dc8efc652bdcb13471562a \
+  731d3f516b225cc0e1d11b87cfc5abe45c1a92ed63b41ef3e23796e805006b77 \
   --cases-per-difficulty 1 --seeds 0
 make agentic-notebook
 ```

@@ -108,6 +108,8 @@ graph에서 전역 oracle 호출이 0회임을 테스트로 증명한다.
 - [x] prompt 이름·resolved commit·모델 설정을 결과에 기록한다.
 - [x] LLM이 원시 방향 행동 대신 구조화된 전략 가설과 하위 목표 하나를
   반환하도록 schema를 추가한다.
+- [x] 소형 모델은 compact push decision만 반환하고 파생 가능한 전략 필드는
+  보드 사실에서 결정론적으로 합성한다.
 - [x] transient prompt·모델 오류는 LangGraph retry policy로 처리하고,
   schema·의미 오류는 state와 conditional edge로 수정 경로에 보낸다.
 - [x] 네트워크 없이 그래프를 시험할 고정 prompt와 모델 fixture를 만든다.
@@ -143,6 +145,8 @@ node·commit·입력 변수를 확인할 수 있다. 같은 commit·입력·seed
 - [x] 성공한 하위 목표를 완료하고 다음 하위 목표를 선택한다.
 - [x] 반증된 가설과 수정된 필드를 `PlanRevision`으로 체크포인트한다.
 - [x] 같은 상태·가설·하위 목표의 반복을 탐지하고 유한하게 종료한다.
+- [x] 플레이어 좌표가 달라도 같은 모델 입력 상태를 반복으로 판정하고, 직전
+  push를 되돌리는 후보를 다음 모델 입력에서 제외한다.
 - [x] 별도 checkpoint 저장 계층 없이 local은 `InMemorySaver`, Agent Server는
   제공 persistence를 사용한다.
 

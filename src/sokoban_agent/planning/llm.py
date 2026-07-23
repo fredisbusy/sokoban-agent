@@ -6,6 +6,7 @@ import os
 from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
+from time import perf_counter
 from typing import Protocol, cast
 
 from dotenv import find_dotenv, load_dotenv
@@ -25,7 +26,7 @@ class OllamaSettings(BaseModel):
     temperature: float = Field(default=0.0, ge=0.0, le=2.0)
     num_ctx: int = Field(default=4096, gt=0)
     max_output_tokens: int = Field(default=512, gt=0, le=512)
-    strategy_max_output_tokens: int = Field(default=2048, gt=0, le=4096)
+    strategy_max_output_tokens: int = Field(default=512, gt=0, le=4096)
     keep_alive: str = "30m"
     think: bool = False
 
@@ -60,7 +61,7 @@ class OllamaSettings(BaseModel):
                 os.getenv("OLLAMA_MAX_OUTPUT_TOKENS", "512")
             ),
             strategy_max_output_tokens=int(
-                os.getenv("OLLAMA_STRATEGY_MAX_OUTPUT_TOKENS", "2048")
+                os.getenv("OLLAMA_STRATEGY_MAX_OUTPUT_TOKENS", "512")
             ),
             keep_alive=os.getenv("OLLAMA_KEEP_ALIVE", "30m"),
             think=_env_bool("OLLAMA_THINK", default=False),
@@ -163,7 +164,9 @@ class LiteLLMClient:
                     "strict": True,
                 },
             }
+        started_at = perf_counter()
         message = self.model.invoke(messages, **invocation)
+        elapsed = perf_counter() - started_at
         content = message.content
         if not isinstance(content, str) or not content.strip():
             raise RuntimeError("LiteLLM returned an empty text response")
@@ -171,6 +174,7 @@ class LiteLLMClient:
         return TextCompletion(
             content=content,
             metrics=CompletionMetrics(
+                total_seconds=elapsed,
                 prompt_tokens=(
                     _integer(usage.get("input_tokens")) if usage else 0
                 ),
