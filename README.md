@@ -386,6 +386,11 @@ tests/                 # 환경, 레벨, 클라이언트, 플레이 검증
 docs/                  # 목표와 아키텍처
 ```
 
+평가 내부 결과는 identity, outcome, strategy, LLM, memory, search와 rule
+값 객체로 구성합니다. LangGraph의 `AgenticState`도 같은 책임별 `metrics`
+채널을 사용하며, JSON·pandas에 필요한 평면 컬럼은 연구 artifact
+Adapter에서만 생성합니다.
+
 ## 문서
 
 - [프로젝트 목표와 연구 범위](docs/PROJECT.md)

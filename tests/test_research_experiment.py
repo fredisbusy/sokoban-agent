@@ -136,17 +136,46 @@ def test_research_experiment_runs_six_policies_on_identical_cases() -> None:
     by_policy = {
         record.policy_name: record for record in experiment.records
     }
-    assert by_policy["structured-llm"].local_search_calls == 0
-    assert by_policy["structured-local-search"].local_search_calls == 1
-    assert by_policy["astar-oracle"].algorithm_calls == 1
-    assert by_policy["astar-oracle"].success
-    assert {record.difficulty for record in experiment.records} == {"fixture"}
+    direct_search = by_policy["structured-llm"].local_search
+    local_search = by_policy["structured-local-search"].local_search
+    oracle_search = by_policy["astar-oracle"].algorithm
+    assert direct_search is not None and direct_search.calls == 0
+    assert local_search is not None and local_search.calls == 1
+    assert oracle_search is not None and oracle_search.calls == 1
+    assert by_policy["astar-oracle"].outcome.success
+    assert {record.level.difficulty for record in experiment.records} == {
+        "fixture"
+    }
     assert experiment.run_manifest["prompt_commit"] == "fixture-commit"
     assert experiment.run_manifest["cohort_sha256"] == "fixture-sha"
     assert len(experiment.summaries) == 6
     assert experiment.rationale_intervention.compared_cases == 1
     assert experiment.rationale_intervention.action_sequence_changes == 0
-    json.dumps(experiment.to_json_dict())
+    payload = experiment.to_json_dict()
+    assert payload["record_schema_version"] == 2
+    records = payload["records"]
+    assert isinstance(records, list)
+    structured = next(
+        record
+        for record in records
+        if record["policy_name"] == "structured-local-search"
+    )
+    assert structured["cycle_detected"] is False
+    assert structured["prompt_commit"] == "fixture-commit"
+    assert "strategy_schema_rejections" in structured
+    assert "strategy_cache_hits" in structured
+    assert structured["assignment_revision_count"] == 0
+    assert "actions_derived_from_subgoal" not in structured
+    oracle = next(
+        record
+        for record in records
+        if record["policy_name"] == "astar-oracle"
+    )
+    assert oracle["strategy_proposals"] is None
+    assert oracle["memory_requests"] is None
+    assert oracle["algorithm_calls"] == 1
+    assert not any(isinstance(value, dict) for value in structured.values())
+    json.dumps(payload)
 
 
 def test_research_run_requires_an_immutable_prompt_commit() -> None:

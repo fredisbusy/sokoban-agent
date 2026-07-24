@@ -12,8 +12,11 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationError
 from sokoban_agent.env import Action, Tile
 from sokoban_agent.env.rules import decode_observation
 from sokoban_agent.planning.base import (
+    LLMPlanningMetrics,
     Observation,
     PlanningContext,
+    PlanningFailure,
+    PlanningNarrative,
     PlanningOutcome,
 )
 from sokoban_agent.planning.llm import TextCompletion
@@ -148,11 +151,14 @@ class LLMPlanner:
         except Exception as error:
             elapsed = perf_counter() - started_at
             return PlanningOutcome(
-                error=f"모델 요청 실패: {type(error).__name__}",
-                error_kind="client",
-                llm_calls=1,
-                llm_client_errors=1,
-                llm_elapsed_seconds=elapsed,
+                failure=PlanningFailure(
+                    f"모델 요청 실패: {type(error).__name__}", "client"
+                ),
+                llm=LLMPlanningMetrics(
+                    calls=1,
+                    client_errors=1,
+                    elapsed_seconds=elapsed,
+                ),
                 elapsed_seconds=elapsed,
             )
 
@@ -161,34 +167,39 @@ class LLMPlanner:
         except ValueError as error:
             elapsed = perf_counter() - started_at
             return PlanningOutcome(
-                error=str(error),
-                error_kind="format",
-                llm_calls=1,
-                llm_format_errors=1,
-                llm_elapsed_seconds=elapsed,
-                llm_load_seconds=completion.metrics.load_seconds,
-                llm_prompt_eval_seconds=(
-                    completion.metrics.prompt_eval_seconds
+                failure=PlanningFailure(str(error), "format"),
+                llm=LLMPlanningMetrics(
+                    calls=1,
+                    format_errors=1,
+                    elapsed_seconds=elapsed,
+                    load_seconds=completion.metrics.load_seconds,
+                    prompt_eval_seconds=(
+                        completion.metrics.prompt_eval_seconds
+                    ),
+                    eval_seconds=completion.metrics.eval_seconds,
+                    prompt_tokens=completion.metrics.prompt_tokens,
+                    output_tokens=completion.metrics.output_tokens,
                 ),
-                llm_eval_seconds=completion.metrics.eval_seconds,
-                llm_prompt_tokens=completion.metrics.prompt_tokens,
-                llm_output_tokens=completion.metrics.output_tokens,
                 elapsed_seconds=elapsed,
             )
         elapsed = perf_counter() - started_at
         return PlanningOutcome(
             actions=plan.actions,
             proposed_actions=plan.actions,
-            goal=plan.goal,
-            decision_summary=plan.decision_summary,
-            risk=plan.risk,
-            llm_calls=1,
-            llm_elapsed_seconds=elapsed,
-            llm_load_seconds=completion.metrics.load_seconds,
-            llm_prompt_eval_seconds=completion.metrics.prompt_eval_seconds,
-            llm_eval_seconds=completion.metrics.eval_seconds,
-            llm_prompt_tokens=completion.metrics.prompt_tokens,
-            llm_output_tokens=completion.metrics.output_tokens,
+            narrative=PlanningNarrative(
+                goal=plan.goal,
+                decision_summary=plan.decision_summary,
+                risk=plan.risk,
+            ),
+            llm=LLMPlanningMetrics(
+                calls=1,
+                elapsed_seconds=elapsed,
+                load_seconds=completion.metrics.load_seconds,
+                prompt_eval_seconds=completion.metrics.prompt_eval_seconds,
+                eval_seconds=completion.metrics.eval_seconds,
+                prompt_tokens=completion.metrics.prompt_tokens,
+                output_tokens=completion.metrics.output_tokens,
+            ),
             elapsed_seconds=elapsed,
         )
 

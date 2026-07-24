@@ -104,14 +104,14 @@ def test_shared_store_skips_model_and_search_on_exact_second_run() -> None:
     )
 
     assert first["status"] == second["status"] == "success"
-    assert first["llm_calls"] == 1
-    assert first["local_search_calls"] == 1
-    assert second["llm_calls"] == 0
-    assert second["local_search_calls"] == 0
-    assert second["llm_calls_saved"] == 1
-    assert second["analysis_cache_hits"] == 1
-    assert second["strategy_cache_hits"] == 1
-    assert second["grounding_cache_hits"] == 1
+    assert first["metrics"]["llm"]["calls"] == 1
+    assert first["metrics"]["local_search"]["calls"] == 1
+    assert second["metrics"]["llm"]["calls"] == 0
+    assert second["metrics"]["local_search"]["calls"] == 0
+    assert second["metrics"]["memory"]["llm_calls_saved"] == 1
+    assert second["metrics"]["memory"]["analysis_cache_hits"] == 1
+    assert second["metrics"]["memory"]["strategy_cache_hits"] == 1
+    assert second["metrics"]["memory"]["grounding_cache_hits"] == 1
     assert generator.calls == 1
     assert any(
         event["stage"] == "recall_strategy"
@@ -141,8 +141,8 @@ def test_episode_failure_memory_filters_rejected_push_before_retry() -> None:
 
     assert result["status"] == "success"
     assert generator.calls == 3
-    assert result["strategy_semantic_rejections"] == 1
-    assert result["rejected_pushes_filtered"] == 1
+    assert result["metrics"]["strategy"]["semantic_rejections"] == 1
+    assert result["metrics"]["memory"]["rejected_pushes_filtered"] == 1
     retry_context = json.loads(
         str(prompt_source.rendered_variables[1]["board_analysis_json"])
     )

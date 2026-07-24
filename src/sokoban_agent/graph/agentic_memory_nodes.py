@@ -17,18 +17,11 @@ from sokoban_agent.graph.agentic_memory_keys import (
     observation,
     shared_memory,
     strategy_memory_key,
-    topology_memory_key,
 )
+from sokoban_agent.graph.agentic_metrics import update_agentic_metrics
 from sokoban_agent.graph.agentic_state import (
     AgenticRuntimeContext,
     AgenticState,
-)
-from sokoban_agent.planning.base import Observation
-from sokoban_agent.planning.board_analysis import (
-    StaticBoardFacts,
-    analyze_static_board,
-    dump_static_board_facts,
-    load_static_board_facts,
 )
 from sokoban_agent.planning.local_execution import (
     SubgoalGroundingError,
@@ -55,32 +48,6 @@ _REJECTING_VIOLATIONS = {
 }
 
 
-def get_static_board_facts(
-    state: AgenticState,
-    runtime: Runtime[AgenticRuntimeContext],
-    observation: Observation,
-) -> tuple[StaticBoardFacts, int, int, int]:
-    """Recall topology facts and return request, hit, and write increments."""
-
-    if not shared_memory(state) or runtime.store is None:
-        return analyze_static_board(observation), 0, 0, 0
-    key = topology_memory_key(observation)
-    item = runtime.store.get(memory_namespace(state, "board"), key)
-    if item is not None:
-        try:
-            return load_static_board_facts(item.value), 1, 1, 0
-        except ValueError:
-            pass
-    facts = analyze_static_board(observation)
-    runtime.store.put(
-        memory_namespace(state, "board"),
-        key,
-        dump_static_board_facts(facts),
-        index=False,
-    )
-    return facts, 1, 0, 1
-
-
 def recall_failed_decisions(
     state: AgenticState,
     runtime: Runtime[AgenticRuntimeContext],
@@ -103,10 +70,16 @@ def recall_failed_decisions(
                 )
                 hits = 1
     count = len(rejected.get(key, []))
+    metrics = state["metrics"]
     return {
         "rejected_pushes": rejected,
-        "memory_requests": state["memory_requests"] + requests,
-        "memory_hits": state["memory_hits"] + hits,
+        "metrics": update_agentic_metrics(
+            metrics,
+            memory={
+                "requests": metrics["memory"]["requests"] + requests,
+                "hits": metrics["memory"]["hits"] + hits,
+            },
+        ),
         "status": "failure_memory_recalled",
         "decision_events": [
             memory_event(
@@ -166,13 +139,23 @@ def recall_strategy(
                 hits = 1
             except (TypeError, ValueError):
                 hypothesis = None
+    metrics = state["metrics"]
     return {
         "strategy_hypothesis": hypothesis,
         "strategy_memory_hit": hits == 1,
-        "memory_requests": state["memory_requests"] + requests,
-        "memory_hits": state["memory_hits"] + hits,
-        "strategy_cache_hits": state["strategy_cache_hits"] + hits,
-        "llm_calls_saved": state["llm_calls_saved"] + hits,
+        "metrics": update_agentic_metrics(
+            metrics,
+            memory={
+                "requests": metrics["memory"]["requests"] + requests,
+                "hits": metrics["memory"]["hits"] + hits,
+                "strategy_cache_hits": (
+                    metrics["memory"]["strategy_cache_hits"] + hits
+                ),
+                "llm_calls_saved": (
+                    metrics["memory"]["llm_calls_saved"] + hits
+                ),
+            },
+        ),
         "status": "strategy_memory_hit" if hits else "strategy_memory_miss",
         "decision_events": [
             memory_event(
@@ -224,6 +207,7 @@ def recall_grounding(
     actions = (
         [*plan.player_actions, plan.push_action] if plan is not None else []
     )
+    metrics = state["metrics"]
     return {
         "grounded_plan": (
             plan.model_dump(mode="json") if plan is not None else None
@@ -232,13 +216,22 @@ def recall_grounding(
         "grounding_failure": None,
         "grounding_memory_hit": hits == 1,
         "grounding_cache_key": cache_key,
-        "memory_requests": state["memory_requests"] + requests,
-        "memory_hits": state["memory_hits"] + hits,
-        "grounding_cache_hits": state["grounding_cache_hits"] + hits,
-        "subgoal_grounding_attempts": (
-            state["subgoal_grounding_attempts"] + hits
+        "metrics": update_agentic_metrics(
+            metrics,
+            memory={
+                "requests": metrics["memory"]["requests"] + requests,
+                "hits": metrics["memory"]["hits"] + hits,
+                "grounding_cache_hits": (
+                    metrics["memory"]["grounding_cache_hits"] + hits
+                ),
+            },
+            strategy={
+                "subgoal_attempts": (
+                    metrics["strategy"]["subgoal_attempts"] + hits
+                )
+            },
+            rules={"checks": metrics["rules"]["checks"] + hits},
         ),
-        "rule_checks": state["rule_checks"] + hits,
         "status": "grounding_memory_hit" if hits else "grounding_memory_miss",
         "decision_events": [
             memory_event(
@@ -276,9 +269,13 @@ def remember_failure(
                 index=False,
             )
             writes = 1
+    metrics = state["metrics"]
     return {
         "rejected_pushes": rejected,
-        "memory_writes": state["memory_writes"] + writes,
+        "metrics": update_agentic_metrics(
+            metrics,
+            memory={"writes": metrics["memory"]["writes"] + writes},
+        ),
         "status": state["status"],
         "decision_events": [
             memory_event(
@@ -336,9 +333,13 @@ def remember_outcome(
                 index=False,
             )
             writes = 1
+    metrics = state["metrics"]
     return {
         "rejected_pushes": rejected,
-        "memory_writes": state["memory_writes"] + writes,
+        "metrics": update_agentic_metrics(
+            metrics,
+            memory={"writes": metrics["memory"]["writes"] + writes},
+        ),
         "status": state["status"],
         "decision_events": [
             memory_event(

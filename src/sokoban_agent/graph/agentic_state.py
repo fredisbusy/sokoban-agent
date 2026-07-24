@@ -5,6 +5,8 @@ from __future__ import annotations
 from operator import add
 from typing import Annotated, Literal, NotRequired, TypedDict
 
+from sokoban_agent.graph.agentic_metrics import AgenticMetrics
+
 
 class AgenticInput(TypedDict):
     """JSON-safe input accepted by the structured agent graph."""
@@ -93,31 +95,8 @@ class AgenticState(TypedDict):
     strategy_memory_hit: bool
     grounding_memory_hit: bool
     grounding_cache_key: str | None
-    memory_requests: int
-    memory_hits: int
-    memory_writes: int
-    strategy_cache_hits: int
-    grounding_cache_hits: int
-    analysis_cache_hits: int
-    llm_calls_saved: int
-    rejected_pushes_filtered: int
-    strategy_proposals: int
-    strategy_schema_rejections: int
-    strategy_semantic_rejections: int
-    llm_calls: int
-    llm_elapsed_seconds: float
-    llm_prompt_tokens: int
-    llm_output_tokens: int
-    local_search_calls: int
-    local_expanded_states: int
-    local_search_elapsed_seconds: float
-    rule_checks: int
-    reachability_calls: int
-    subgoal_grounding_attempts: int
-    subgoal_grounding_failures: int
+    metrics: AgenticMetrics
     push_count: int
-    effect_matches: int
-    effect_mismatches: int
     protected_constraints: list[dict[str, object]]
     expected_effect: dict[str, object] | None
     failure_conditions: list[dict[str, object]]

@@ -22,10 +22,15 @@ from sokoban_agent.evaluation.research_results import (
 )
 from sokoban_agent.evaluation.schemas.episode import (
     AgenticEpisodeResult,
+    EpisodeIdentity,
+    EpisodeOutcome,
     EpisodeResult,
 )
+from sokoban_agent.evaluation.schemas.metrics import LLMUsage, SearchUsage
 from sokoban_agent.evaluation.schemas.reference import ReferenceResult
 from sokoban_agent.evaluation.schemas.research import (
+    LevelProfile,
+    OracleOverhead,
     ResearchEpisodeRecord,
     ResearchExperiment,
 )
@@ -154,36 +159,36 @@ def _legacy_record(
         frame.action.name for frame in trace.frames if frame.action is not None
     )
     return ResearchEpisodeRecord(
-        policy_name=policy_name,
-        level_id=case.level_id,
-        difficulty=case.difficulty,
-        seed=seed,
-        layout_family=case.layout_family,
-        corridor_structure=case.corridor_structure,
-        trap_types=case.trap_types,
-        board_height=case.height,
-        board_width=case.width,
-        box_count=case.box_count,
-        status=_legacy_status(result),
-        success=result.success,
-        deadlock=result.deadlock,
-        truncated=result.truncated,
-        action_count=result.action_count,
-        action_sequence=actions,
-        push_count=result.push_count,
-        action_overhead_vs_oracle=_overhead(
-            result.success, result.action_count, reference.action_count
+        identity=EpisodeIdentity(policy_name, case.level_id, seed),
+        level=_level_profile(case),
+        outcome=EpisodeOutcome(
+            status=_legacy_status(result),
+            success=result.success,
+            deadlock=result.deadlock,
+            truncated=result.truncated,
+            cycle_detected=False,
+            action_sequence=actions,
+            push_count=result.push_count,
         ),
-        push_overhead_vs_oracle=_overhead(
-            result.success, result.push_count, reference.push_count
+        oracle=OracleOverhead(
+            action_overhead_vs_oracle=_overhead(
+                result.success, result.action_count, reference.action_count
+            ),
+            push_overhead_vs_oracle=_overhead(
+                result.success, result.push_count, reference.push_count
+            ),
         ),
-        llm_calls=result.llm_calls,
-        llm_prompt_tokens=result.llm_prompt_tokens,
-        llm_output_tokens=result.llm_output_tokens,
-        llm_elapsed_seconds=result.llm_elapsed_seconds,
-        algorithm_calls=result.algorithm_calls,
-        algorithm_expanded_states=result.algorithm_expanded_states,
-        algorithm_elapsed_seconds=result.algorithm_elapsed_seconds,
+        llm=LLMUsage(
+            calls=result.llm_calls,
+            elapsed_seconds=result.llm_elapsed_seconds,
+            prompt_tokens=result.llm_prompt_tokens,
+            output_tokens=result.llm_output_tokens,
+        ),
+        algorithm=SearchUsage(
+            calls=result.algorithm_calls,
+            expanded_states=result.algorithm_expanded_states,
+            elapsed_seconds=result.algorithm_elapsed_seconds,
+        ),
         policy_elapsed_seconds=result.policy_elapsed_seconds,
     )
 
@@ -195,54 +200,23 @@ def _agentic_record(
     reference: ReferenceResult,
 ) -> ResearchEpisodeRecord:
     return ResearchEpisodeRecord(
-        policy_name=result.policy_name,
-        level_id=case.level_id,
-        difficulty=case.difficulty,
-        seed=seed,
-        layout_family=case.layout_family,
-        corridor_structure=case.corridor_structure,
-        trap_types=case.trap_types,
-        board_height=case.height,
-        board_width=case.width,
-        box_count=case.box_count,
-        status=result.status,
-        success=result.success,
-        deadlock=result.deadlock,
-        truncated=result.truncated,
-        action_count=result.action_count,
-        action_sequence=result.action_sequence,
-        push_count=result.push_count,
-        action_overhead_vs_oracle=_overhead(
-            result.success, result.action_count, reference.action_count
+        identity=EpisodeIdentity(result.policy_name, case.level_id, seed),
+        level=_level_profile(case),
+        outcome=result.outcome,
+        oracle=OracleOverhead(
+            action_overhead_vs_oracle=_overhead(
+                result.success, result.action_count, reference.action_count
+            ),
+            push_overhead_vs_oracle=_overhead(
+                result.success, result.push_count, reference.push_count
+            ),
         ),
-        push_overhead_vs_oracle=_overhead(
-            result.success, result.push_count, reference.push_count
-        ),
-        strategy_proposals=result.strategy_proposals,
-        subgoal_attempts=result.subgoal_attempts,
-        subgoal_successes=result.subgoal_successes,
-        subgoal_failures=result.subgoal_failures,
-        assignment_revision_count=result.assignment_revision_count,
-        hypothesis_revision_count=result.hypothesis_revision_count,
-        protected_constraint_violations=(
-            result.protected_constraint_violations
-        ),
-        effect_matches=result.effect_matches,
-        effect_mismatches=result.effect_mismatches,
-        actions_derived_from_subgoal=result.actions_derived_from_subgoal,
-        llm_calls=result.llm_calls,
-        llm_prompt_tokens=result.llm_prompt_tokens,
-        llm_output_tokens=result.llm_output_tokens,
-        llm_elapsed_seconds=result.llm_elapsed_seconds,
-        memory_requests=result.memory_requests,
-        memory_hits=result.memory_hits,
-        memory_writes=result.memory_writes,
-        llm_calls_saved=result.llm_calls_saved,
-        rule_checks=result.rule_checks,
-        reachability_calls=result.reachability_calls,
-        local_search_calls=result.local_search_calls,
-        local_expanded_states=result.local_expanded_states,
-        local_search_elapsed_seconds=result.local_search_elapsed_seconds,
+        strategy=result.strategy,
+        llm=result.llm,
+        memory=result.memory,
+        rules=result.rules,
+        local_search=result.local_search,
+        prompt=result.prompt,
         policy_elapsed_seconds=result.elapsed_seconds,
     )
 
@@ -253,27 +227,35 @@ def _oracle_record(
     result: ReferenceResult,
 ) -> ResearchEpisodeRecord:
     return ResearchEpisodeRecord(
-        policy_name="astar-oracle",
-        level_id=case.level_id,
+        identity=EpisodeIdentity("astar-oracle", case.level_id, seed),
+        level=_level_profile(case),
+        outcome=EpisodeOutcome(
+            status="solved" if result.solved else "oracle-unresolved",
+            success=result.solved,
+            deadlock=False,
+            truncated=False,
+            cycle_detected=False,
+            action_sequence=result.action_sequence,
+            push_count=result.push_count or 0,
+        ),
+        algorithm=SearchUsage(
+            calls=1,
+            expanded_states=result.expanded_states,
+            elapsed_seconds=result.elapsed_seconds,
+        ),
+        policy_elapsed_seconds=result.elapsed_seconds,
+    )
+
+
+def _level_profile(case: AgenticLevelCase) -> LevelProfile:
+    return LevelProfile(
         difficulty=case.difficulty,
-        seed=seed,
         layout_family=case.layout_family,
         corridor_structure=case.corridor_structure,
         trap_types=case.trap_types,
-        board_height=case.height,
-        board_width=case.width,
+        height=case.height,
+        width=case.width,
         box_count=case.box_count,
-        status="solved" if result.solved else "oracle-unresolved",
-        success=result.solved,
-        deadlock=False,
-        truncated=False,
-        action_count=result.action_count or 0,
-        action_sequence=result.action_sequence,
-        push_count=result.push_count or 0,
-        algorithm_calls=1,
-        algorithm_expanded_states=result.expanded_states,
-        algorithm_elapsed_seconds=result.elapsed_seconds,
-        policy_elapsed_seconds=result.elapsed_seconds,
     )
 
 def _run_manifest(

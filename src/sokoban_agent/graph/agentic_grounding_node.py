@@ -7,6 +7,7 @@ from typing import Literal, cast
 
 import numpy as np
 
+from sokoban_agent.graph.agentic_metrics import update_agentic_metrics
 from sokoban_agent.graph.agentic_state import AgenticState
 from sokoban_agent.planning.base import Observation
 from sokoban_agent.planning.local_execution import (
@@ -41,6 +42,7 @@ def ground_agentic_subgoal(state: AgenticState) -> dict[str, object]:
         for payload in state["protected_constraints"]
     )
     local_search = state["grounding_mode"] == "local-search"
+    metrics = state["metrics"]
     grounder = ground_push_subgoal if local_search else ground_push_subgoal_direct
     started_at = perf_counter()
     try:
@@ -58,22 +60,32 @@ def ground_agentic_subgoal(state: AgenticState) -> dict[str, object]:
             "grounded_plan": None,
             "grounded_actions": [],
             "grounding_failure": failure,
-            "subgoal_grounding_attempts": (
-                state["subgoal_grounding_attempts"] + 1
-            ),
-            "subgoal_grounding_failures": (
-                state["subgoal_grounding_failures"] + 1
-            ),
-            "rule_checks": state["rule_checks"] + 1,
-            "reachability_calls": (
-                state["reachability_calls"] + int(local_search)
-            ),
-            "local_search_calls": (
-                state["local_search_calls"] + int(local_search)
-            ),
-            "local_search_elapsed_seconds": (
-                state["local_search_elapsed_seconds"]
-                + (elapsed if local_search else 0.0)
+            "metrics": update_agentic_metrics(
+                metrics,
+                strategy={
+                    "subgoal_attempts": (
+                        metrics["strategy"]["subgoal_attempts"] + 1
+                    ),
+                    "subgoal_grounding_failures": (
+                        metrics["strategy"]["subgoal_grounding_failures"] + 1
+                    ),
+                },
+                rules={
+                    "checks": metrics["rules"]["checks"] + 1,
+                    "reachability_calls": (
+                        metrics["rules"]["reachability_calls"]
+                        + int(local_search)
+                    ),
+                },
+                local_search={
+                    "calls": (
+                        metrics["local_search"]["calls"] + int(local_search)
+                    ),
+                    "elapsed_seconds": (
+                        metrics["local_search"]["elapsed_seconds"]
+                        + (elapsed if local_search else 0.0)
+                    ),
+                },
             ),
             "status": "subgoal_grounding_failed",
             "feedback": [feedback],
@@ -93,23 +105,37 @@ def ground_agentic_subgoal(state: AgenticState) -> dict[str, object]:
         "grounded_plan": plan.model_dump(mode="json"),
         "grounded_actions": actions,
         "grounding_failure": None,
-        "subgoal_grounding_attempts": (
-            state["subgoal_grounding_attempts"] + 1
-        ),
-        "rule_checks": state["rule_checks"] + 1,
-        "reachability_calls": (
-            state["reachability_calls"] + int(local_search)
-        ),
-        "local_search_calls": (
-            state["local_search_calls"] + int(local_search)
-        ),
-        "local_expanded_states": (
-            state["local_expanded_states"]
-            + (plan.expanded_player_states if local_search else 0)
-        ),
-        "local_search_elapsed_seconds": (
-            state["local_search_elapsed_seconds"]
-            + (elapsed if local_search else 0.0)
+        "metrics": update_agentic_metrics(
+            metrics,
+            strategy={
+                "subgoal_attempts": (
+                    metrics["strategy"]["subgoal_attempts"] + 1
+                )
+            },
+            rules={
+                "checks": metrics["rules"]["checks"] + 1,
+                "reachability_calls": (
+                    metrics["rules"]["reachability_calls"]
+                    + int(local_search)
+                ),
+            },
+            local_search={
+                "calls": (
+                    metrics["local_search"]["calls"] + int(local_search)
+                ),
+                "expanded_states": (
+                    metrics["local_search"]["expanded_states"]
+                    + (
+                        plan.expanded_player_states
+                        if local_search
+                        else 0
+                    )
+                ),
+                "elapsed_seconds": (
+                    metrics["local_search"]["elapsed_seconds"]
+                    + (elapsed if local_search else 0.0)
+                ),
+            },
         ),
         "status": "subgoal_grounded",
         "decision_events": [

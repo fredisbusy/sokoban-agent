@@ -22,6 +22,7 @@ from sokoban_agent.graph import SokobanGraph
 from sokoban_agent.planning import (
     BFSPlanner,
     PlanningContext,
+    PlanningFailure,
     PlanningOutcome,
     RandomPlanner,
 )
@@ -43,14 +44,16 @@ class ScriptedPlanner:
     def plan(self, context: PlanningContext) -> PlanningOutcome:
         del context
         if not self._actions:
-            return PlanningOutcome(error="no plan", error_kind="empty")
+            return PlanningOutcome(
+                failure=PlanningFailure("no plan", "empty")
+            )
         return PlanningOutcome(actions=(self._actions.popleft(),))
 
 
 class StoppedPlanner(ScriptedPlanner):
     def plan(self, context: PlanningContext) -> PlanningOutcome:
         del context
-        return PlanningOutcome(error="no plan", error_kind="empty")
+        return PlanningOutcome(failure=PlanningFailure("no plan", "empty"))
 
 
 def test_run_episode_records_success_invalid_moves_and_time() -> None:

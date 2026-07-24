@@ -11,12 +11,16 @@ from langsmith import traceable
 from pydantic import ValidationError
 
 from sokoban_agent.graph.agentic_memory_nodes import filter_rejected_pushes
+from sokoban_agent.graph.agentic_metrics import update_agentic_metrics
 from sokoban_agent.graph.agentic_state import (
     AgenticRuntimeContext,
     AgenticState,
-    StrategySchemaIssue,
 )
-from sokoban_agent.planning.llm import TextCompletion
+from sokoban_agent.graph.agentic_strategy_support import (
+    completion_metrics,
+    schema_feedback,
+    schema_issues,
+)
 from sokoban_agent.planning.strategy import (
     BoardAnalysis,
     PushSubgoal,
@@ -102,6 +106,7 @@ class StrategyNodes:
             state,
             model_context,
         )
+        metrics = state["metrics"]
         model_context["recent_pushes"] = recent_pushes
         variables: dict[str, object] = {
             "level_id": state["level_id"],
@@ -123,8 +128,14 @@ class StrategyNodes:
         }
         return {
             "strategy_input": variables,
-            "rejected_pushes_filtered": (
-                state["rejected_pushes_filtered"] + filtered_count
+            "metrics": update_agentic_metrics(
+                metrics,
+                memory={
+                    "rejected_pushes_filtered": (
+                        metrics["memory"]["rejected_pushes_filtered"]
+                        + filtered_count
+                    )
+                },
             ),
             "status": "strategy_input_composed",
             "decision_events": [
@@ -165,19 +176,29 @@ class StrategyNodes:
                 )
             )
         except ValidationError as error:
-            issues = _schema_issues(error)
-            feedback = [_schema_feedback(issue) for issue in issues]
+            issues = schema_issues(error)
+            feedback = [schema_feedback(issue) for issue in issues]
             summary = (
                 "strategy_schema_error: "
                 f"{issues[0]['path']} {issues[0]['message']}"
             )
             return {
                 "strategy_attempts": attempt,
-                "strategy_proposals": state["strategy_proposals"] + 1,
-                "strategy_schema_rejections": (
-                    state["strategy_schema_rejections"] + 1
+                **completion_metrics(
+                    state,
+                    completion,
+                    strategy={
+                        "proposals": (
+                            state["metrics"]["strategy"]["proposals"] + 1
+                        ),
+                        "schema_rejections": (
+                            state["metrics"]["strategy"][
+                                "schema_rejections"
+                            ]
+                            + 1
+                        ),
+                    },
                 ),
-                **_completion_metrics(state, completion),
                 "strategy_hypothesis": None,
                 "strategy_error": "strategy_schema_error",
                 "strategy_schema_issues": issues,
@@ -194,8 +215,15 @@ class StrategyNodes:
             }
         return {
             "strategy_attempts": attempt,
-            "strategy_proposals": state["strategy_proposals"] + 1,
-            **_completion_metrics(state, completion),
+            **completion_metrics(
+                state,
+                completion,
+                strategy={
+                    "proposals": (
+                        state["metrics"]["strategy"]["proposals"] + 1
+                    )
+                },
+            ),
             "strategy_hypothesis": hypothesis.model_dump(mode="json"),
             "strategy_error": None,
             "strategy_schema_issues": [],
@@ -233,11 +261,18 @@ class StrategyNodes:
                 f"{violation.code}: {violation.message}"
                 for violation in violations
             ]
+            metrics = state["metrics"]
             return {
                 "strategy_violations": payloads,
-                "rule_checks": state["rule_checks"] + 1,
-                "strategy_semantic_rejections": (
-                    state["strategy_semantic_rejections"] + len(violations)
+                "metrics": update_agentic_metrics(
+                    metrics,
+                    rules={"checks": metrics["rules"]["checks"] + 1},
+                    strategy={
+                        "semantic_rejections": (
+                            metrics["strategy"]["semantic_rejections"]
+                            + len(violations)
+                        )
+                    },
                 ),
                 "strategy_error": "strategy_semantic_error",
                 "status": "strategy_semantic_error",
@@ -251,9 +286,13 @@ class StrategyNodes:
                     }
                 ],
             }
+        metrics = state["metrics"]
         return {
             "strategy_violations": [],
-            "rule_checks": state["rule_checks"] + 1,
+            "metrics": update_agentic_metrics(
+                metrics,
+                rules={"checks": metrics["rules"]["checks"] + 1},
+            ),
             "strategy_error": None,
             "latest_strategy_feedback": [],
             "active_subgoal": hypothesis.subgoal.model_dump(mode="json"),
@@ -319,58 +358,7 @@ def _validate_strategy_response(
     try:
         return StrategyDecision.model_validate_json(content)
     except ValidationError as decision_error:
-        try:
-            return StrategyHypothesis.model_validate_json(content)
-        except ValidationError:
-            raise decision_error from None
-
-
-def _schema_issues(error: ValidationError) -> list[StrategySchemaIssue]:
-    """Return bounded, JSON-safe issues suitable for an LLM correction turn."""
-
-    issues: list[StrategySchemaIssue] = []
-    for detail in error.errors(include_url=False)[:8]:
-        location = detail.get("loc", ())
-        path = ".".join(str(part) for part in location) or "$"
-        issue_type = detail.get("type", "validation_error")
-        message = detail.get("msg", "유효하지 않은 값입니다")
-        issues.append(
-            {
-                "path": path,
-                "code": str(issue_type),
-                "message": str(message),
-            }
-        )
-    return issues or [
-        {
-            "path": "$",
-            "code": "validation_error",
-            "message": "전략 JSON이 스키마와 일치하지 않습니다",
-        }
-    ]
-
-
-def _schema_feedback(issue: StrategySchemaIssue) -> str:
-    return (
-        "strategy_schema_error: 스키마 오류; "
-        f"path={issue['path']}; code={issue['code']}; "
-        f"message={issue['message']}. 이 항목을 수정해 전체 JSON을 다시 제출하세요"
-    )
-
-
-def _completion_metrics(
-    state: AgenticState,
-    completion: TextCompletion,
-) -> dict[str, object]:
-    return {
-        "llm_calls": state["llm_calls"] + 1,
-        "llm_elapsed_seconds": (
-            state["llm_elapsed_seconds"] + completion.metrics.total_seconds
-        ),
-        "llm_prompt_tokens": (
-            state["llm_prompt_tokens"] + completion.metrics.prompt_tokens
-        ),
-        "llm_output_tokens": (
-            state["llm_output_tokens"] + completion.metrics.output_tokens
-        ),
-    }
+            try:
+                return StrategyHypothesis.model_validate_json(content)
+            except ValidationError:
+                raise decision_error from None

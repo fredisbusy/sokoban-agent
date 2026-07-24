@@ -5,7 +5,9 @@ from typing import cast
 from langgraph.checkpoint.memory import InMemorySaver
 
 from sokoban_agent.evaluation import run_agentic_episode
+from sokoban_agent.evaluation.agentic_runner import _strategy_usage
 from sokoban_agent.graph import build_agentic_graph
+from sokoban_agent.graph.agentic_metrics import initial_agentic_metrics
 from sokoban_agent.graph.agentic_state import AgenticState
 from sokoban_agent.planning.llm import CompletionMetrics, TextCompletion
 from sokoban_agent.planning.strategy_runtime import (
@@ -25,6 +27,28 @@ class FixturePromptSource:
     ) -> RenderedStrategyPrompt:
         del reference, variables
         return RenderedStrategyPrompt("system", "user")
+
+
+def test_strategy_revision_metrics_follow_changed_fields() -> None:
+    state = cast(
+        AgenticState,
+        {
+            "metrics": initial_agentic_metrics(),
+            "feedback": [],
+            "plan_revisions": [
+                {"changed_fields": ["subgoal", "expected_effect"]},
+                {"changed_fields": ["hypothesis"]},
+                {"changed_fields": ["assignments", "subgoal"]},
+            ],
+        },
+    )
+
+    usage = _strategy_usage(state)
+
+    assert usage.plan_revisions == 3
+    assert usage.assignment_revisions == 1
+    assert usage.hypothesis_revisions == 1
+    assert usage.subgoal_revisions == 2
 
 
 class DirectPushGenerator:
@@ -152,20 +176,18 @@ def test_agentic_evaluation_reads_metrics_from_shared_graph_state() -> None:
     assert result.level_id == "held-out-one-push"
     assert result.action_count == 1
     assert result.push_count == 1
-    assert result.strategy_proposals == 1
-    assert result.llm_calls == 1
-    assert result.local_search_calls == 1
-    assert result.local_expanded_states > 0
-    assert result.local_search_elapsed_seconds >= 0
-    assert result.rule_checks >= 3
-    assert result.reachability_calls >= 2
-    assert result.subgoal_attempts == 1
+    assert result.strategy.proposals == 1
+    assert result.llm.calls == 1
+    assert result.local_search.calls == 1
+    assert result.local_search.expanded_states > 0
+    assert result.local_search.elapsed_seconds >= 0
+    assert result.rules.checks >= 3
+    assert result.rules.reachability_calls >= 2
+    assert result.strategy.subgoal_attempts == 1
     assert result.subgoal_successes == 1
     assert result.subgoal_failures == 0
-    assert result.actions_derived_from_subgoal == 1
-    assert result.effect_matches == 1
-    assert result.algorithm_calls == 0
-    assert result.prompt_commit == "fixture-commit"
+    assert result.strategy.effect_matches == 1
+    assert result.prompt.commit == "fixture-commit"
 
 
 def test_structured_llm_ablation_uses_direct_push_without_local_search() -> None:
@@ -185,8 +207,8 @@ def test_structured_llm_ablation_uses_direct_push_without_local_search() -> None
 
     assert result.policy_name == "structured-llm"
     assert result.success
-    assert result.local_search_calls == 0
-    assert result.local_expanded_states == 0
+    assert result.local_search.calls == 0
+    assert result.local_search.expanded_states == 0
 
 
 def test_shared_graph_streams_each_action_before_terminal_state() -> None:

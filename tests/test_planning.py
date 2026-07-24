@@ -10,6 +10,7 @@ from sokoban_agent.env import (
 from sokoban_agent.planning import (
     AStarPlanner,
     BFSPlanner,
+    LLMPlanningMetrics,
     NoSolutionError,
     Planner,
     PlanningContext,
@@ -193,7 +194,10 @@ class FixedPlanner:
 
     def plan(self, context: PlanningContext) -> PlanningOutcome:
         del context
-        return PlanningOutcome(actions=(self.action,), llm_calls=1)
+        return PlanningOutcome(
+            actions=(self.action,),
+            llm=LLMPlanningMetrics(calls=1),
+        )
 
 
 def test_search_guard_keeps_a_solvable_primary_proposal() -> None:

@@ -86,10 +86,12 @@ def main(argv: Sequence[str] | None = None) -> int:
                 "model_name": state["model_name"],
                 "memory": {
                     "mode": state["memory_mode"],
-                    "requests": state["memory_requests"],
-                    "hits": state["memory_hits"],
-                    "writes": state["memory_writes"],
-                    "llm_calls_saved": state["llm_calls_saved"],
+                    "requests": state["metrics"]["memory"]["requests"],
+                    "hits": state["metrics"]["memory"]["hits"],
+                    "writes": state["metrics"]["memory"]["writes"],
+                    "llm_calls_saved": state["metrics"]["memory"][
+                        "llm_calls_saved"
+                    ],
                 },
             },
             ensure_ascii=False,

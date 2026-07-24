@@ -15,6 +15,7 @@ from sokoban_agent.env.rules import (
     is_success,
     observation_for,
 )
+from sokoban_agent.graph.agentic_metrics import update_agentic_metrics
 from sokoban_agent.graph.agentic_state import AgenticState
 from sokoban_agent.planning.base import Observation
 from sokoban_agent.planning.strategy import BoardAnalysis, ExpectedEffect
@@ -215,11 +216,19 @@ def reflect_agentic_execution(state: AgenticState) -> dict[str, object]:
     if matched:
         status = "success" if success else "subgoal_completed"
         completed = [*state["completed_subgoals"], state["active_subgoal"]]
+        metrics = state["metrics"]
         return {
             "reflection_result": reflection,
             "completed_subgoals": completed,
             "strategy_attempts": 0,
-            "effect_matches": state["effect_matches"] + 1,
+            "metrics": update_agentic_metrics(
+                metrics,
+                strategy={
+                    "effect_matches": (
+                        metrics["strategy"]["effect_matches"] + 1
+                    )
+                },
+            ),
             "status": status,
             "decision_events": [
                 {
@@ -249,10 +258,18 @@ def reflect_agentic_execution(state: AgenticState) -> dict[str, object]:
         "changed_fields": ["subgoal", "expected_effect"],
         "evidence": evidence,
     }
+    metrics = state["metrics"]
     return {
         "reflection_result": reflection,
         "plan_revisions": [revision],
-        "effect_mismatches": state["effect_mismatches"] + 1,
+        "metrics": update_agentic_metrics(
+            metrics,
+            strategy={
+                "effect_mismatches": (
+                    metrics["strategy"]["effect_mismatches"] + 1
+                )
+            },
+        ),
         "feedback": [f"unexpected_state: {evidence}"],
         "latest_strategy_feedback": [f"unexpected_state: {evidence}"],
         "status": status,

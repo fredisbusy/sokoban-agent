@@ -4,6 +4,7 @@ from sokoban_agent.graph.agentic_execution_nodes import (
     detect_agentic_repetition,
     reflect_agentic_execution,
 )
+from sokoban_agent.graph.agentic_metrics import initial_agentic_metrics
 from sokoban_agent.graph.agentic_state import AgenticState
 
 
@@ -62,8 +63,7 @@ def _reflection_state() -> AgenticState:
             "plan_revisions": [],
             "attempt_keys": [],
             "strategy_attempts": 1,
-            "effect_matches": 0,
-            "effect_mismatches": 0,
+            "metrics": initial_agentic_metrics(),
         },
     )
 

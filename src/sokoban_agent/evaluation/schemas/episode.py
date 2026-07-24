@@ -4,6 +4,15 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from sokoban_agent.evaluation.schemas.metrics import (
+    LLMUsage,
+    MemoryUsage,
+    PromptIdentity,
+    RuleUsage,
+    SearchUsage,
+    StrategyUsage,
+)
+
 
 @dataclass(frozen=True, slots=True)
 class EpisodeResult:
@@ -129,52 +138,93 @@ class PlannerSummary:
 
 
 @dataclass(frozen=True, slots=True)
-class AgenticEpisodeResult:
-    """One structured-policy episode measured from final graph state."""
+class EpisodeIdentity:
+    """Stable policy and case identity."""
 
     policy_name: str
     level_id: str
     seed: int | None
+
+
+@dataclass(frozen=True, slots=True)
+class EpisodeOutcome:
+    """Terminal outcome and canonical action trajectory."""
+
     status: str
     success: bool
     deadlock: bool
     truncated: bool
     cycle_detected: bool
-    action_count: int
     action_sequence: tuple[str, ...]
     push_count: int
-    strategy_proposals: int
-    strategy_schema_rejections: int
-    strategy_semantic_rejections: int
-    plan_revision_count: int
-    protected_constraint_violations: int
-    effect_matches: int
-    effect_mismatches: int
-    llm_calls: int
-    llm_elapsed_seconds: float
-    llm_prompt_tokens: int
-    llm_output_tokens: int
-    memory_requests: int
-    memory_hits: int
-    memory_writes: int
-    strategy_cache_hits: int
-    grounding_cache_hits: int
-    analysis_cache_hits: int
-    llm_calls_saved: int
-    rejected_pushes_filtered: int
-    local_search_calls: int
-    local_expanded_states: int
-    local_search_elapsed_seconds: float
-    rule_checks: int
-    reachability_calls: int
-    subgoal_attempts: int
-    subgoal_successes: int
-    subgoal_failures: int
-    assignment_revision_count: int
-    hypothesis_revision_count: int
-    actions_derived_from_subgoal: int
-    algorithm_calls: int
-    prompt_name: str
-    prompt_commit: str
-    model_name: str
+
+    @property
+    def action_count(self) -> int:
+        return len(self.action_sequence)
+
+
+@dataclass(frozen=True, slots=True)
+class AgenticEpisodeResult:
+    """One structured-policy episode composed by measurement responsibility."""
+
+    identity: EpisodeIdentity
+    outcome: EpisodeOutcome
+    strategy: StrategyUsage
+    llm: LLMUsage
+    memory: MemoryUsage
+    local_search: SearchUsage
+    rules: RuleUsage
+    prompt: PromptIdentity
     elapsed_seconds: float
+
+    @property
+    def policy_name(self) -> str:
+        return self.identity.policy_name
+
+    @property
+    def level_id(self) -> str:
+        return self.identity.level_id
+
+    @property
+    def seed(self) -> int | None:
+        return self.identity.seed
+
+    @property
+    def status(self) -> str:
+        return self.outcome.status
+
+    @property
+    def success(self) -> bool:
+        return self.outcome.success
+
+    @property
+    def deadlock(self) -> bool:
+        return self.outcome.deadlock
+
+    @property
+    def truncated(self) -> bool:
+        return self.outcome.truncated
+
+    @property
+    def cycle_detected(self) -> bool:
+        return self.outcome.cycle_detected
+
+    @property
+    def action_count(self) -> int:
+        return self.outcome.action_count
+
+    @property
+    def action_sequence(self) -> tuple[str, ...]:
+        return self.outcome.action_sequence
+
+    @property
+    def push_count(self) -> int:
+        return self.outcome.push_count
+
+    @property
+    def subgoal_successes(self) -> int:
+        return self.strategy.subgoal_successes
+
+    @property
+    def subgoal_failures(self) -> int:
+        return self.strategy.subgoal_failures

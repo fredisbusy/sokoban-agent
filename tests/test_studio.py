@@ -4,7 +4,12 @@ import pytest
 
 from sokoban_agent.env import Action
 from sokoban_agent.graph.studio import graph
-from sokoban_agent.planning import LLMPlanner, PlanningOutcome
+from sokoban_agent.planning import (
+    LLMPlanner,
+    LLMPlanningMetrics,
+    PlanningNarrative,
+    PlanningOutcome,
+)
 from sokoban_agent.planning.llm import OllamaSettings
 
 
@@ -35,10 +40,12 @@ def test_studio_graph_records_korean_decisions(
         return PlanningOutcome(
             actions=(Action.UP,),
             proposed_actions=(Action.UP,),
-            goal="상자를 위쪽 목표로 이동",
-            decision_summary="상자 아래에서 위로 밀면 바로 해결됩니다",
-            risk="벽 방향으로 밀지 않습니다",
-            llm_calls=1,
+            narrative=PlanningNarrative(
+                goal="상자를 위쪽 목표로 이동",
+                decision_summary="상자 아래에서 위로 밀면 바로 해결됩니다",
+                risk="벽 방향으로 밀지 않습니다",
+            ),
+            llm=LLMPlanningMetrics(calls=1),
         )
 
     monkeypatch.setattr(

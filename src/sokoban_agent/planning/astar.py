@@ -10,9 +10,11 @@ from sokoban_agent.env import Action, SokobanState
 from sokoban_agent.env.levels import Position, SokobanLevel
 from sokoban_agent.env.rules import decode_observation, is_success
 from sokoban_agent.planning.base import (
+    AlgorithmPlanningMetrics,
     NoSolutionError,
     Observation,
     PlanningContext,
+    PlanningFailure,
     PlanningOutcome,
     SearchLimitError,
     SearchResult,
@@ -159,20 +161,23 @@ class AStarPlanner:
         except (NoSolutionError, SearchLimitError) as error:
             elapsed = perf_counter() - started_at
             return PlanningOutcome(
-                error=str(error),
-                error_kind="search",
-                algorithm_calls=1,
-                algorithm_requests=1,
-                algorithm_failures=1,
-                algorithm_elapsed_seconds=elapsed,
+                failure=PlanningFailure(str(error), "search"),
+                algorithm=AlgorithmPlanningMetrics(
+                    calls=1,
+                    requests=1,
+                    failures=1,
+                    elapsed_seconds=elapsed,
+                ),
                 elapsed_seconds=elapsed,
             )
         return PlanningOutcome(
             actions=result.actions,
-            algorithm_calls=1,
-            algorithm_requests=1,
-            algorithm_expanded_states=result.expanded_states,
-            algorithm_elapsed_seconds=result.elapsed_seconds,
+            algorithm=AlgorithmPlanningMetrics(
+                calls=1,
+                requests=1,
+                expanded_states=result.expanded_states,
+                elapsed_seconds=result.elapsed_seconds,
+            ),
             elapsed_seconds=perf_counter() - started_at,
         )
 

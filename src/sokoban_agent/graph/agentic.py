@@ -30,7 +30,6 @@ from sokoban_agent.graph.agentic_grounding_node import (
     route_after_grounding,
 )
 from sokoban_agent.graph.agentic_memory_nodes import (
-    get_static_board_facts,
     recall_failed_decisions,
     recall_grounding,
     recall_strategy,
@@ -41,11 +40,16 @@ from sokoban_agent.graph.agentic_memory_nodes import (
     route_after_outcome_memory,
     route_after_strategy_recall,
 )
+from sokoban_agent.graph.agentic_metrics import (
+    initial_agentic_metrics,
+    update_agentic_metrics,
+)
 from sokoban_agent.graph.agentic_state import (
     AgenticInput,
     AgenticRuntimeContext,
     AgenticState,
 )
+from sokoban_agent.graph.agentic_static_memory import get_static_board_facts
 from sokoban_agent.graph.agentic_strategy_nodes import (
     StrategyNodes,
     route_after_strategy_proposal,
@@ -129,31 +133,8 @@ def initialize_agentic_state(
         "strategy_memory_hit": False,
         "grounding_memory_hit": False,
         "grounding_cache_key": None,
-        "memory_requests": 0,
-        "memory_hits": 0,
-        "memory_writes": 0,
-        "strategy_cache_hits": 0,
-        "grounding_cache_hits": 0,
-        "analysis_cache_hits": 0,
-        "llm_calls_saved": 0,
-        "rejected_pushes_filtered": 0,
-        "strategy_proposals": 0,
-        "strategy_schema_rejections": 0,
-        "strategy_semantic_rejections": 0,
-        "llm_calls": 0,
-        "llm_elapsed_seconds": 0.0,
-        "llm_prompt_tokens": 0,
-        "llm_output_tokens": 0,
-        "local_search_calls": 0,
-        "local_expanded_states": 0,
-        "local_search_elapsed_seconds": 0.0,
-        "rule_checks": 0,
-        "reachability_calls": 0,
-        "subgoal_grounding_attempts": 0,
-        "subgoal_grounding_failures": 0,
+        "metrics": initial_agentic_metrics(),
         "push_count": 0,
-        "effect_matches": 0,
-        "effect_mismatches": 0,
         "protected_constraints": [],
         "expected_effect": None,
         "failure_conditions": [],
@@ -198,14 +179,26 @@ def analyze_agentic_board(
     steps = state["info"].get("steps")
     if not isinstance(steps, int):
         raise TypeError("graph info steps must be an integer")
+    metrics = state["metrics"]
     return {
         "board_analysis": analysis.model_dump(mode="json"),
-        "rule_checks": state["rule_checks"] + 1,
-        "reachability_calls": state["reachability_calls"] + 1,
-        "memory_requests": state["memory_requests"] + requests,
-        "memory_hits": state["memory_hits"] + hits,
-        "memory_writes": state["memory_writes"] + writes,
-        "analysis_cache_hits": state["analysis_cache_hits"] + hits,
+        "metrics": update_agentic_metrics(
+            metrics,
+            rules={
+                "checks": metrics["rules"]["checks"] + 1,
+                "reachability_calls": (
+                    metrics["rules"]["reachability_calls"] + 1
+                ),
+            },
+            memory={
+                "requests": metrics["memory"]["requests"] + requests,
+                "hits": metrics["memory"]["hits"] + hits,
+                "writes": metrics["memory"]["writes"] + writes,
+                "analysis_cache_hits": (
+                    metrics["memory"]["analysis_cache_hits"] + hits
+                ),
+            },
+        ),
         "status": "analyzed",
         "decision_events": [
             {

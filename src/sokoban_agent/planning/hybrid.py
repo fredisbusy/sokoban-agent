@@ -20,12 +20,13 @@ from sokoban_agent.planning.base import (
     Observation,
     Planner,
     PlanningContext,
+    PlanningFailure,
     PlanningOutcome,
     SearchLimitError,
     SearchResult,
 )
 from sokoban_agent.planning.bfs import solve_bfs_result
-from sokoban_agent.planning.research import guard_reference_fields
+from sokoban_agent.planning.research import guard_metrics
 
 SearchAlgorithm = Literal["astar", "bfs"]
 FallbackPolicy = Literal["none", "full", "always"]
@@ -139,15 +140,19 @@ class SearchGuardPlanner:
             return replace(
                 primary,
                 actions=tuple(accepted),
-                guard_summary=(
-                    "LLM 계획만으로 해결 가능하여 A* 보강이 필요 없습니다"
+                narrative=replace(
+                    primary.narrative,
+                    guard_summary=(
+                        "LLM 계획만으로 해결 가능하여 "
+                        "A* 보강이 필요 없습니다"
+                    ),
                 ),
-                guard_disposition="accepted",
-                guard_proposed_actions=proposed_count,
-                guard_legal_prefix_actions=len(accepted),
-                guard_adopted_actions=len(accepted),
-                **guard_reference_fields(
+                guard=guard_metrics(
                     reference,
+                    disposition="accepted",
+                    proposed_actions=proposed_count,
+                    legal_prefix_actions=len(accepted),
+                    adopted_actions=len(accepted),
                     reference_called=reference_called,
                     suffix_expanded_states=0,
                 ),
@@ -175,30 +180,27 @@ class SearchGuardPlanner:
         return replace(
             primary,
             actions=(*accepted, *suffix.actions),
-            guard_summary=(
-                "LLM 계획이 안전합니다. "
-                f"{self.algorithm.upper()}가 후속 행동 "
-                f"{len(suffix.actions)}개를 보강했습니다"
+            narrative=replace(
+                primary.narrative,
+                guard_summary=(
+                    "LLM 계획이 안전합니다. "
+                    f"{self.algorithm.upper()}가 후속 행동 "
+                    f"{len(suffix.actions)}개를 보강했습니다"
+                ),
             ),
-            algorithm_calls=primary.algorithm_calls + int(not cache_hit),
-            algorithm_requests=primary.algorithm_requests + 1,
-            algorithm_cache_hits=(
-                primary.algorithm_cache_hits + int(cache_hit)
+            algorithm=primary.algorithm.plus(
+                calls=int(not cache_hit),
+                requests=1,
+                cache_hits=int(cache_hit),
+                expanded_states=0 if cache_hit else suffix.expanded_states,
+                elapsed_seconds=0.0 if cache_hit else suffix.elapsed_seconds,
             ),
-            algorithm_expanded_states=(
-                primary.algorithm_expanded_states
-                + (0 if cache_hit else suffix.expanded_states)
-            ),
-            algorithm_elapsed_seconds=(
-                primary.algorithm_elapsed_seconds
-                + (0.0 if cache_hit else suffix.elapsed_seconds)
-            ),
-            guard_disposition="suffix_added",
-            guard_proposed_actions=proposed_count,
-            guard_legal_prefix_actions=len(accepted),
-            guard_adopted_actions=len(accepted),
-            **guard_reference_fields(
+            guard=guard_metrics(
                 reference,
+                disposition="suffix_added",
+                proposed_actions=proposed_count,
+                legal_prefix_actions=len(accepted),
+                adopted_actions=len(accepted),
                 reference_called=reference_called,
                 suffix_expanded_states=suffix.expanded_states,
             ),
@@ -235,22 +237,28 @@ class SearchGuardPlanner:
         return replace(
             primary,
             actions=(),
-            error=reason,
-            error_kind="search",
-            guard_summary=f"{reason}. suffix-only 정책은 전체 대체를 하지 않습니다",
-            guard_disposition="failed",
-            guard_proposed_actions=proposed_count,
-            guard_legal_prefix_actions=legal_prefix,
-            guard_adopted_actions=0,
-            algorithm_calls=primary.algorithm_calls + prior_algorithm_calls,
-            algorithm_requests=(
-                primary.algorithm_requests + prior_algorithm_requests
+            failure=PlanningFailure(reason, "search"),
+            narrative=replace(
+                primary.narrative,
+                guard_summary=(
+                    f"{reason}. suffix-only 정책은 "
+                    "전체 대체를 하지 않습니다"
+                ),
             ),
-            algorithm_failures=(
-                primary.algorithm_failures + prior_algorithm_failures
+            guard=guard_metrics(
+                None,
+                disposition="failed",
+                proposed_actions=proposed_count,
+                legal_prefix_actions=legal_prefix,
+                adopted_actions=0,
+                reference_called=False,
+                suffix_expanded_states=0,
             ),
-            algorithm_elapsed_seconds=(
-                primary.algorithm_elapsed_seconds + prior_algorithm_elapsed
+            algorithm=primary.algorithm.plus(
+                calls=prior_algorithm_calls,
+                requests=prior_algorithm_requests,
+                failures=prior_algorithm_failures,
+                elapsed_seconds=prior_algorithm_elapsed,
             ),
             elapsed_seconds=perf_counter() - started_at,
         )
@@ -277,72 +285,61 @@ class SearchGuardPlanner:
             return replace(
                 primary,
                 actions=(),
-                error=str(error),
-                error_kind="search",
-                guard_summary=(
-                    f"{reason}. 현재 상태의 {self.algorithm.upper()} "
-                    f"대체 계획도 실패했습니다: {error}"
+                failure=PlanningFailure(str(error), "search"),
+                narrative=replace(
+                    primary.narrative,
+                    guard_summary=(
+                        f"{reason}. 현재 상태의 {self.algorithm.upper()} "
+                        f"대체 계획도 실패했습니다: {error}"
+                    ),
                 ),
-                guard_disposition="failed",
-                guard_proposed_actions=proposed_count,
-                guard_legal_prefix_actions=legal_prefix,
-                guard_adopted_actions=0,
-                algorithm_calls=(
-                    primary.algorithm_calls + prior_algorithm_calls + 1
+                guard=guard_metrics(
+                    None,
+                    disposition="failed",
+                    proposed_actions=proposed_count,
+                    legal_prefix_actions=legal_prefix,
+                    adopted_actions=0,
+                    reference_called=False,
+                    suffix_expanded_states=0,
                 ),
-                algorithm_requests=(
-                    primary.algorithm_requests + prior_algorithm_requests + 1
-                ),
-                algorithm_failures=(
-                    primary.algorithm_failures + prior_algorithm_failures + 1
-                ),
-                algorithm_fallbacks=primary.algorithm_fallbacks + 1,
-                algorithm_elapsed_seconds=(
-                    primary.algorithm_elapsed_seconds
-                    + prior_algorithm_elapsed
-                    + search_elapsed
+                algorithm=primary.algorithm.plus(
+                    calls=prior_algorithm_calls + 1,
+                    requests=prior_algorithm_requests + 1,
+                    failures=prior_algorithm_failures + 1,
+                    fallbacks=1,
+                    elapsed_seconds=prior_algorithm_elapsed + search_elapsed,
                 ),
                 elapsed_seconds=perf_counter() - started_at,
             )
         return replace(
             primary,
             actions=result.actions,
-            error=None,
-            error_kind=None,
-            guard_summary=(
-                f"{reason}. {self.algorithm.upper()}가 안전한 전체 계획 "
-                f"{len(result.actions)}개 행동으로 대체했습니다"
+            failure=None,
+            narrative=replace(
+                primary.narrative,
+                guard_summary=(
+                    f"{reason}. {self.algorithm.upper()}가 안전한 전체 계획 "
+                    f"{len(result.actions)}개 행동으로 대체했습니다"
+                ),
             ),
-            guard_disposition="replaced",
-            guard_proposed_actions=proposed_count,
-            guard_legal_prefix_actions=legal_prefix,
-            guard_adopted_actions=0,
-            algorithm_calls=(
-                primary.algorithm_calls
-                + prior_algorithm_calls
-                + int(not cache_hit)
+            algorithm=primary.algorithm.plus(
+                calls=prior_algorithm_calls + int(not cache_hit),
+                requests=prior_algorithm_requests + 1,
+                cache_hits=int(cache_hit),
+                failures=prior_algorithm_failures,
+                fallbacks=1,
+                expanded_states=0 if cache_hit else result.expanded_states,
+                elapsed_seconds=(
+                    prior_algorithm_elapsed
+                    + (0.0 if cache_hit else result.elapsed_seconds)
+                ),
             ),
-            algorithm_requests=(
-                primary.algorithm_requests + prior_algorithm_requests + 1
-            ),
-            algorithm_cache_hits=(
-                primary.algorithm_cache_hits + int(cache_hit)
-            ),
-            algorithm_failures=(
-                primary.algorithm_failures + prior_algorithm_failures
-            ),
-            algorithm_fallbacks=primary.algorithm_fallbacks + 1,
-            algorithm_expanded_states=(
-                primary.algorithm_expanded_states
-                + (0 if cache_hit else result.expanded_states)
-            ),
-            algorithm_elapsed_seconds=(
-                primary.algorithm_elapsed_seconds
-                + prior_algorithm_elapsed
-                + (0.0 if cache_hit else result.elapsed_seconds)
-            ),
-            **guard_reference_fields(
+            guard=guard_metrics(
                 result if self.measure_contribution else None,
+                disposition="replaced",
+                proposed_actions=proposed_count,
+                legal_prefix_actions=legal_prefix,
+                adopted_actions=0,
                 reference_called=self.measure_contribution,
                 suffix_expanded_states=0,
                 contribution=False,
