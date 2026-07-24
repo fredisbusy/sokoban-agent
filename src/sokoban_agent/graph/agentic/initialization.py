@@ -17,6 +17,9 @@ from sokoban_agent.env import (
 from sokoban_agent.graph.agentic.metrics import initial_agentic_metrics
 from sokoban_agent.graph.agentic.state import (
     CURRENT_STATE_SCHEMA_VERSION,
+    DEFAULT_LEVEL_ID,
+    DEFAULT_MAX_STEPS,
+    DEFAULT_SEED,
     GRAPH_REVISION,
     AgenticInfoState,
     AgenticInput,
@@ -35,9 +38,9 @@ def initialize_agentic_state(
     """Reset the requested level into JSON-safe graph state."""
 
     context = runtime.context or {}
-    level_id = state.get("level_id", "tiny-push")
-    seed = state.get("seed", 0)
-    max_steps = state.get("max_steps", 15)
+    level_id = state.get("level_id", DEFAULT_LEVEL_ID)
+    seed = state.get("seed", DEFAULT_SEED)
+    max_steps = state.get("max_steps", DEFAULT_MAX_STEPS)
     supplied_rows = state.get("level_rows")
     if supplied_rows is None:
         catalog_record = DEFAULT_LEVEL_CATALOG.get(level_id)

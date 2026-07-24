@@ -5,10 +5,19 @@ from __future__ import annotations
 from operator import add
 from typing import Annotated, Final, Literal, NotRequired, TypedDict, cast
 
+from pydantic import Field
+
+from sokoban_agent.env.catalog import DEFAULT_LEVEL_CATALOG
 from sokoban_agent.graph.agentic.metrics import AgenticMetrics
 
 CURRENT_STATE_SCHEMA_VERSION: Final[Literal[2]] = 2
 GRAPH_REVISION: Final = "agentic-v2"
+DEFAULT_LEVEL_ID: Final = "tiny-push"
+DEFAULT_SEED: Final = 0
+DEFAULT_MAX_STEPS: Final = 15
+LEVEL_ID_OPTIONS: Final = tuple(
+    record.level_id for record in DEFAULT_LEVEL_CATALOG.records
+)
 
 AgenticStatus = Literal[
     "initialized",
@@ -41,9 +50,35 @@ AgenticStatus = Literal[
 class AgenticInput(TypedDict):
     """JSON-safe input accepted by the structured agent graph."""
 
-    level_id: NotRequired[str]
-    seed: NotRequired[int | None]
-    max_steps: NotRequired[int]
+    level_id: NotRequired[
+        Annotated[
+            str,
+            Field(
+                default=DEFAULT_LEVEL_ID,
+                description="Catalog level to run.",
+                json_schema_extra={"enum": list(LEVEL_ID_OPTIONS)},
+            ),
+        ]
+    ]
+    seed: NotRequired[
+        Annotated[
+            int | None,
+            Field(
+                default=DEFAULT_SEED,
+                description="Random seed used for reproducible runs.",
+            ),
+        ]
+    ]
+    max_steps: NotRequired[
+        Annotated[
+            int,
+            Field(
+                default=DEFAULT_MAX_STEPS,
+                description="Maximum environment actions before termination.",
+                gt=0,
+            ),
+        ]
+    ]
     level_rows: NotRequired[list[str]]
     level_sha256: NotRequired[str]
 

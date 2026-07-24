@@ -3,6 +3,7 @@ from pathlib import Path
 
 import pytest
 from langgraph.runtime import Runtime
+from pydantic import TypeAdapter
 
 from sokoban_agent.env import (
     DEFAULT_LEVEL_CATALOG,
@@ -11,7 +12,13 @@ from sokoban_agent.env import (
     load_level_catalog,
 )
 from sokoban_agent.graph.agentic.initialization import initialize_agentic_state
-from sokoban_agent.graph.agentic.state import AgenticRuntimeContext
+from sokoban_agent.graph.agentic.state import (
+    DEFAULT_LEVEL_ID,
+    DEFAULT_MAX_STEPS,
+    DEFAULT_SEED,
+    AgenticInput,
+    AgenticRuntimeContext,
+)
 
 
 def test_shared_catalog_contains_custom_and_boxoban_levels() -> None:
@@ -41,6 +48,18 @@ def test_catalog_board_hash_covers_exact_rows() -> None:
     record = DEFAULT_LEVEL_CATALOG.get("tiny-walk")
 
     assert record.sha256 == level_rows_sha256(record.rows)
+
+
+def test_agentic_input_schema_exposes_studio_options_and_defaults() -> None:
+    schema = TypeAdapter(AgenticInput).json_schema()
+    properties = schema["properties"]
+
+    assert properties["level_id"]["enum"] == [
+        record.level_id for record in DEFAULT_LEVEL_CATALOG.records
+    ]
+    assert properties["level_id"]["default"] == DEFAULT_LEVEL_ID
+    assert properties["seed"]["default"] == DEFAULT_SEED
+    assert properties["max_steps"]["default"] == DEFAULT_MAX_STEPS
 
 
 def test_catalog_rejects_board_drift(tmp_path: Path) -> None:
