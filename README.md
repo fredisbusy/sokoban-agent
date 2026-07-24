@@ -376,7 +376,8 @@ src/sokoban_agent/
 ├── env/               # 게임 규칙, 렌더링, 레벨 공급자
 ├── planning/          # Planner 계약과 Random/BFS/A*/LLM 계획 노드
 ├── graph/             # LangGraph 상태, 검증, 실행, 복구, 체크포인트
-├── evaluation/        # 그래프 벤치마크, 결과, 집계, trajectory
+├── evaluation/        # 그래프 벤치마크, 집계, trajectory
+│   └── schemas/       # episode, research, reference, trace 데이터 계약
 └── play.py            # 터미널 플레이
 assets/levels/         # 저장소에 포함된 예제 레벨
 notebooks/             # 실행 결과를 포함한 기준선 비교

@@ -2,31 +2,20 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
-
 from sokoban_agent.env import SokobanEnv
 from sokoban_agent.env.rules import (
     apply_action,
     initial_state,
     observation_for,
 )
+from sokoban_agent.evaluation.schemas.reference import (
+    ReferenceResult as ReferenceResult,
+)
 from sokoban_agent.planning import (
     NoSolutionError,
     SearchLimitError,
     solve_astar_result,
 )
-
-
-@dataclass(frozen=True, slots=True)
-class ReferenceResult:
-    """One bounded A* result, without claiming mathematical optimality."""
-
-    solved: bool
-    action_count: int | None = None
-    action_sequence: tuple[str, ...] = ()
-    push_count: int | None = None
-    expanded_states: int = 0
-    elapsed_seconds: float = 0.0
 
 
 def measure_bounded_astar_reference(

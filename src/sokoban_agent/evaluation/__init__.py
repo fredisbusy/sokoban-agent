@@ -5,36 +5,31 @@ from sokoban_agent.evaluation.agentic_cohort import (
     AgenticLevelCase,
     load_agentic_cohort_manifest,
 )
-from sokoban_agent.evaluation.agentic_results import AgenticEpisodeResult
 from sokoban_agent.evaluation.agentic_runner import run_agentic_episode
 from sokoban_agent.evaluation.cohort import (
     CohortManifest,
     load_cohort_manifest,
 )
-from sokoban_agent.evaluation.reference import (
-    ReferenceResult,
-    measure_bounded_astar_reference,
+from sokoban_agent.evaluation.config import ResearchRunConfig
+from sokoban_agent.evaluation.reference import measure_bounded_astar_reference
+from sokoban_agent.evaluation.research_experiment import run_research_experiment
+from sokoban_agent.evaluation.research_results import POLICY_NAMES
+from sokoban_agent.evaluation.results import summarize_by_planner
+from sokoban_agent.evaluation.runner import run_benchmark, run_episode
+from sokoban_agent.evaluation.schemas.episode import (
+    AgenticEpisodeResult,
+    EpisodeResult,
+    PlannerSummary,
 )
-from sokoban_agent.evaluation.research_experiment import (
-    ResearchRunConfig,
-    run_research_experiment,
-)
-from sokoban_agent.evaluation.research_results import (
-    POLICY_NAMES,
+from sokoban_agent.evaluation.schemas.reference import ReferenceResult
+from sokoban_agent.evaluation.schemas.research import (
     RationaleIntervention,
     ResearchEpisodeRecord,
     ResearchExperiment,
     ResearchPolicySummary,
 )
-from sokoban_agent.evaluation.results import (
-    EpisodeResult,
-    PlannerSummary,
-    summarize_by_planner,
-)
-from sokoban_agent.evaluation.runner import run_benchmark, run_episode
+from sokoban_agent.evaluation.schemas.trace import EpisodeFrame, EpisodeTrace
 from sokoban_agent.evaluation.traces import (
-    EpisodeFrame,
-    EpisodeTrace,
     run_benchmark_traces,
     run_episode_trace,
 )

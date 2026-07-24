@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from time import perf_counter
 
-from sokoban_agent.evaluation.agentic_results import AgenticEpisodeResult
+from sokoban_agent.evaluation.schemas.episode import AgenticEpisodeResult
 from sokoban_agent.graph.agentic_runtime import AgenticGraphRunner
 from sokoban_agent.graph.agentic_state import (
     AgenticInput,

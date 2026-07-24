@@ -6,11 +6,9 @@ from collections.abc import Sequence
 from time import perf_counter
 
 from sokoban_agent.env import SokobanEnv
-from sokoban_agent.evaluation.reference import (
-    ReferenceResult,
-    measure_bounded_astar_reference,
-)
-from sokoban_agent.evaluation.results import EpisodeResult
+from sokoban_agent.evaluation.reference import measure_bounded_astar_reference
+from sokoban_agent.evaluation.schemas.episode import EpisodeResult
+from sokoban_agent.evaluation.schemas.reference import ReferenceResult
 from sokoban_agent.graph import SokobanGraph, StepObserver
 from sokoban_agent.planning import Planner
 

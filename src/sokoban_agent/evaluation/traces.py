@@ -3,33 +3,12 @@
 from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
-from dataclasses import dataclass
 
 from sokoban_agent.env import Action, SokobanEnv
-from sokoban_agent.evaluation.results import EpisodeResult
 from sokoban_agent.evaluation.runner import run_episode
+from sokoban_agent.evaluation.schemas.trace import EpisodeFrame as EpisodeFrame
+from sokoban_agent.evaluation.schemas.trace import EpisodeTrace as EpisodeTrace
 from sokoban_agent.planning import Observation, Planner
-
-
-@dataclass(frozen=True, slots=True)
-class EpisodeFrame:
-    """One observed board and the action that led to it."""
-
-    index: int
-    observation: Observation
-    action: Action | None
-    invalid_move: bool
-    pushed: bool
-    success: bool
-    deadlock: bool
-
-
-@dataclass(frozen=True, slots=True)
-class EpisodeTrace:
-    """Episode result paired with its exact observed state sequence."""
-
-    result: EpisodeResult
-    frames: tuple[EpisodeFrame, ...]
 
 
 def run_episode_trace(

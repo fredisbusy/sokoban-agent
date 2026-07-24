@@ -183,6 +183,14 @@ Prompt Management를 우선 사용한다.
 - `planning/`: baseline Planner, 전략 schema·Adapter와 국소 도메인 도구
 - `graph/`: LangGraph state, node, edge, subgraph와 graph factory
 - `evaluation/`: 동일한 그래프를 사용한 벤치마크, 집계, trajectory
+  - `schemas/`: episode, reference, research, trace의 immutable 데이터 계약
+  - `config.py`: 재현 가능한 평가 실행 설정
+
+LangGraph state는 graph가 소유하는 `*_state.py`에 두고 node·edge와 가까이
+유지한다. 모든 dataclass를 전역 폴더에 모으지 않는다. 순수 평가 결과
+계약만 `evaluation/schemas/`에 두며, runner·집계·직렬화 동작은 기존
+evaluation 모듈이 소유한다. 내부 코드는 순환 import를 피하기 위해
+`evaluation.schemas.episode` 같은 leaf module을 직접 import한다.
 
 평가 실행기는 별도 행동 루프를 구현하지 않는다. 반드시 `SokobanGraph`를
 호출하므로 기준선과 LLM이 같은 검증·복구 정책을 통과한다. 새 그래프가

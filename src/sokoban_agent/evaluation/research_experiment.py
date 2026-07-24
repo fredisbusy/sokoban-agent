@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import asdict, dataclass, field
+from dataclasses import asdict
 from typing import Literal
 
 from sokoban_agent.env import FixedLevelProvider, SokobanEnv
@@ -10,20 +10,25 @@ from sokoban_agent.evaluation.agentic_cohort import (
     AgenticCohortManifest,
     AgenticLevelCase,
 )
-from sokoban_agent.evaluation.agentic_results import AgenticEpisodeResult
 from sokoban_agent.evaluation.agentic_runner import run_agentic_episode
+from sokoban_agent.evaluation.config import ResearchRunConfig as ResearchRunConfig
 from sokoban_agent.evaluation.reference import (
-    ReferenceResult,
     measure_bounded_astar_reference,
 )
 from sokoban_agent.evaluation.research_results import (
     POLICY_NAMES,
-    ResearchEpisodeRecord,
-    ResearchExperiment,
     measure_rationale_intervention,
     summarize_research,
 )
-from sokoban_agent.evaluation.results import EpisodeResult
+from sokoban_agent.evaluation.schemas.episode import (
+    AgenticEpisodeResult,
+    EpisodeResult,
+)
+from sokoban_agent.evaluation.schemas.reference import ReferenceResult
+from sokoban_agent.evaluation.schemas.research import (
+    ResearchEpisodeRecord,
+    ResearchExperiment,
+)
 from sokoban_agent.evaluation.traces import run_episode_trace
 from sokoban_agent.planning import Planner
 from sokoban_agent.planning.strategy_runtime import (
@@ -43,31 +48,6 @@ _STRUCTURED_VARIANTS: tuple[
     ("structured-local-search", "on", "local-search"),
     ("structured-no-rationale", "off", "local-search"),
 )
-
-@dataclass(frozen=True, slots=True)
-class ResearchRunConfig:
-    """Reproducibility identity shared by every comparison record."""
-
-    prompt_name: str
-    prompt_commit: str
-    graph_id: str
-    graph_revision: str
-    model_name: str
-    seeds: tuple[int, ...]
-    max_steps: int = 100
-    max_planning_attempts: int = 3
-    oracle_max_expanded_states: int = 100_000
-    model_config: dict[str, object] = field(default_factory=dict)
-    dirty_worktree: bool = False
-
-    def __post_init__(self) -> None:
-        if self.prompt_commit in {"", "unresolved", "latest"}:
-            raise ValueError("research runs require an immutable prompt commit")
-        if not self.seeds:
-            raise ValueError("research runs require at least one seed")
-        if self.max_steps < 1 or self.oracle_max_expanded_states < 1:
-            raise ValueError("research limits must be positive")
-
 
 def run_research_experiment(
     cohort: AgenticCohortManifest,
