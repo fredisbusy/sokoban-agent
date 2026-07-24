@@ -4,11 +4,11 @@ from pathlib import Path
 import pytest
 
 from sokoban_agent.env import FixedLevelProvider, SokobanEnv
-from sokoban_agent.evaluation.agentic_cohort import (
+from sokoban_agent.evaluation.research.cohort import (
     load_agentic_cohort_manifest,
 )
 from sokoban_agent.planning import NoSolutionError
-from sokoban_agent.planning.astar import solve_astar_result
+from sokoban_agent.planning.search.astar import solve_astar_result
 
 MANIFEST = (
     Path(__file__).parents[1] / "benchmarks" / "agentic_heldout_v1.json"

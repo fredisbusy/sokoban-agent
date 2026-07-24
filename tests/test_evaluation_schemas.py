@@ -1,7 +1,9 @@
 from dataclasses import fields
 
 from sokoban_agent import evaluation
-from sokoban_agent.evaluation import agentic_results, research_results, results
+from sokoban_agent.evaluation.agentic import results as agentic_results
+from sokoban_agent.evaluation.baseline import results
+from sokoban_agent.evaluation.research import results as research_results
 from sokoban_agent.evaluation.schemas.episode import (
     AgenticEpisodeResult,
     EpisodeResult,
@@ -11,7 +13,7 @@ from sokoban_agent.evaluation.schemas.research import (
     ResearchEpisodeRecord,
     ResearchExperiment,
 )
-from sokoban_agent.graph.agentic_state import AgenticState
+from sokoban_agent.graph.agentic.state import AgenticState
 from sokoban_agent.planning import PlanningOutcome
 
 
@@ -23,7 +25,7 @@ def test_evaluation_public_api_reexports_schema_contracts() -> None:
     assert evaluation.ResearchExperiment is ResearchExperiment
 
 
-def test_legacy_result_modules_reexport_schema_contracts() -> None:
+def test_domain_result_modules_reexport_schema_contracts() -> None:
     assert agentic_results.AgenticEpisodeResult is AgenticEpisodeResult
     assert results.EpisodeResult is EpisodeResult
     assert results.PlannerSummary is PlannerSummary

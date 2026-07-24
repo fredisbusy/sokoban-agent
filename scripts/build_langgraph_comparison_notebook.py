@@ -70,7 +70,7 @@ def build_notebook(output_path: Path) -> None:
                 "    RandomPlanner,\n"
                 "    SearchGuardPlanner,\n"
                 ")\n"
-                "from sokoban_agent.planning.llm import (\n"
+                "from sokoban_agent.planning.llm.client import (\n"
                 "    LiteLLMClient,\n"
                 "    OllamaSettings,\n"
                 ")\n\npd.set_option('display.max_columns', None)\n\n"

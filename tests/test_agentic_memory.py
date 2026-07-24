@@ -5,12 +5,12 @@ from typing import cast
 from langgraph.store.memory import InMemoryStore
 
 from sokoban_agent.graph import build_agentic_graph
-from sokoban_agent.graph.agentic_state import AgenticState
-from sokoban_agent.planning.llm import CompletionMetrics, TextCompletion
-from sokoban_agent.planning.strategy_runtime import (
+from sokoban_agent.graph.agentic.state import AgenticState
+from sokoban_agent.planning.agentic.runtime import (
     PromptReferenceValue,
     RenderedStrategyPrompt,
 )
+from sokoban_agent.planning.llm.client import CompletionMetrics, TextCompletion
 
 
 class MemoryPromptSource:

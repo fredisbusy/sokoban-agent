@@ -1,21 +1,25 @@
 """Public experiment runners and result models."""
 
-from sokoban_agent.evaluation.agentic_cohort import (
+from sokoban_agent.evaluation.agentic.runner import run_agentic_episode
+from sokoban_agent.evaluation.baseline.cohort import (
+    CohortManifest,
+    load_cohort_manifest,
+)
+from sokoban_agent.evaluation.baseline.results import summarize_by_planner
+from sokoban_agent.evaluation.baseline.runner import run_benchmark, run_episode
+from sokoban_agent.evaluation.baseline.traces import (
+    run_benchmark_traces,
+    run_episode_trace,
+)
+from sokoban_agent.evaluation.research.cohort import (
     AgenticCohortManifest,
     AgenticLevelCase,
     load_agentic_cohort_manifest,
 )
-from sokoban_agent.evaluation.agentic_runner import run_agentic_episode
-from sokoban_agent.evaluation.cohort import (
-    CohortManifest,
-    load_cohort_manifest,
-)
-from sokoban_agent.evaluation.config import ResearchRunConfig
-from sokoban_agent.evaluation.reference import measure_bounded_astar_reference
-from sokoban_agent.evaluation.research_experiment import run_research_experiment
-from sokoban_agent.evaluation.research_results import POLICY_NAMES
-from sokoban_agent.evaluation.results import summarize_by_planner
-from sokoban_agent.evaluation.runner import run_benchmark, run_episode
+from sokoban_agent.evaluation.research.config import ResearchRunConfig
+from sokoban_agent.evaluation.research.experiment import run_research_experiment
+from sokoban_agent.evaluation.research.reference import measure_bounded_astar_reference
+from sokoban_agent.evaluation.research.results import POLICY_NAMES
 from sokoban_agent.evaluation.schemas.episode import (
     AgenticEpisodeResult,
     EpisodeIdentity,
@@ -39,10 +43,6 @@ from sokoban_agent.evaluation.schemas.research import (
     ResearchPolicySummary,
 )
 from sokoban_agent.evaluation.schemas.trace import EpisodeFrame, EpisodeTrace
-from sokoban_agent.evaluation.traces import (
-    run_benchmark_traces,
-    run_episode_trace,
-)
 
 __all__ = [
     "AgenticEpisodeResult",

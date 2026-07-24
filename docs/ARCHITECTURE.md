@@ -180,16 +180,26 @@ Prompt Management를 우선 사용한다.
 ## 책임 경계
 
 - `env/`: 레벨, 규칙, 상태 전이, 성공과 데드락 판정
-- `planning/`: baseline Planner, 전략 schema·Adapter와 국소 도메인 도구
-- `graph/`: LangGraph state, node, edge, subgraph와 graph factory
-- `evaluation/`: 동일한 그래프를 사용한 벤치마크, 집계, trajectory
+- `planning/`
+  - `search/`: BFS/A*와 공유 공간 탐색
+  - `llm/`: 모델 client와 원시 행동 LLM Planner
+  - `guards/`: 탐색 기반 검증·suffix·fallback
+  - `agentic/`: 보드 분석, 전략 schema·Adapter와 단일 push 접지
+  - `baseline/`: 단순 비교 Planner
+- `graph/`
+  - `baseline/`: 원시 행동 정책의 state와 plan-validate-execute runtime
+  - `agentic/`: 구조화 정책 graph factory, state, node와 memory
+  - `studio/`: 기준선 관찰용 Studio graph
+- `evaluation/`
+  - `baseline/`: 공통 실행기, 집계와 trajectory
+  - `agentic/`: 구조화 graph의 episode 결과 투영
+  - `research/`: held-out cohort, 평가 설정, oracle과 6정책 비교
   - `schemas/`: episode, reference, research, trace의 immutable 데이터 계약
-  - `config.py`: 재현 가능한 평가 실행 설정
 
-LangGraph state는 graph가 소유하는 `*_state.py`에 두고 node·edge와 가까이
-유지한다. 모든 dataclass를 전역 폴더에 모으지 않는다. 순수 평가 결과
-계약만 `evaluation/schemas/`에 두며, runner·집계·직렬화 동작은 기존
-evaluation 모듈이 소유한다. 내부 코드는 순환 import를 피하기 위해
+LangGraph state는 각 도메인 graph 하위의 `state.py`에 두고 node·edge와
+가까이 유지한다. 모든 dataclass를 전역 폴더에 모으지 않는다. 순수 평가
+결과 계약만 `evaluation/schemas/`에 두며, runner·집계·직렬화 동작은 해당
+평가 도메인이 소유한다. 내부 코드는 순환 import를 피하기 위해
 `evaluation.schemas.episode` 같은 leaf module을 직접 import한다.
 
 넓은 결과 객체는 identity, outcome, strategy, LLM, memory, search, rule,

@@ -1,6 +1,6 @@
 """Send one lightweight request to the configured Ollama server."""
 
-from sokoban_agent.planning.llm import LiteLLMClient
+from sokoban_agent.planning.llm.client import LiteLLMClient
 
 
 def main() -> None:

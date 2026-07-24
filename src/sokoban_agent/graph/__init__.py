@@ -1,13 +1,13 @@
 """Public LangGraph runtime API."""
 
-from sokoban_agent.graph.agentic import build_agentic_graph
-from sokoban_agent.graph.agentic_runtime import AgenticGraphRunner
-from sokoban_agent.graph.agentic_state import (
+from sokoban_agent.graph.agentic.builder import build_agentic_graph
+from sokoban_agent.graph.agentic.runtime import AgenticGraphRunner
+from sokoban_agent.graph.agentic.state import (
     AgenticRuntimeContext,
     AgenticState,
 )
-from sokoban_agent.graph.runtime import SokobanGraph, StepObserver
-from sokoban_agent.graph.state import SokobanGraphState
+from sokoban_agent.graph.baseline.runtime import SokobanGraph, StepObserver
+from sokoban_agent.graph.baseline.state import SokobanGraphState
 
 __all__ = [
     "AgenticRuntimeContext",

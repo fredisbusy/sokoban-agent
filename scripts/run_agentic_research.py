@@ -17,7 +17,7 @@ from sokoban_agent.evaluation import (
     run_research_experiment,
 )
 from sokoban_agent.planning import LLMPlanner, SearchGuardPlanner
-from sokoban_agent.planning.llm import LiteLLMClient, OllamaSettings
+from sokoban_agent.planning.llm.client import LiteLLMClient, OllamaSettings
 
 
 def main() -> None:

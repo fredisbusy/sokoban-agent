@@ -13,7 +13,7 @@ from sokoban_agent.planning import (
     parse_plan_response,
     serialize_board,
 )
-from sokoban_agent.planning.llm import CompletionMetrics, TextCompletion
+from sokoban_agent.planning.llm.client import CompletionMetrics, TextCompletion
 
 
 class SequenceClient:

@@ -3,16 +3,16 @@ from collections.abc import Mapping
 from typing import Literal, cast
 
 from sokoban_agent.graph import build_agentic_graph
-from sokoban_agent.graph.agentic_state import AgenticState
-from sokoban_agent.planning.llm import CompletionMetrics, TextCompletion
-from sokoban_agent.planning.strategy import StrategyHypothesis
-from sokoban_agent.planning.strategy_runtime import (
+from sokoban_agent.graph.agentic.state import AgenticState
+from sokoban_agent.planning.agentic.models import StrategyHypothesis
+from sokoban_agent.planning.agentic.runtime import (
     PromptReferenceValue,
     PromptSource,
     RenderedStrategyPrompt,
     StrategyGenerator,
     TransientAgenticError,
 )
+from sokoban_agent.planning.llm.client import CompletionMetrics, TextCompletion
 
 
 class FixedPromptSource(PromptSource):

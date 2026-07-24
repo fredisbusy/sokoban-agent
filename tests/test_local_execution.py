@@ -13,12 +13,12 @@ from sokoban_agent.env.rules import (
     is_success,
 )
 from sokoban_agent.planning import analyze_board
-from sokoban_agent.planning.local_execution import (
+from sokoban_agent.planning.agentic.grounding import (
     SubgoalGroundingError,
     ground_push_subgoal,
     ground_push_subgoal_direct,
 )
-from sokoban_agent.planning.strategy import (
+from sokoban_agent.planning.agentic.models import (
     BoardAnalysis,
     ProtectedConstraint,
     PushSubgoal,

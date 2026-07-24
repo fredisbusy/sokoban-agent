@@ -1,20 +1,20 @@
 import json
 from collections.abc import Mapping
 
-from sokoban_agent.evaluation.agentic_cohort import (
+from sokoban_agent.evaluation.research.cohort import (
     AgenticCohortManifest,
     AgenticLevelCase,
 )
-from sokoban_agent.evaluation.research_experiment import (
+from sokoban_agent.evaluation.research.experiment import (
     ResearchRunConfig,
     run_research_experiment,
 )
 from sokoban_agent.planning import AStarPlanner
-from sokoban_agent.planning.llm import CompletionMetrics, TextCompletion
-from sokoban_agent.planning.strategy_runtime import (
+from sokoban_agent.planning.agentic.runtime import (
     PromptReferenceValue,
     RenderedStrategyPrompt,
 )
+from sokoban_agent.planning.llm.client import CompletionMetrics, TextCompletion
 
 
 class FixturePromptSource:

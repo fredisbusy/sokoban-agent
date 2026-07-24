@@ -6,7 +6,7 @@ from dataclasses import dataclass
 
 from sokoban_agent.env import Action
 from sokoban_agent.evaluation.schemas.episode import EpisodeResult
-from sokoban_agent.planning.base import Observation
+from sokoban_agent.planning.contracts import Observation
 
 
 @dataclass(frozen=True, slots=True)

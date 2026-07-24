@@ -3,7 +3,7 @@ from typing import Any
 import pytest
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 
-from sokoban_agent.planning.llm import LiteLLMClient, OllamaSettings
+from sokoban_agent.planning.llm.client import LiteLLMClient, OllamaSettings
 
 
 def test_settings_are_loaded_from_environment(

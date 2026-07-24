@@ -1,11 +1,11 @@
 from typing import cast
 
-from sokoban_agent.graph.agentic_execution_nodes import (
+from sokoban_agent.graph.agentic.metrics import initial_agentic_metrics
+from sokoban_agent.graph.agentic.nodes.execution import (
     detect_agentic_repetition,
     reflect_agentic_execution,
 )
-from sokoban_agent.graph.agentic_metrics import initial_agentic_metrics
-from sokoban_agent.graph.agentic_state import AgenticState
+from sokoban_agent.graph.agentic.state import AgenticState
 
 
 def _reflection_state() -> AgenticState:

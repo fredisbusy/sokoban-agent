@@ -6,11 +6,11 @@ from typing import Any
 from langgraph.checkpoint.memory import InMemorySaver
 
 from sokoban_agent.graph import AgenticRuntimeContext, build_agentic_graph
-from sokoban_agent.planning.llm import CompletionMetrics, TextCompletion
-from sokoban_agent.planning.strategy_runtime import (
+from sokoban_agent.planning.agentic.runtime import (
     PromptReferenceValue,
     RenderedStrategyPrompt,
 )
+from sokoban_agent.planning.llm.client import CompletionMetrics, TextCompletion
 
 
 class StaticPromptSource:
@@ -268,5 +268,7 @@ def test_langgraph_config_loads_agentic_graph_directly() -> None:
     config = json.loads(Path("langgraph.json").read_text(encoding="utf-8"))
 
     assert config["graphs"] == {
-        "sokoban_agent": "./src/sokoban_agent/graph/agentic.py:graph"
+        "sokoban_agent": (
+            "./src/sokoban_agent/graph/agentic/builder.py:graph"
+        )
     }

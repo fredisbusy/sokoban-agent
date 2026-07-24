@@ -26,7 +26,7 @@ from sokoban_agent.planning import (
     PlanningOutcome,
     SearchGuardPlanner,
 )
-from sokoban_agent.planning.llm import LiteLLMClient, OllamaSettings
+from sokoban_agent.planning.llm.client import LiteLLMClient, OllamaSettings
 
 VARIANTS = (
     "astar-only",

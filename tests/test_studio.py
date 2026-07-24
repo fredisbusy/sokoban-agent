@@ -3,14 +3,14 @@ from typing import Any
 import pytest
 
 from sokoban_agent.env import Action
-from sokoban_agent.graph.studio import graph
+from sokoban_agent.graph.studio.graph import graph
 from sokoban_agent.planning import (
     LLMPlanner,
     LLMPlanningMetrics,
     PlanningNarrative,
     PlanningOutcome,
 )
-from sokoban_agent.planning.llm import OllamaSettings
+from sokoban_agent.planning.llm.client import OllamaSettings
 
 
 def test_studio_graph_exposes_each_decision_stage() -> None:

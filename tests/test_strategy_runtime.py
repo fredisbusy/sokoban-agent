@@ -5,13 +5,13 @@ from langchain_core.messages import AIMessage
 from langchain_core.prompts.structured import StructuredPrompt
 from langsmith import Client
 
-from sokoban_agent.planning.llm import LiteLLMClient, OllamaSettings
-from sokoban_agent.planning.strategy_runtime import (
+from sokoban_agent.planning.agentic.runtime import (
     LangSmithPromptSource,
     LiteLLMStrategyGenerator,
     PromptReferenceValue,
     RenderedStrategyPrompt,
 )
+from sokoban_agent.planning.llm.client import LiteLLMClient, OllamaSettings
 
 
 class PromptClientFake:

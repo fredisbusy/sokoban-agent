@@ -8,8 +8,8 @@ from collections.abc import Sequence
 
 from dotenv import load_dotenv
 
-from sokoban_agent.graph.agentic_runtime import AgenticGraphRunner
-from sokoban_agent.planning.llm import OllamaSettings
+from sokoban_agent.graph.agentic.runtime import AgenticGraphRunner
+from sokoban_agent.planning.llm.client import OllamaSettings
 
 
 def build_parser() -> argparse.ArgumentParser:

@@ -8,7 +8,7 @@ from sokoban_agent.planning import (
     validate_strategy,
     validate_strategy_progress,
 )
-from sokoban_agent.planning.strategy_decision import (
+from sokoban_agent.planning.agentic.decision import (
     StrategyDecision,
     materialize_strategy,
 )
