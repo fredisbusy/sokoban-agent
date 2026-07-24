@@ -2,8 +2,15 @@
 
 from gymnasium.envs.registration import register, registry
 
-from sokoban_agent.env.levels import (
+from sokoban_agent.env.catalog import (
+    DEFAULT_LEVEL_CATALOG,
     DEFAULT_LEVELS,
+    LevelCatalog,
+    LevelCatalogRecord,
+    level_rows_sha256,
+    load_level_catalog,
+)
+from sokoban_agent.env.levels import (
     BoxobanLevelProvider,
     FixedLevelProvider,
     LevelProvider,
@@ -31,11 +38,14 @@ register_envs()
 
 __all__ = [
     "DEFAULT_LEVELS",
+    "DEFAULT_LEVEL_CATALOG",
     "ENV_ID",
     "Action",
     "BoxobanLevelProvider",
     "FixedLevelProvider",
     "LevelProvider",
+    "LevelCatalog",
+    "LevelCatalogRecord",
     "RewardConfig",
     "SokobanEnv",
     "SokobanLevel",
@@ -43,5 +53,7 @@ __all__ = [
     "Tile",
     "parse_boxoban_text",
     "parse_level",
+    "level_rows_sha256",
+    "load_level_catalog",
     "register_envs",
 ]

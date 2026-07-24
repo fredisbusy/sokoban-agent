@@ -166,8 +166,9 @@ checkpoint history를 사용한다.
 - [x] graph node를 지연하지 않는 브라우저 표시 queue와 재생 속도 controls를
   구현한다.
 - [x] 연결 복구, 성공·데드락·제한·오류와 reduced-motion을 검증한다.
-- [x] 개발용 맵과 Boxoban 공식 난이도별 연구 맵을 웹에서 선택하고 같은
-  `level_rows`를 Agent Server graph input으로 전달한다.
+- [x] 개발용 맵과 Boxoban 공식 난이도별 연구 맵을 웹에서 선택하고
+  `level_id`와 checksum으로 Agent Server와 같은 보드를 해석한다.
+- [x] Boxoban과 직접 만든 JSON 맵을 공통 catalog로 합친다.
 
 완료 조건: `tiny-walk` run이 끝나기 전에 첫 행동이 웹에 나타나고, 표시된
 최종 board가 graph 최종 state와 일치한다. 시각화 지연은 정책 시간에

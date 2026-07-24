@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "id": "tiny-walk",
+  "revision": 1,
+  "title": "Tiny Walk",
+  "status": "development",
+  "difficulty": "builtin",
+  "rows": [
+    "#####",
+    "#  .#",
+    "# $ #",
+    "#@  #",
+    "#####"
+  ],
+  "recommended_max_steps": 15
+}

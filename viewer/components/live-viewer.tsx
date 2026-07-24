@@ -122,7 +122,7 @@ export function LiveViewer({ levels }: LiveViewerProps) {
         assistantId: textField(form, "assistant_id"),
         input: {
           level_id: levelId,
-          level_rows: selectedLevel.rows,
+          level_sha256: selectedLevel.sha256,
           seed: nullableInteger(form.get("seed")),
           max_steps: Number(form.get("max_steps")),
         },

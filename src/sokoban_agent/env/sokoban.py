@@ -9,11 +9,8 @@ import gymnasium as gym
 import numpy as np
 from gymnasium import spaces
 
-from sokoban_agent.env.levels import (
-    DEFAULT_LEVELS,
-    LevelProvider,
-    SokobanLevel,
-)
+from sokoban_agent.env.catalog import DEFAULT_LEVELS
+from sokoban_agent.env.levels import LevelProvider, SokobanLevel
 from sokoban_agent.env.model import Action, SokobanState, Tile
 from sokoban_agent.env.rules import (
     apply_action,

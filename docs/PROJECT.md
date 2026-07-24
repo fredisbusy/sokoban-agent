@@ -149,5 +149,7 @@ compact push decision 계약으로 고정했다. 실제 모델로
 실제 일반화 코호트는 Boxoban 공식 `unfiltered`, `medium`, `hard`에서
 결정적으로 5개씩 선정한 15개 보드다. 원본 commit과 파일 checksum,
 인라인 payload checksum을 고정하고 bounded A*로 20만 상태 안에서 모두
-해가 확인되는지 검증했다. 웹도 같은 manifest를 읽어 선택한 `level_rows`를
-LangGraph input으로 전달하므로 연구와 관찰 화면의 맵 계약이 갈라지지 않는다.
+해가 확인되는지 검증했다. Boxoban manifest와 직접 만든 JSON 맵은 하나의
+생성 catalog로 합쳐진다. 웹은 `level_id`와 checksum을 전달하고 Agent
+Server가 같은 catalog에서 보드를 해석하므로 연구와 관찰 화면의 맵 계약이
+갈라지지 않는다.

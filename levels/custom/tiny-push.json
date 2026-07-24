@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "id": "tiny-push",
+  "revision": 1,
+  "title": "Tiny Push",
+  "status": "development",
+  "difficulty": "builtin",
+  "rows": [
+    "#####",
+    "# . #",
+    "# $ #",
+    "# @ #",
+    "#####"
+  ],
+  "recommended_max_steps": 15
+}

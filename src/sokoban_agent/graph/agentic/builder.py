@@ -13,8 +13,10 @@ from langgraph.store.memory import InMemoryStore
 from langgraph.types import RetryPolicy
 
 from sokoban_agent.env import (
+    DEFAULT_LEVEL_CATALOG,
     FixedLevelProvider,
     SokobanEnv,
+    level_rows_sha256,
     parse_level,
 )
 from sokoban_agent.graph.agentic.memory.nodes import (
@@ -75,17 +77,22 @@ def initialize_agentic_state(
     level_id = state.get("level_id", "tiny-push")
     seed = state.get("seed", 0)
     max_steps = state.get("max_steps", 15)
-    level_rows = state.get("level_rows")
-    level_provider = (
-        FixedLevelProvider([parse_level(level_id, level_rows)])
-        if level_rows is not None
-        else None
-    )
-    env = (
-        SokobanEnv(max_steps=max_steps, level_provider=level_provider)
-        if level_provider is not None
-        else SokobanEnv(max_steps=max_steps)
-    )
+    supplied_rows = state.get("level_rows")
+    if supplied_rows is None:
+        catalog_record = DEFAULT_LEVEL_CATALOG.get(level_id)
+        level_rows = list(catalog_record.rows)
+        level_sha256 = catalog_record.sha256
+    else:
+        level_rows = supplied_rows
+        level_sha256 = level_rows_sha256(level_rows)
+    expected_sha256 = state.get("level_sha256")
+    if expected_sha256 is not None and expected_sha256 != level_sha256:
+        raise ValueError(
+            f"{level_id} checksum mismatch: "
+            f"expected {expected_sha256}, got {level_sha256}"
+        )
+    level_provider = FixedLevelProvider([parse_level(level_id, level_rows)])
+    env = SokobanEnv(max_steps=max_steps, level_provider=level_provider)
     try:
         observation, raw_info = env.reset(
             seed=seed,
@@ -96,6 +103,8 @@ def initialize_agentic_state(
     resolved_level_id = str(raw_info["level_id"])
     return {
         "level_id": resolved_level_id,
+        "level_sha256": level_sha256,
+        "level_rows": level_rows,
         "seed": seed,
         "max_steps": max_steps,
         "observation": observation.tolist(),

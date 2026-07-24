@@ -1,0 +1,623 @@
+{
+  "schema_version": 1,
+  "sources": {
+    "boxoban_manifest": "benchmarks/boxoban_research_v1.json",
+    "custom_root": "levels/custom"
+  },
+  "levels": [
+    {
+      "id": "tiny-push",
+      "title": "Tiny Push",
+      "difficulty": "builtin",
+      "rows": [
+        "#####",
+        "# . #",
+        "# $ #",
+        "# @ #",
+        "#####"
+      ],
+      "sha256": "06bd1727d32a84e921bfec822051b086f5981246c9ee80f40d2d9214dbd8c737",
+      "recommended_max_steps": 15,
+      "reference": null,
+      "tags": {},
+      "source": {
+        "type": "custom",
+        "path": "levels/custom/tiny-push.json",
+        "revision": 1,
+        "status": "development"
+      }
+    },
+    {
+      "id": "tiny-walk",
+      "title": "Tiny Walk",
+      "difficulty": "builtin",
+      "rows": [
+        "#####",
+        "#  .#",
+        "# $ #",
+        "#@  #",
+        "#####"
+      ],
+      "sha256": "b4f3ee0d25ac9a9e1c9441c1fe7a36c03474c5e1f8c5774cd16b0c1f2ce2e27c",
+      "recommended_max_steps": 15,
+      "reference": null,
+      "tags": {},
+      "source": {
+        "type": "custom",
+        "path": "levels/custom/tiny-walk.json",
+        "revision": 1,
+        "status": "development"
+      }
+    },
+    {
+      "id": "boxoban-unfiltered-148",
+      "title": "boxoban-unfiltered-148",
+      "difficulty": "unfiltered",
+      "rows": [
+        "##########",
+        "#@   #   #",
+        "#    $ $ #",
+        "#        #",
+        "#.$## .###",
+        "#  #   ###",
+        "# .# $ ###",
+        "#  ##  ###",
+        "# .##  ###",
+        "##########"
+      ],
+      "sha256": "919961e33ec0f2db57d9c2dbd051b04b3daf1da4ee03d117630fc102e8c3d6e6",
+      "recommended_max_steps": 189,
+      "reference": {
+        "action_count": 63,
+        "push_count": 22,
+        "expanded_states": 16708
+      },
+      "tags": {
+        "layout_family": "boxoban-generated",
+        "corridor_structure": "generated",
+        "trap_types": [
+          "multi-box-ordering",
+          "static-dead-squares"
+        ]
+      },
+      "source": {
+        "type": "boxoban",
+        "source_level_id": "unfiltered/test/000.txt:148",
+        "commit": "78011d8c86ad423bfb2e1005012393b4c3c24409",
+        "license": "Apache-2.0"
+      }
+    },
+    {
+      "id": "boxoban-unfiltered-76",
+      "title": "boxoban-unfiltered-76",
+      "difficulty": "unfiltered",
+      "rows": [
+        "##########",
+        "##########",
+        "# ########",
+        "# ########",
+        "#   ######",
+        "# $  #####",
+        "#  . $.###",
+        "# $.@$ ###",
+        "#   .  ###",
+        "##########"
+      ],
+      "sha256": "131dd74911fe7fb87642cc78a43c1256984bf10ed85a3dcbca6892cc26b433c0",
+      "recommended_max_steps": 120,
+      "reference": {
+        "action_count": 22,
+        "push_count": 6,
+        "expanded_states": 168
+      },
+      "tags": {
+        "layout_family": "boxoban-generated",
+        "corridor_structure": "generated",
+        "trap_types": [
+          "multi-box-ordering",
+          "static-dead-squares"
+        ]
+      },
+      "source": {
+        "type": "boxoban",
+        "source_level_id": "unfiltered/test/000.txt:76",
+        "commit": "78011d8c86ad423bfb2e1005012393b4c3c24409",
+        "license": "Apache-2.0"
+      }
+    },
+    {
+      "id": "boxoban-unfiltered-582",
+      "title": "boxoban-unfiltered-582",
+      "difficulty": "unfiltered",
+      "rows": [
+        "##########",
+        "# @#######",
+        "#$$#######",
+        "#  #######",
+        "# $#######",
+        "#  ####  #",
+        "#  # .   #",
+        "# .##  $ #",
+        "#.    .# #",
+        "##########"
+      ],
+      "sha256": "d7274e4f0aeeb2dd5b1acca9ced3b6b5466d9f3e2d36e9f24ea82e8916801b4f",
+      "recommended_max_steps": 201,
+      "reference": {
+        "action_count": 67,
+        "push_count": 22,
+        "expanded_states": 1256
+      },
+      "tags": {
+        "layout_family": "boxoban-generated",
+        "corridor_structure": "generated",
+        "trap_types": [
+          "multi-box-ordering",
+          "static-dead-squares"
+        ]
+      },
+      "source": {
+        "type": "boxoban",
+        "source_level_id": "unfiltered/test/000.txt:582",
+        "commit": "78011d8c86ad423bfb2e1005012393b4c3c24409",
+        "license": "Apache-2.0"
+      }
+    },
+    {
+      "id": "boxoban-unfiltered-852",
+      "title": "boxoban-unfiltered-852",
+      "difficulty": "unfiltered",
+      "rows": [
+        "##########",
+        "##########",
+        "##########",
+        "##########",
+        "#######.##",
+        "#######$ #",
+        "#### .$@ #",
+        "#### . $ #",
+        "## .   $ #",
+        "##########"
+      ],
+      "sha256": "2e1534cc4cb8b4f359982b748f3c402db0a4963e59425c0fd491c6b0194c312b",
+      "recommended_max_steps": 120,
+      "reference": {
+        "action_count": 19,
+        "push_count": 8,
+        "expanded_states": 57
+      },
+      "tags": {
+        "layout_family": "boxoban-generated",
+        "corridor_structure": "generated",
+        "trap_types": [
+          "multi-box-ordering",
+          "static-dead-squares"
+        ]
+      },
+      "source": {
+        "type": "boxoban",
+        "source_level_id": "unfiltered/test/000.txt:852",
+        "commit": "78011d8c86ad423bfb2e1005012393b4c3c24409",
+        "license": "Apache-2.0"
+      }
+    },
+    {
+      "id": "boxoban-unfiltered-77",
+      "title": "boxoban-unfiltered-77",
+      "difficulty": "unfiltered",
+      "rows": [
+        "##########",
+        "#.       #",
+        "#   # $$ #",
+        "# $## $ .#",
+        "#  ##@.  #",
+        "###### . #",
+        "######   #",
+        "######## #",
+        "######## #",
+        "##########"
+      ],
+      "sha256": "cdee668de9bd0a80287571de7c1593941d228ea9dfe79c127cec089fac97ba29",
+      "recommended_max_steps": 120,
+      "reference": {
+        "action_count": 37,
+        "push_count": 10,
+        "expanded_states": 356
+      },
+      "tags": {
+        "layout_family": "boxoban-generated",
+        "corridor_structure": "generated",
+        "trap_types": [
+          "multi-box-ordering",
+          "static-dead-squares"
+        ]
+      },
+      "source": {
+        "type": "boxoban",
+        "source_level_id": "unfiltered/test/000.txt:77",
+        "commit": "78011d8c86ad423bfb2e1005012393b4c3c24409",
+        "license": "Apache-2.0"
+      }
+    },
+    {
+      "id": "boxoban-medium-564",
+      "title": "boxoban-medium-564",
+      "difficulty": "medium",
+      "rows": [
+        "##########",
+        "#####. ###",
+        "####@.####",
+        "####$ ####",
+        "####  ####",
+        "####.$ ###",
+        "#  #  ####",
+        "# .$ $####",
+        "#      ###",
+        "##########"
+      ],
+      "sha256": "9a297d851f3edc1ac16681944987a8506614e232c76d175c5c14a5c74aa0f579",
+      "recommended_max_steps": 120,
+      "reference": {
+        "action_count": 32,
+        "push_count": 12,
+        "expanded_states": 52
+      },
+      "tags": {
+        "layout_family": "boxoban-generated",
+        "corridor_structure": "generated",
+        "trap_types": [
+          "multi-box-ordering",
+          "static-dead-squares"
+        ]
+      },
+      "source": {
+        "type": "boxoban",
+        "source_level_id": "medium/valid/000.txt:564",
+        "commit": "78011d8c86ad423bfb2e1005012393b4c3c24409",
+        "license": "Apache-2.0"
+      }
+    },
+    {
+      "id": "boxoban-medium-56",
+      "title": "boxoban-medium-56",
+      "difficulty": "medium",
+      "rows": [
+        "##########",
+        "#######  #",
+        "#######  #",
+        "# ###@#  #",
+        "#  $ $ . #",
+        "#    .  ##",
+        "# .##### #",
+        "#  $.  $ #",
+        "#        #",
+        "##########"
+      ],
+      "sha256": "4d718bb8ae603d89598633a7e767f648c4206142ab7cee1b37d413b86a03a3eb",
+      "recommended_max_steps": 120,
+      "reference": {
+        "action_count": 37,
+        "push_count": 10,
+        "expanded_states": 276
+      },
+      "tags": {
+        "layout_family": "boxoban-generated",
+        "corridor_structure": "generated",
+        "trap_types": [
+          "multi-box-ordering",
+          "static-dead-squares"
+        ]
+      },
+      "source": {
+        "type": "boxoban",
+        "source_level_id": "medium/valid/000.txt:56",
+        "commit": "78011d8c86ad423bfb2e1005012393b4c3c24409",
+        "license": "Apache-2.0"
+      }
+    },
+    {
+      "id": "boxoban-medium-593",
+      "title": "boxoban-medium-593",
+      "difficulty": "medium",
+      "rows": [
+        "##########",
+        "##@#######",
+        "#.$#######",
+        "#   ######",
+        "# .$######",
+        "# $ ######",
+        "#   ######",
+        "#$..######",
+        "#   ######",
+        "##########"
+      ],
+      "sha256": "dbceb7fa9922a14ac41974566d80558800b81266e46da3282dd7a7569df71e02",
+      "recommended_max_steps": 120,
+      "reference": {
+        "action_count": 31,
+        "push_count": 12,
+        "expanded_states": 183
+      },
+      "tags": {
+        "layout_family": "boxoban-generated",
+        "corridor_structure": "generated",
+        "trap_types": [
+          "multi-box-ordering",
+          "static-dead-squares"
+        ]
+      },
+      "source": {
+        "type": "boxoban",
+        "source_level_id": "medium/valid/000.txt:593",
+        "commit": "78011d8c86ad423bfb2e1005012393b4c3c24409",
+        "license": "Apache-2.0"
+      }
+    },
+    {
+      "id": "boxoban-medium-303",
+      "title": "boxoban-medium-303",
+      "difficulty": "medium",
+      "rows": [
+        "##########",
+        "### .    #",
+        "####$$ $@#",
+        "#.#   ## #",
+        "#     #. #",
+        "#    ##$ #",
+        "#  ####  #",
+        "# ########",
+        "#. #######",
+        "##########"
+      ],
+      "sha256": "5db8c34370541f5355be525549bf6f1d90d44685b040729250125468cdffb53f",
+      "recommended_max_steps": 234,
+      "reference": {
+        "action_count": 78,
+        "push_count": 21,
+        "expanded_states": 1289
+      },
+      "tags": {
+        "layout_family": "boxoban-generated",
+        "corridor_structure": "generated",
+        "trap_types": [
+          "multi-box-ordering",
+          "static-dead-squares"
+        ]
+      },
+      "source": {
+        "type": "boxoban",
+        "source_level_id": "medium/valid/000.txt:303",
+        "commit": "78011d8c86ad423bfb2e1005012393b4c3c24409",
+        "license": "Apache-2.0"
+      }
+    },
+    {
+      "id": "boxoban-medium-407",
+      "title": "boxoban-medium-407",
+      "difficulty": "medium",
+      "rows": [
+        "##########",
+        "#  @######",
+        "#$$#######",
+        "# . ######",
+        "# $ ######",
+        "# .#######",
+        "#  .######",
+        "#.$  #####",
+        "#   ######",
+        "##########"
+      ],
+      "sha256": "e0f28fa5282eefbf91bd7dab758a4f894971789ca25ed5a339702ca5bae2e4ca",
+      "recommended_max_steps": 120,
+      "reference": {
+        "action_count": 34,
+        "push_count": 9,
+        "expanded_states": 196
+      },
+      "tags": {
+        "layout_family": "boxoban-generated",
+        "corridor_structure": "generated",
+        "trap_types": [
+          "multi-box-ordering",
+          "static-dead-squares"
+        ]
+      },
+      "source": {
+        "type": "boxoban",
+        "source_level_id": "medium/valid/000.txt:407",
+        "commit": "78011d8c86ad423bfb2e1005012393b4c3c24409",
+        "license": "Apache-2.0"
+      }
+    },
+    {
+      "id": "boxoban-hard-369",
+      "title": "boxoban-hard-369",
+      "difficulty": "hard",
+      "rows": [
+        "##########",
+        "#### $  .#",
+        "###..$$$ #",
+        "#### @  .#",
+        "###### # #",
+        "##########",
+        "##########",
+        "##########",
+        "##########",
+        "##########"
+      ],
+      "sha256": "803140ab9cb998e126ed1b9d2b881b7d5b0a48383cc9c89de24913e864f2f621",
+      "recommended_max_steps": 120,
+      "reference": {
+        "action_count": 33,
+        "push_count": 11,
+        "expanded_states": 181
+      },
+      "tags": {
+        "layout_family": "boxoban-generated",
+        "corridor_structure": "generated",
+        "trap_types": [
+          "multi-box-ordering",
+          "static-dead-squares"
+        ]
+      },
+      "source": {
+        "type": "boxoban",
+        "source_level_id": "hard/000.txt:369",
+        "commit": "78011d8c86ad423bfb2e1005012393b4c3c24409",
+        "license": "Apache-2.0"
+      }
+    },
+    {
+      "id": "boxoban-hard-772",
+      "title": "boxoban-hard-772",
+      "difficulty": "hard",
+      "rows": [
+        "##########",
+        "##########",
+        "#   ######",
+        "# $#######",
+        "#  #######",
+        "##. ######",
+        "#  #######",
+        "#   .$ $ #",
+        "# . .  $@#",
+        "##########"
+      ],
+      "sha256": "8266de4d7b0c66e21f1a227d6d5b0e0a49f77abd1e48f8207c34be8c218eeb4d",
+      "recommended_max_steps": 147,
+      "reference": {
+        "action_count": 49,
+        "push_count": 18,
+        "expanded_states": 703
+      },
+      "tags": {
+        "layout_family": "boxoban-generated",
+        "corridor_structure": "generated",
+        "trap_types": [
+          "multi-box-ordering",
+          "static-dead-squares"
+        ]
+      },
+      "source": {
+        "type": "boxoban",
+        "source_level_id": "hard/000.txt:772",
+        "commit": "78011d8c86ad423bfb2e1005012393b4c3c24409",
+        "license": "Apache-2.0"
+      }
+    },
+    {
+      "id": "boxoban-hard-582",
+      "title": "boxoban-hard-582",
+      "difficulty": "hard",
+      "rows": [
+        "##########",
+        "##########",
+        "##########",
+        "##########",
+        "##########",
+        "## @######",
+        "# $$### ##",
+        "#   $  $ #",
+        "# ...  . #",
+        "##########"
+      ],
+      "sha256": "f155abaec35844407b76a868fea88a0bbe9a5a960378b5b419986dc52da60a93",
+      "recommended_max_steps": 219,
+      "reference": {
+        "action_count": 73,
+        "push_count": 22,
+        "expanded_states": 722
+      },
+      "tags": {
+        "layout_family": "boxoban-generated",
+        "corridor_structure": "generated",
+        "trap_types": [
+          "multi-box-ordering",
+          "static-dead-squares"
+        ]
+      },
+      "source": {
+        "type": "boxoban",
+        "source_level_id": "hard/000.txt:582",
+        "commit": "78011d8c86ad423bfb2e1005012393b4c3c24409",
+        "license": "Apache-2.0"
+      }
+    },
+    {
+      "id": "boxoban-hard-691",
+      "title": "boxoban-hard-691",
+      "difficulty": "hard",
+      "rows": [
+        "##########",
+        "#. #######",
+        "# $ ######",
+        "#@ #######",
+        "# $ #  ###",
+        "# .$# ####",
+        "##$ #  ###",
+        "## .  ####",
+        "#     .###",
+        "##########"
+      ],
+      "sha256": "a03b0bdb9dcc03f5556467db2983f23c6c91f32749a22474199d27a20d8c52af",
+      "recommended_max_steps": 186,
+      "reference": {
+        "action_count": 62,
+        "push_count": 25,
+        "expanded_states": 945
+      },
+      "tags": {
+        "layout_family": "boxoban-generated",
+        "corridor_structure": "generated",
+        "trap_types": [
+          "multi-box-ordering",
+          "static-dead-squares"
+        ]
+      },
+      "source": {
+        "type": "boxoban",
+        "source_level_id": "hard/000.txt:691",
+        "commit": "78011d8c86ad423bfb2e1005012393b4c3c24409",
+        "license": "Apache-2.0"
+      }
+    },
+    {
+      "id": "boxoban-hard-954",
+      "title": "boxoban-hard-954",
+      "difficulty": "hard",
+      "rows": [
+        "##########",
+        "##########",
+        "##########",
+        "#. #######",
+        "#   ######",
+        "# .$######",
+        "# $ ######",
+        "#  .  $@##",
+        "# $ . ####",
+        "##########"
+      ],
+      "sha256": "da3ef1555fcfea11e46236239d5792bb1a7bb12196dc10360ca6ae487ddbf420",
+      "recommended_max_steps": 120,
+      "reference": {
+        "action_count": 39,
+        "push_count": 14,
+        "expanded_states": 394
+      },
+      "tags": {
+        "layout_family": "boxoban-generated",
+        "corridor_structure": "generated",
+        "trap_types": [
+          "multi-box-ordering",
+          "static-dead-squares"
+        ]
+      },
+      "source": {
+        "type": "boxoban",
+        "source_level_id": "hard/000.txt:954",
+        "commit": "78011d8c86ad423bfb2e1005012393b4c3c24409",
+        "license": "Apache-2.0"
+      }
+    }
+  ]
+}

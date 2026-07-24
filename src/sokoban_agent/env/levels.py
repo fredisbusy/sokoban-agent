@@ -311,29 +311,3 @@ class BoxobanLevelProvider:
         if len(indexed) != len(levels):
             raise ValueError("Boxoban level ids must be unique within a file")
         return indexed
-
-
-DEFAULT_LEVELS = FixedLevelProvider(
-    [
-        parse_level(
-            "tiny-push",
-            [
-                "#####",
-                "# . #",
-                "# $ #",
-                "# @ #",
-                "#####",
-            ],
-        ),
-        parse_level(
-            "tiny-walk",
-            [
-                "#####",
-                "#  .#",
-                "# $ #",
-                "#@  #",
-                "#####",
-            ],
-        ),
-    ]
-)

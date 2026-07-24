@@ -47,6 +47,12 @@ uv run python scripts/run_agentic_research.py \
 라이선스와 함께 저장한다. bounded A* reference는 보드 무결성 및 사후 비교
 기준이며 구조화 정책에 정답 경로로 전달하지 않는다.
 
+런타임에서는 이 15개 맵을 `levels/custom/*.json`의 직접 만든 맵과 합쳐
+`src/sokoban_agent/data/level_catalog.json`을 생성한다. 맵을 추가한 뒤
+`make levels`를 실행하며 `make levels-check`로 생성물 drift를 검사한다.
+웹과 Agent Server는 이 catalog를 함께 사용하고, 연구 manifest는 선정 근거와
+고정 코호트의 역할을 유지한다.
+
 ## 실제 모델 스모크 결과
 
 `results/boxoban_medium_smoke_v1.summary.json`은 immutable LangSmith prompt

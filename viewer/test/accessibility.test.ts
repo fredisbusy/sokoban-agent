@@ -29,3 +29,12 @@ test("run form selects curated maps instead of requiring a level id", async () =
   assert.match(component, /<optgroup/);
   assert.doesNotMatch(component, /<input[^>]*name="level_id"/);
 });
+
+test("viewer sends a catalog checksum instead of duplicating board rows", async () => {
+  const component = await readFile(
+    new URL("../components/live-viewer.tsx", import.meta.url),
+    "utf8",
+  );
+  assert.match(component, /level_sha256:\s*selectedLevel\.sha256/);
+  assert.doesNotMatch(component, /level_rows:\s*selectedLevel\.rows/);
+});

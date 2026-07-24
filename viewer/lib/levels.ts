@@ -1,5 +1,6 @@
 export type LevelDifficulty =
   | "builtin"
+  | "custom"
   | "unfiltered"
   | "medium"
   | "hard";
@@ -12,6 +13,8 @@ export interface LevelReference {
 
 export interface LevelOption {
   id: string;
+  sha256: string;
+  sourceType: "boxoban" | "custom";
   sourceLevelId: string;
   difficulty: LevelDifficulty;
   displayName: string;
@@ -22,62 +25,52 @@ export interface LevelOption {
 
 export const DIFFICULTY_ORDER: LevelDifficulty[] = [
   "builtin",
+  "custom",
   "unfiltered",
   "medium",
   "hard",
 ];
 
-export const BUILTIN_LEVELS: LevelOption[] = [
-  {
-    id: "tiny-walk",
-    sourceLevelId: "tiny-walk",
-    difficulty: "builtin",
-    displayName: "개발용 · tiny-walk",
-    rows: ["#####", "#  .#", "# $ #", "#@  #", "#####"],
-    recommendedMaxSteps: 15,
-    reference: null,
-  },
-  {
-    id: "tiny-push",
-    sourceLevelId: "tiny-push",
-    difficulty: "builtin",
-    displayName: "개발용 · tiny-push",
-    rows: ["#####", "# . #", "# $ #", "# @ #", "#####"],
-    recommendedMaxSteps: 15,
-    reference: null,
-  },
-];
-
-export function parseResearchLevels(payload: unknown): LevelOption[] {
-  const manifest = record(payload, "manifest");
-  const levels = array(manifest.levels, "manifest levels");
+export function parseLevelCatalog(payload: unknown): LevelOption[] {
+  const catalog = record(payload, "catalog");
+  const levels = array(catalog.levels, "catalog levels");
   const parsed = levels.map((value) => {
     const level = record(value, "level");
     const difficulty = text(level.difficulty, "difficulty");
-    if (!["unfiltered", "medium", "hard"].includes(difficulty)) {
-      throw new Error(`지원하지 않는 Boxoban 난이도: ${difficulty}`);
+    if (
+      !["builtin", "custom", "unfiltered", "medium", "hard"].includes(
+        difficulty,
+      )
+    ) {
+      throw new Error(`지원하지 않는 맵 난이도: ${difficulty}`);
     }
-    const reference = record(level.reference, "reference");
-    const actionCount = positiveInteger(reference.action_count, "action_count");
-    const pushCount = positiveInteger(reference.push_count, "push_count");
+    const source = record(level.source, "source");
+    const sourceType = text(source.type, "source type");
+    if (!["boxoban", "custom"].includes(sourceType)) {
+      throw new Error(`지원하지 않는 맵 출처: ${sourceType}`);
+    }
+    const reference = level.reference === null
+      ? null
+      : parseReference(record(level.reference, "reference"));
     const rows = stringArray(level.rows, "rows");
+    const sourceLevelId = sourceType === "boxoban"
+      ? text(source.source_level_id, "source_level_id")
+      : text(level.id, "id");
     return {
-      id: text(level.level_id, "level_id"),
-      sourceLevelId: text(level.source_level_id, "source_level_id"),
+      id: text(level.id, "id"),
+      sha256: text(level.sha256, "sha256"),
+      sourceType: sourceType as "boxoban" | "custom",
+      sourceLevelId,
       difficulty: difficulty as LevelDifficulty,
-      displayName: `${difficultyLabel(difficulty as LevelDifficulty)} · ${
-        text(level.source_level_id, "source_level_id")
-      }`,
+      displayName: `${difficultyLabel(
+        difficulty as LevelDifficulty,
+      )} · ${sourceLevelId}`,
       rows,
-      recommendedMaxSteps: Math.max(120, actionCount * 3),
-      reference: {
-        actionCount,
-        pushCount,
-        expandedStates: positiveInteger(
-          reference.expanded_states,
-          "expanded_states",
-        ),
-      },
+      recommendedMaxSteps: positiveInteger(
+        level.recommended_max_steps,
+        "recommended_max_steps",
+      ),
+      reference,
     };
   });
   if (new Set(parsed.map((level) => level.id)).size !== parsed.length) {
@@ -89,11 +82,25 @@ export function parseResearchLevels(payload: unknown): LevelOption[] {
 export function difficultyLabel(difficulty: LevelDifficulty): string {
   const labels: Record<LevelDifficulty, string> = {
     builtin: "개발용",
+    custom: "사용자 맵",
     unfiltered: "기본 생성군 · unfiltered",
     medium: "중급 · medium",
     hard: "고급 · hard",
   };
   return labels[difficulty];
+}
+
+function parseReference(
+  reference: Record<string, unknown>,
+): LevelReference {
+  return {
+    actionCount: positiveInteger(reference.action_count, "action_count"),
+    pushCount: positiveInteger(reference.push_count, "push_count"),
+    expandedStates: positiveInteger(
+      reference.expanded_states,
+      "expanded_states",
+    ),
+  };
 }
 
 function record(value: unknown, label: string): Record<string, unknown> {

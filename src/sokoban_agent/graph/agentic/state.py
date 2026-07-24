@@ -15,6 +15,7 @@ class AgenticInput(TypedDict):
     seed: NotRequired[int | None]
     max_steps: NotRequired[int]
     level_rows: NotRequired[list[str]]
+    level_sha256: NotRequired[str]
 
 
 class PromptReference(TypedDict):
@@ -60,9 +61,10 @@ class AgenticState(TypedDict):
     """
 
     level_id: str
+    level_sha256: str
     seed: int | None
     max_steps: int
-    level_rows: NotRequired[list[str]]
+    level_rows: list[str]
     observation: list[list[int]]
     info: dict[str, object]
     prompt: PromptReference

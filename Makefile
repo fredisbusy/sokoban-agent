@@ -2,7 +2,7 @@ LEVEL ?=
 
 .PHONY: help sync play ollama-check lab studio viewer boxoban-research-data \
 	test lint typecheck check baseline-notebook experiment-notebook \
-	agentic-notebook
+	agentic-notebook levels levels-check
 
 help:
 	@echo "설치"
@@ -16,12 +16,14 @@ help:
 	@echo "  make studio            LangGraph Studio 실행"
 	@echo "  make viewer            실시간 Sokoban 관찰 화면 실행"
 	@echo "  make boxoban-research-data 난이도별 연구 맵 다운로드·검증"
+	@echo "  make levels            Boxoban+사용자 맵 catalog 생성"
 	@echo ""
 	@echo "검증과 실험"
 	@echo "  make check             테스트, 린트, 타입 검사"
 	@echo "  make test              테스트"
 	@echo "  make lint              Ruff 린트"
 	@echo "  make typecheck         mypy 타입 검사"
+	@echo "  make levels-check      생성된 맵 catalog 최신 상태 확인"
 	@echo "  make baseline-notebook 기준선 노트북 생성 및 실행"
 	@echo "  make experiment-notebook 주 실험 노트북 생성 및 실행"
 	@echo "  make agentic-notebook  구조화 일반화 실험 노트북 생성"
@@ -47,6 +49,12 @@ viewer:
 boxoban-research-data:
 	uv run python scripts/prepare_boxoban_research.py --download
 
+levels:
+	uv run python scripts/build_level_catalog.py
+
+levels-check:
+	uv run python scripts/build_level_catalog.py --check
+
 test:
 	uv run pytest
 
@@ -56,7 +64,7 @@ lint:
 typecheck:
 	uv run --group notebook mypy
 
-check: test lint typecheck
+check: levels-check test lint typecheck
 
 baseline-notebook:
 	uv run --group notebook python scripts/build_baseline_notebook.py
