@@ -9,7 +9,11 @@ from typing import cast
 import numpy as np
 
 from sokoban_agent.env.rules import decode_observation
-from sokoban_agent.graph.agentic.state import AgenticState
+from sokoban_agent.graph.agentic.state import (
+    AgenticState,
+    active_subgoal,
+    protected_constraints,
+)
 from sokoban_agent.planning.agentic.decision import compact_board_analysis
 from sokoban_agent.planning.agentic.models import (
     BoardAnalysis,
@@ -22,7 +26,9 @@ from sokoban_agent.planning.contracts import Observation
 def board_memory_key(state: AgenticState) -> str:
     """Key the exact board abstraction shown to the strategy model."""
 
-    analysis = BoardAnalysis.model_validate(state["board_analysis"])
+    analysis = BoardAnalysis.model_validate(
+        state["planning"]["board_analysis"]
+    )
     return digest(compact_board_analysis(analysis))
 
 
@@ -31,11 +37,11 @@ def strategy_memory_key(state: AgenticState) -> str:
 
     return digest(
         {
-            "prompt": state["prompt"],
-            "model": state["model_name"],
-            "rationale": state["rationale_mode"],
-            "grounding": state["grounding_mode"],
-            "input": state["strategy_input"],
+            "prompt": state["meta"]["prompt"],
+            "model": state["meta"]["model_name"],
+            "rationale": state["meta"]["rationale_mode"],
+            "grounding": state["meta"]["grounding_mode"],
+            "input": state["planning"]["strategy_input"],
         }
     )
 
@@ -46,9 +52,9 @@ def grounding_memory_key(state: AgenticState) -> str:
     return digest(
         {
             "observation": state["observation"],
-            "subgoal": state["active_subgoal"],
-            "constraints": state["protected_constraints"],
-            "mode": state["grounding_mode"],
+            "subgoal": active_subgoal(state),
+            "constraints": protected_constraints(state),
+            "mode": state["meta"]["grounding_mode"],
         }
     )
 
@@ -69,7 +75,9 @@ def topology_memory_key(observation: Observation) -> str:
 def current_push_id(state: AgenticState) -> str:
     """Return the compact push identity of the active hypothesis."""
 
-    hypothesis = StrategyHypothesis.model_validate(state["strategy_hypothesis"])
+    hypothesis = StrategyHypothesis.model_validate(
+        state["planning"]["strategy_hypothesis"]
+    )
     return f"{hypothesis.subgoal.box_id}:{hypothesis.subgoal.direction}"
 
 
@@ -78,7 +86,7 @@ def copy_rejections(state: AgenticState) -> dict[str, list[str]]:
 
     return {
         key: list(values)
-        for key, values in state["rejected_pushes"].items()
+        for key, values in state["memory"]["rejected_pushes"].items()
     }
 
 
@@ -87,7 +95,7 @@ def constraints(state: AgenticState) -> tuple[ProtectedConstraint, ...]:
 
     return tuple(
         ProtectedConstraint.model_validate(value)
-        for value in state["protected_constraints"]
+        for value in protected_constraints(state)
     )
 
 
@@ -103,13 +111,13 @@ def observation(state: AgenticState) -> Observation:
 def shared_memory(state: AgenticState) -> bool:
     """Return whether cross-thread LangGraph Store memory is enabled."""
 
-    return state["memory_mode"] == "shared"
+    return state["meta"]["memory_mode"] == "shared"
 
 
 def memory_namespace(state: AgenticState, kind: str) -> tuple[str, ...]:
     """Build a bounded application namespace for one memory kind."""
 
-    return ("sokoban-agent", state["memory_namespace"], kind)
+    return ("sokoban-agent", state["meta"]["memory_namespace"], kind)
 
 
 def digest(value: object) -> str:

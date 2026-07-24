@@ -17,6 +17,8 @@ LangGraph state update를 유일한 표시 기준으로 사용한다. 따라서 
 App Router와 TypeScript로 구성하며 별도 event broker 없이 Agent Server
 REST·SSE 계약과 CSS Grid를 사용한다. 모의 SSE·상태 정규화·표시
 queue·reduced-motion과 반응형 화면을 검증했다.
+활성 화면은 agentic v1 decoder를 명시적으로 사용한다. 원시 행동 기준선
+decoder는 회귀 fixture용 별도 진입점이며 state shape 추론으로 섞지 않는다.
 
 private LangSmith prompt commit
 `260e758c4cf715223b40ea1b40235a8b864164c146dc8efc652bdcb13471562a`와

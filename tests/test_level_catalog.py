@@ -72,9 +72,9 @@ def test_agentic_graph_resolves_catalog_id_and_checksum() -> None:
         Runtime[AgenticRuntimeContext](context={}),
     )
 
-    assert state["level_id"] == record.level_id
-    assert state["level_sha256"] == record.sha256
-    assert state["level_rows"] == list(record.rows)
+    assert state["meta"]["level_id"] == record.level_id
+    assert state["meta"]["level_sha256"] == record.sha256
+    assert state["meta"]["level_rows"] == list(record.rows)
 
 
 def test_agentic_graph_rejects_stale_catalog_reference() -> None:

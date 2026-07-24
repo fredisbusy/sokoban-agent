@@ -191,18 +191,46 @@ class ResearchEpisodeRecord:
 
 
 @dataclass(frozen=True, slots=True)
-class ResearchPolicySummary:
-    """Compact policy-level success, reasoning, and cost aggregates."""
-
-    policy_name: str
+class ResearchOutcomeSummary:
     episode_count: int
-    success_rate: float
+    success_count: int
     mean_actions: float
-    subgoal_success_rate: float | None
-    effect_match_rate: float | None
+
+    @property
+    def success_rate(self) -> float:
+        return self.success_count / self.episode_count
+
+
+@dataclass(frozen=True, slots=True)
+class ResearchReasoningSummary:
+    subgoal_successes: int
+    subgoal_attempts: int
+    effect_matches: int
+    effect_attempts: int
     total_protected_violations: int
+
+    @property
+    def subgoal_success_rate(self) -> float | None:
+        return (
+            self.subgoal_successes / self.subgoal_attempts
+            if self.subgoal_attempts
+            else None
+        )
+
+    @property
+    def effect_match_rate(self) -> float | None:
+        return (
+            self.effect_matches / self.effect_attempts
+            if self.effect_attempts
+            else None
+        )
+
+
+@dataclass(frozen=True, slots=True)
+class ResearchResourceSummary:
     total_llm_calls: int
-    total_llm_tokens: int
+    total_llm_prompt_tokens: int
+    total_llm_output_tokens: int
     total_memory_requests: int
     total_memory_hits: int
     total_memory_writes: int
@@ -215,6 +243,27 @@ class ResearchPolicySummary:
     total_algorithm_expanded_states: int
     mean_policy_elapsed_seconds: float
 
+    @property
+    def total_llm_tokens(self) -> int:
+        return self.total_llm_prompt_tokens + self.total_llm_output_tokens
+
+
+@dataclass(frozen=True, slots=True)
+class ResearchPolicySummary:
+    """Policy aggregate composed from outcome, reasoning, and resources."""
+
+    policy_name: str
+    outcome: ResearchOutcomeSummary
+    reasoning: ResearchReasoningSummary
+    resources: ResearchResourceSummary
+
+    @property
+    def episode_count(self) -> int:
+        return self.outcome.episode_count
+
+    @property
+    def success_rate(self) -> float:
+        return self.outcome.success_rate
 
 @dataclass(frozen=True, slots=True)
 class RationaleIntervention:
@@ -242,6 +291,48 @@ class ResearchExperiment:
             "run_manifest": self.run_manifest,
             "record_schema_version": 2,
             "records": [record.to_flat_dict() for record in self.records],
-            "summaries": [asdict(summary) for summary in self.summaries],
+            "summary_schema_version": 1,
+            "summaries": [
+                research_summary_to_flat_dict(summary)
+                for summary in self.summaries
+            ],
             "rationale_intervention": asdict(self.rationale_intervention),
         }
+
+
+def research_summary_to_flat_dict(
+    summary: ResearchPolicySummary,
+) -> dict[str, object]:
+    outcome = summary.outcome
+    reasoning = summary.reasoning
+    resources = summary.resources
+    return {
+        "policy_name": summary.policy_name,
+        "episode_count": outcome.episode_count,
+        "success_rate": outcome.success_rate,
+        "mean_actions": outcome.mean_actions,
+        "subgoal_success_rate": reasoning.subgoal_success_rate,
+        "effect_match_rate": reasoning.effect_match_rate,
+        "total_protected_violations": (
+            reasoning.total_protected_violations
+        ),
+        "total_llm_calls": resources.total_llm_calls,
+        "total_llm_tokens": resources.total_llm_tokens,
+        "total_memory_requests": resources.total_memory_requests,
+        "total_memory_hits": resources.total_memory_hits,
+        "total_memory_writes": resources.total_memory_writes,
+        "total_llm_calls_saved": resources.total_llm_calls_saved,
+        "total_rule_checks": resources.total_rule_checks,
+        "total_reachability_calls": resources.total_reachability_calls,
+        "total_local_search_calls": resources.total_local_search_calls,
+        "total_local_expanded_states": (
+            resources.total_local_expanded_states
+        ),
+        "total_algorithm_calls": resources.total_algorithm_calls,
+        "total_algorithm_expanded_states": (
+            resources.total_algorithm_expanded_states
+        ),
+        "mean_policy_elapsed_seconds": (
+            resources.mean_policy_elapsed_seconds
+        ),
+    }

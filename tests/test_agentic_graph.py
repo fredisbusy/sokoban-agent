@@ -6,6 +6,7 @@ from typing import Any
 from langgraph.checkpoint.memory import InMemorySaver
 
 from sokoban_agent.graph import AgenticRuntimeContext, build_agentic_graph
+from sokoban_agent.graph.agentic.state import CURRENT_STATE_SCHEMA_VERSION
 from sokoban_agent.planning.agentic.runtime import (
     PromptReferenceValue,
     RenderedStrategyPrompt,
@@ -91,7 +92,10 @@ def test_agentic_graph_initializes_json_safe_checkpoint_state() -> None:
         context=context,
     )
 
-    assert result["level_id"] == "tiny-push"
+    meta = result["meta"]
+    planning = result["planning"]
+    assert meta["level_id"] == "tiny-push"
+    assert meta["state_schema_version"] == CURRENT_STATE_SCHEMA_VERSION
     assert result["observation"] == [
         [1, 1, 1, 1, 1],
         [1, 0, 5, 0, 1],
@@ -99,19 +103,21 @@ def test_agentic_graph_initializes_json_safe_checkpoint_state() -> None:
         [1, 0, 0, 0, 1],
         [1, 1, 1, 1, 1],
     ]
-    assert result["prompt"] == {
+    assert meta["prompt"] == {
         "name": "sokoban-strategy",
         "commit": "abc123",
     }
-    assert result["model_name"] == "test-model"
-    assert result["board_analysis"]["boxes"] == [
+    assert meta["model_name"] == "test-model"
+    assert planning["board_analysis"]["boxes"] == [
         {"box_id": "B1", "position": {"row": 2, "col": 2}}
     ]
-    assert result["strategy_hypothesis"]["subgoal"]["box_id"] == "B1"
-    assert result["active_subgoal"]["direction"] == "UP"
-    assert result["protected_constraints"] == []
-    assert result["expected_effect"]["to_position"] == {"row": 1, "col": 2}
-    assert len(result["failure_conditions"]) == 1
+    assert planning["strategy_hypothesis"]["subgoal"]["box_id"] == "B1"
+    assert planning["strategy_hypothesis"]["subgoal"]["direction"] == "UP"
+    assert planning["strategy_hypothesis"]["protected_constraints"] == []
+    assert planning["strategy_hypothesis"]["expected_effect"][
+        "to_position"
+    ] == {"row": 1, "col": 2}
+    assert len(planning["strategy_hypothesis"]["failure_conditions"]) == 1
     assert result["plan_revisions"] == []
     assert result["feedback"] == []
     assert result["decision_events"] == [
@@ -188,9 +194,7 @@ def test_agentic_graph_initializes_json_safe_checkpoint_state() -> None:
             "summary": "성공 결과를 에피소드 메모리에 유지했습니다",
         },
     ]
-    assert graph.get_state(config).values["board_analysis"] == result[
-        "board_analysis"
-    ]
+    assert graph.get_state(config).values["planning"] == result["planning"]
     json.dumps(result)
 
 
@@ -257,11 +261,11 @@ def test_agentic_graph_has_agent_server_defaults() -> None:
     result = graph.invoke({"level_id": "tiny-push"})
 
     # The fixture resolves the default `latest` selector to this immutable commit.
-    assert result["prompt"] == {
+    assert result["meta"]["prompt"] == {
         "name": "sokoban-strategy",
         "commit": "fixture-commit",
     }
-    assert result["model_name"] == "unconfigured"
+    assert result["meta"]["model_name"] == "unconfigured"
 
 
 def test_langgraph_config_loads_agentic_graph_directly() -> None:

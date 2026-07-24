@@ -20,7 +20,6 @@ class FixedPromptSource(PromptSource):
         self.fail_once = fail_once
         self.resolve_calls = 0
         self.rendered_variables: list[Mapping[str, object]] = []
-
     def resolve(self, name: str, selector: str) -> PromptReferenceValue:
         self.resolve_calls += 1
         if self.fail_once and self.resolve_calls == 1:
@@ -28,7 +27,6 @@ class FixedPromptSource(PromptSource):
         assert name == "sokoban-strategy"
         assert selector == "fixture-commit"
         return PromptReferenceValue(name=name, commit="fixture-commit")
-
     def render(
         self,
         reference: PromptReferenceValue,
@@ -40,14 +38,11 @@ class FixedPromptSource(PromptSource):
             system_prompt="fixture system",
             user_prompt="fixture user",
         )
-
-
 class SequenceStrategyGenerator(StrategyGenerator):
     def __init__(self, *responses: str) -> None:
         self.responses = list(responses)
         self.calls = 0
         self.schemas: list[Mapping[str, object]] = []
-
     def generate(
         self,
         prompt: RenderedStrategyPrompt,
@@ -61,8 +56,6 @@ class SequenceStrategyGenerator(StrategyGenerator):
         response = self.responses[self.calls]
         self.calls += 1
         return TextCompletion(response, CompletionMetrics())
-
-
 def _strategy_json(
     *,
     target_id: str = "T1",
@@ -142,6 +135,10 @@ def _invoke(
     )
 
 
+def _hypothesis(state: AgenticState) -> dict[str, object]:
+    return cast(dict[str, object], state["planning"]["strategy_hypothesis"])
+
+
 def test_strategy_nodes_use_pinned_prompt_and_board_analysis() -> None:
     prompt_source = FixedPromptSource()
     generator = SequenceStrategyGenerator(_strategy_json())
@@ -149,19 +146,21 @@ def test_strategy_nodes_use_pinned_prompt_and_board_analysis() -> None:
     result = _invoke(prompt_source, generator)
 
     assert result["status"] == "success"
-    assert result["prompt"] == {
+    assert result["meta"]["prompt"] == {
         "name": "sokoban-strategy",
         "commit": "fixture-commit",
     }
-    hypothesis = cast(dict[str, object], result["strategy_hypothesis"])
+    hypothesis = _hypothesis(result)
     subgoal = cast(dict[str, object], hypothesis["subgoal"])
-    active_subgoal = cast(dict[str, object], result["active_subgoal"])
     assert subgoal["box_id"] == "B1"
-    assert active_subgoal["direction"] == "UP"
-    assert result["strategy_attempts"] == 0
+    assert subgoal["direction"] == "UP"
+    assert result["planning"]["strategy_attempts"] == 0
     assert generator.calls == 1
-    assert result["grounded_actions"] == ["UP"]
-    assert result["grounding_failure"] is None
+    grounded_plan = cast(
+        dict[str, object], result["planning"]["grounded_plan"]
+    )
+    assert grounded_plan["push_action"] == "UP"
+    assert result["planning"]["grounding_failure"] is None
     variables = prompt_source.rendered_variables[0]
     assert set(variables) == {
         "level_id",
@@ -198,7 +197,7 @@ def test_strategy_nodes_use_pinned_prompt_and_board_analysis() -> None:
 def test_compact_decision_materializes_complete_strategy_artifact() -> None:
     result = _invoke(FixedPromptSource(), SequenceStrategyGenerator(_decision_json()))
     assert result["status"] == "success"
-    hypothesis = cast(dict[str, object], result["strategy_hypothesis"])
+    hypothesis = _hypothesis(result)
     assert hypothesis["expected_effect"] == {
         "box_id": "B1",
         "from_position": {"row": 2, "col": 2},
@@ -219,7 +218,7 @@ def test_schema_error_routes_back_to_strategy_proposal() -> None:
     result = _invoke(prompt_source, generator)
 
     assert result["status"] == "success"
-    assert result["strategy_attempts"] == 0
+    assert result["planning"]["strategy_attempts"] == 0
     assert generator.calls == 2
     assert any("스키마" in feedback for feedback in result["feedback"])
     assert len(prompt_source.rendered_variables) == 2
@@ -236,14 +235,14 @@ def test_schema_error_exposes_bounded_validation_issues() -> None:
     result = _invoke(prompt_source, generator)
 
     assert result["status"] == "strategy_schema_error"
-    issues = result["strategy_schema_issues"]
+    issues = result["planning"]["strategy_schema_issues"]
     assert len(issues) <= 8
     assert issues[0] == {
         "path": "summary",
         "code": "missing",
         "message": "Field required",
     }
-    assert result["strategy_error"] == "strategy_schema_error"
+    assert result["planning"]["strategy_error"] == "strategy_schema_error"
 
 
 def test_semantic_violation_routes_back_with_structured_feedback() -> None:
@@ -256,7 +255,7 @@ def test_semantic_violation_routes_back_with_structured_feedback() -> None:
     result = _invoke(prompt_source, generator)
 
     assert result["status"] == "success"
-    assert result["strategy_attempts"] == 0
+    assert result["planning"]["strategy_attempts"] == 0
     assert any("unknown_target" in feedback for feedback in result["feedback"])
 
 
@@ -301,13 +300,13 @@ def test_no_rationale_ablation_keeps_execution_fields() -> None:
     )
 
     assert off_source.rendered_variables[0]["rationale_mode"] == "off"
+    without_hypothesis = _hypothesis(without_rationale)
+    with_hypothesis = _hypothesis(with_rationale)
     for field in (
-        "active_subgoal",
         "protected_constraints",
         "expected_effect",
-        "failure_conditions",
     ):
-        assert without_rationale[field] == with_rationale[field]
+        assert without_hypothesis[field] == with_hypothesis[field]
 
 
 def test_agentic_loop_replans_after_each_push_until_success() -> None:
@@ -348,7 +347,7 @@ def test_agentic_loop_replans_after_each_push_until_success() -> None:
         "UP",
         "RIGHT",
     ]
-    assert len(result["completed_subgoals"]) == 2
+    assert len(result["planning"]["completed_subgoals"]) == 2
     assert generator.calls == 2
     action_events = [
         event
@@ -395,6 +394,6 @@ def test_agentic_loop_stops_when_step_limit_prevents_push() -> None:
     assert result["status"] == "step_limit"
     assert result["info"]["steps"] == 1
     assert result["action_history"] == ["RIGHT"]
-    execution_result = cast(dict[str, object], result["execution_result"])
+    execution_result = cast(dict[str, object], result["execution"]["result"])
     assert execution_result["push_count"] == 0
     assert generator.calls == 1

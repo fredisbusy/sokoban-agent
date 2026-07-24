@@ -7,7 +7,7 @@ import {
   useState,
 } from "react";
 
-import { applyUpdate, normalizeEvent } from "../lib/events";
+import { applyGraphUpdate, decodeAgenticEventV1 } from "../lib/events";
 import { FrameQueue } from "../lib/frame-queue";
 import {
   createThread,
@@ -163,9 +163,9 @@ export function LiveViewer({ levels }: LiveViewerProps) {
       ? raw.data[1]
       : raw.data;
     if (!payload || typeof payload !== "object") return;
-    const update = applyUpdate(graphStateRef.current, payload);
+    const update = applyGraphUpdate(graphStateRef.current, payload);
     graphStateRef.current = update.state;
-    const nextFrame = normalizeEvent({
+    const nextFrame = decodeAgenticEventV1({
       id: raw.id,
       threadId,
       node: update.node,

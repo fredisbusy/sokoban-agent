@@ -77,15 +77,15 @@ def main(argv: Sequence[str] | None = None) -> int:
     print(
         json.dumps(
             {
-                "level_id": state["level_id"],
+                "level_id": state["meta"]["level_id"],
                 "status": state["status"],
                 "success": state["info"].get("success") is True,
                 "actions": state["action_history"],
                 "push_count": state["push_count"],
-                "prompt": state["prompt"],
-                "model_name": state["model_name"],
+                "prompt": state["meta"]["prompt"],
+                "model_name": state["meta"]["model_name"],
                 "memory": {
-                    "mode": state["memory_mode"],
+                    "mode": state["meta"]["memory_mode"],
                     "requests": state["metrics"]["memory"]["requests"],
                     "hits": state["metrics"]["memory"]["hits"],
                     "writes": state["metrics"]["memory"]["writes"],

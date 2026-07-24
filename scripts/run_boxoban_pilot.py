@@ -5,10 +5,9 @@ from __future__ import annotations
 import argparse
 import json
 import subprocess
-from dataclasses import asdict
 from hashlib import sha256
 from pathlib import Path
-from typing import Any, cast
+from typing import Any
 
 from sokoban_agent.env import SokobanEnv
 from sokoban_agent.evaluation import (
@@ -17,6 +16,12 @@ from sokoban_agent.evaluation import (
     measure_bounded_astar_reference,
     run_episode,
     summarize_by_planner,
+)
+from sokoban_agent.evaluation.schemas.baseline_rows import (
+    EPISODE_SCHEMA_VERSION,
+    SUMMARY_SCHEMA_VERSION,
+    BaselineEpisodeRowV1,
+    planner_summary_to_flat_dict,
 )
 from sokoban_agent.planning import (
     AStarPlanner,
@@ -97,10 +102,11 @@ def main() -> None:
                 )
                 record = {
                     "record_type": "episode",
+                    "episode_schema_version": EPISODE_SCHEMA_VERSION,
                     "run_config_hash": config_hash,
                     "variant": variant,
                     "repeat": repeat,
-                    "result": asdict(result),
+                    "result": BaselineEpisodeRowV1.to_dict(result),
                 }
                 _append_json(args.output, record)
                 records.append(record)
@@ -112,7 +118,7 @@ def main() -> None:
                 )
 
     matching_results = [
-        EpisodeResult(**cast(dict[str, Any], record["result"]))
+        _decode_episode_record(record)
         for record in records
         if record.get("run_config_hash") == config_hash
     ]
@@ -122,8 +128,9 @@ def main() -> None:
             {
                 "config": config,
                 "run_config_hash": config_hash,
+                "summary_schema_version": SUMMARY_SCHEMA_VERSION,
                 "summaries": [
-                    asdict(summary)
+                    planner_summary_to_flat_dict(summary)
                     for summary in summarize_by_planner(matching_results)
                 ],
             },
@@ -134,6 +141,16 @@ def main() -> None:
         encoding="utf-8",
     )
     print(f"summary: {summary_path}")
+
+
+def _decode_episode_record(record: dict[str, Any]) -> EpisodeResult:
+    version = record.get("episode_schema_version", EPISODE_SCHEMA_VERSION)
+    if version != EPISODE_SCHEMA_VERSION:
+        raise ValueError(f"unsupported episode schema version: {version}")
+    payload = record.get("result")
+    if not isinstance(payload, dict):
+        raise ValueError("episode record result must be an object")
+    return BaselineEpisodeRowV1.from_dict(payload)
 
 
 def _parse_args() -> argparse.Namespace:

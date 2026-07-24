@@ -16,7 +16,12 @@ from sokoban_agent.env.rules import (
     observation_for,
 )
 from sokoban_agent.graph.agentic.metrics import update_agentic_metrics
-from sokoban_agent.graph.agentic.state import AgenticState
+from sokoban_agent.graph.agentic.state import (
+    AgenticState,
+    active_subgoal,
+    expected_effect,
+    grounded_actions,
+)
 from sokoban_agent.planning.agentic.decision import compact_board_analysis
 from sokoban_agent.planning.agentic.models import BoardAnalysis, ExpectedEffect
 from sokoban_agent.planning.contracts import Observation
@@ -29,22 +34,25 @@ RepetitionRoute = Literal["ground_subgoal", "__end__"]
 def detect_agentic_repetition(state: AgenticState) -> dict[str, object]:
     """Detect repetition at the same abstraction shown to the planner."""
 
-    analysis = BoardAnalysis.model_validate(state["board_analysis"])
+    analysis = BoardAnalysis.model_validate(
+        state["planning"]["board_analysis"]
+    )
     key = json.dumps(
         {
             "board": compact_board_analysis(analysis),
-            "subgoal": state["active_subgoal"],
+            "subgoal": active_subgoal(state),
         },
         ensure_ascii=False,
         sort_keys=True,
         separators=(",", ":"),
     )
-    if key in state["attempt_keys"]:
+    memory = state["memory"]
+    if key in memory["attempt_keys"]:
         feedback = "동일한 보드와 하위 목표가 반복되었습니다"
         return {
             "cycle_detected": True,
             "status": "cycle_detected",
-            "attempt_keys": state["attempt_keys"],
+            "memory": memory,
             "feedback": [f"cycle_detected: {feedback}"],
             "decision_events": [
                 {
@@ -57,7 +65,10 @@ def detect_agentic_repetition(state: AgenticState) -> dict[str, object]:
     return {
         "cycle_detected": False,
         "status": "repetition_checked",
-        "attempt_keys": [*state["attempt_keys"], key],
+        "memory": {
+            **memory,
+            "attempt_keys": [*memory["attempt_keys"], key],
+        },
         "decision_events": [
             {
                 "step": _step(state),
@@ -83,26 +94,23 @@ def execute_agentic_until_push(state: AgenticState) -> dict[str, object]:
     )
     level, board = decode_observation(observation)
     steps = _step(state)
-    requested = list(state["grounded_actions"])
-    prior = state["execution_result"]
+    requested = grounded_actions(state)
+    execution_state = state["execution"]
+    prior = execution_state["result"]
     if prior is None:
         before_boxes = _boxes(board.boxes)
         executed: list[str] = []
         push_count = 0
     else:
-        before_boxes = cast(
-            list[list[int]],
-            prior["before_boxes"],
-        )
-        executed = list(
-            cast(list[str], prior["actions_executed"])
-        )
-        push_count = cast(int, prior["push_count"])
+        before_boxes = prior["before_boxes"]
+        executed = list(prior["actions_executed"])
+        push_count = prior["push_count"]
 
     invalid_move = False
     action_name: str | None = None
     pushed = False
-    if steps < state["max_steps"] and len(executed) < len(requested):
+    max_steps = state["meta"]["max_steps"]
+    if steps < max_steps and len(executed) < len(requested):
         action_name = requested[len(executed)]
         move = apply_action(level, board, Action[action_name])
         board = move.state
@@ -115,7 +123,7 @@ def execute_agentic_until_push(state: AgenticState) -> dict[str, object]:
 
     success = is_success(level, board)
     deadlock = not success and has_static_corner_deadlock(level, board)
-    truncated = steps >= state["max_steps"] and not success and not deadlock
+    truncated = steps >= max_steps and not success and not deadlock
     next_observation = observation_for(level, board)
     info = {
         **state["info"],
@@ -143,7 +151,7 @@ def execute_agentic_until_push(state: AgenticState) -> dict[str, object]:
             *([action_name] if action_name is not None else []),
         ],
         "push_count": state["push_count"] + int(pushed),
-        "execution_result": result,
+        "execution": {**execution_state, "result": result},
         "status": "executed_until_push",
         "decision_events": [
             {
@@ -167,7 +175,7 @@ def execute_agentic_until_push(state: AgenticState) -> dict[str, object]:
 def route_after_action(state: AgenticState) -> ActionRoute:
     """Repeat the action node until its first push or a terminal condition."""
 
-    execution = cast(dict[str, object], state["execution_result"])
+    execution = cast(dict[str, object], state["execution"]["result"])
     executed = cast(list[str], execution["actions_executed"])
     requested = cast(list[str], execution["actions_requested"])
     if (
@@ -185,8 +193,9 @@ def route_after_action(state: AgenticState) -> ActionRoute:
 def reflect_agentic_execution(state: AgenticState) -> dict[str, object]:
     """Compare the expected box effect with the bounded execution result."""
 
-    effect = ExpectedEffect.model_validate(state["expected_effect"])
-    execution = cast(dict[str, object], state["execution_result"])
+    effect = ExpectedEffect.model_validate(expected_effect(state))
+    execution_state = state["execution"]
+    execution = cast(dict[str, object], execution_state["result"])
     before = {
         tuple(item)
         for item in cast(list[list[int]], execution["before_boxes"])
@@ -215,12 +224,19 @@ def reflect_agentic_execution(state: AgenticState) -> dict[str, object]:
 
     if matched:
         status = "success" if success else "subgoal_completed"
-        completed = [*state["completed_subgoals"], state["active_subgoal"]]
+        planning = state["planning"]
+        completed = [
+            *planning["completed_subgoals"],
+            active_subgoal(state),
+        ]
         metrics = state["metrics"]
         return {
-            "reflection_result": reflection,
-            "completed_subgoals": completed,
-            "strategy_attempts": 0,
+            "execution": {**execution_state, "reflection": reflection},
+            "planning": {
+                **planning,
+                "completed_subgoals": completed,
+                "strategy_attempts": 0,
+            },
             "metrics": update_agentic_metrics(
                 metrics,
                 strategy={
@@ -259,8 +275,9 @@ def reflect_agentic_execution(state: AgenticState) -> dict[str, object]:
         "evidence": evidence,
     }
     metrics = state["metrics"]
+    planning = state["planning"]
     return {
-        "reflection_result": reflection,
+        "execution": {**execution_state, "reflection": reflection},
         "plan_revisions": [revision],
         "metrics": update_agentic_metrics(
             metrics,
@@ -271,7 +288,12 @@ def reflect_agentic_execution(state: AgenticState) -> dict[str, object]:
             },
         ),
         "feedback": [f"unexpected_state: {evidence}"],
-        "latest_strategy_feedback": [f"unexpected_state: {evidence}"],
+        "planning": {
+            **planning,
+            "latest_strategy_feedback": [
+                f"unexpected_state: {evidence}"
+            ],
+        },
         "status": status,
         "decision_events": [
             {
@@ -296,10 +318,12 @@ def observe_agentic_state(state: AgenticState) -> dict[str, object]:
 
     return {
         "status": "observed",
-        "grounded_plan": None,
-        "grounded_actions": [],
-        "grounding_failure": None,
-        "execution_result": None,
+        "planning": {
+            **state["planning"],
+            "grounded_plan": None,
+            "grounding_failure": None,
+        },
+        "execution": {**state["execution"], "result": None},
         "decision_events": [
             {
                 "step": _step(state),

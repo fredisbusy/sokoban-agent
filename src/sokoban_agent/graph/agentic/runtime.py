@@ -11,6 +11,7 @@ from langgraph.store.memory import InMemoryStore
 
 from sokoban_agent.graph.agentic.builder import build_agentic_graph
 from sokoban_agent.graph.agentic.state import (
+    CURRENT_STATE_SCHEMA_VERSION,
     AgenticInput,
     AgenticRuntimeContext,
     AgenticState,
@@ -19,6 +20,10 @@ from sokoban_agent.planning.agentic.runtime import (
     PromptSource,
     StrategyGenerator,
 )
+
+
+class CheckpointSchemaMismatch(RuntimeError):
+    """Raised when a thread contains an incompatible agentic checkpoint."""
 
 
 class AgenticGraphRunner:
@@ -56,6 +61,20 @@ class AgenticGraphRunner:
             "configurable": {"thread_id": run_id},
             "recursion_limit": max_steps * 12 + 50,
         }
+        checkpoint = self.graph.get_state(config)
+        if checkpoint.values:
+            meta = checkpoint.values.get("meta")
+            version = (
+                meta.get("state_schema_version")
+                if isinstance(meta, dict)
+                else None
+            )
+            if version != CURRENT_STATE_SCHEMA_VERSION:
+                raise CheckpointSchemaMismatch(
+                    "agentic checkpoint schema mismatch: "
+                    f"expected {CURRENT_STATE_SCHEMA_VERSION}, got {version!r}; "
+                    "start a new thread"
+                )
         result = self.graph.invoke(
             graph_input,
             config,

@@ -51,7 +51,8 @@ def run_agentic_episode(
     )
     elapsed = perf_counter() - started_at
     info = state["info"]
-    prompt = state["prompt"]
+    meta = state["meta"]
+    prompt = meta["prompt"]
     rationale_mode = context.get("rationale_mode", "on")
     grounding_mode = context.get("grounding_mode", "local-search")
     metrics = state["metrics"]
@@ -70,8 +71,8 @@ def run_agentic_episode(
                     else "structured-local-search"
                 )
             ),
-            level_id=state["level_id"],
-            seed=state["seed"],
+            level_id=meta["level_id"],
+            seed=meta["seed"],
         ),
         outcome=EpisodeOutcome(
             status=state["status"],
@@ -98,7 +99,7 @@ def run_agentic_episode(
         prompt=PromptIdentity(
             name=prompt["name"],
             commit=prompt["commit"],
-            model_name=state["model_name"],
+            model_name=meta["model_name"],
         ),
         elapsed_seconds=elapsed,
     )

@@ -24,11 +24,17 @@
 - `policy_elapsed_seconds`는 adapter property로 파생 가능하며 기존 `max(0)`
   의미를 golden test로 보존해야 한다.
 
-## 남은 의사결정
+## 구현 후 확인
 
-구현 P0에서 다음 두 raw metric을 v2 artifact에서 계속 제공할지 확정한다.
+- `StudioState`와 전용 graph/test를 제거하고 활성 agentic graph 하나로
+  문서·viewer 계약을 맞췄다.
+- `AgenticState`를 `meta`, `planning`, `memory`, `execution` 스냅샷과 hot
+  channel로 분리했다.
+- 하위 목표·보호 제약·예상 효과·실패 조건은 strategy hypothesis만 canonical
+  source로 사용하며, grounded action은 grounded plan에서 파생한다.
+- memory recall은 hit flag 없이 `Command(update=..., goto=...)`를 사용한다.
+- baseline과 research 결과는 책임별 합성 객체가 raw count를 저장하고,
+  flat adapter가 기존 외부 컬럼과 파생 rate를 제공한다.
 
-- `total_reward`
-- `guard_reference_action_count`
-
-둘 다 v1 reader/writer 호환과 별개인 명시적 v2 schema 결정으로 다룬다.
+`total_reward`와 `guard_reference_action_count`는 기존 v1 artifact의 생산
+diagnostic이므로 이번 breaking 내부 리팩터링에서도 외부 계약에 유지했다.

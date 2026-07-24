@@ -14,6 +14,11 @@ from sokoban_agent.evaluation.schemas.research import (
     ResearchExperiment as ResearchExperiment,
 )
 from sokoban_agent.evaluation.schemas.research import (
+    ResearchOutcomeSummary,
+    ResearchReasoningSummary,
+    ResearchResourceSummary,
+)
+from sokoban_agent.evaluation.schemas.research import (
     ResearchPolicySummary as ResearchPolicySummary,
 )
 
@@ -41,68 +46,89 @@ def summarize_research(
             item.effect_matches + item.effect_mismatches
             for item in strategies
         )
+        if not episodes:
+            continue
         summaries.append(
             ResearchPolicySummary(
                 policy_name=policy_name,
-                episode_count=len(episodes),
-                success_rate=(
-                    sum(r.outcome.success for r in episodes) / len(episodes)
+                outcome=ResearchOutcomeSummary(
+                    episode_count=len(episodes),
+                    success_count=sum(
+                        r.outcome.success for r in episodes
+                    ),
+                    mean_actions=fmean(
+                        r.action_count for r in episodes
+                    ),
                 ),
-                mean_actions=fmean(r.action_count for r in episodes),
-                subgoal_success_rate=_ratio(
-                    sum(r.subgoal_successes for r in episodes), attempts
+                reasoning=ResearchReasoningSummary(
+                    subgoal_successes=sum(
+                        r.subgoal_successes for r in episodes
+                    ),
+                    subgoal_attempts=attempts,
+                    effect_matches=sum(
+                        item.effect_matches for item in strategies
+                    ),
+                    effect_attempts=effects,
+                    total_protected_violations=sum(
+                        item.protected_constraint_violations
+                        for item in strategies
+                    ),
                 ),
-                effect_match_rate=_ratio(
-                    sum(item.effect_matches for item in strategies), effects
-                ),
-                total_protected_violations=sum(
-                    item.protected_constraint_violations
-                    for item in strategies
-                ),
-                total_llm_calls=sum(r.llm.calls for r in episodes if r.llm),
-                total_llm_tokens=sum(
-                    r.llm.prompt_tokens + r.llm.output_tokens
-                    for r in episodes
-                    if r.llm
-                ),
-                total_memory_requests=sum(
-                    r.memory.requests for r in episodes if r.memory
-                ),
-                total_memory_hits=sum(
-                    r.memory.hits for r in episodes if r.memory
-                ),
-                total_memory_writes=sum(
-                    r.memory.writes for r in episodes if r.memory
-                ),
-                total_llm_calls_saved=sum(
-                    r.memory.llm_calls_saved for r in episodes if r.memory
-                ),
-                total_rule_checks=sum(
-                    r.rules.checks for r in episodes if r.rules
-                ),
-                total_reachability_calls=sum(
-                    r.rules.reachability_calls for r in episodes if r.rules
-                ),
-                total_local_search_calls=sum(
-                    r.local_search.calls
-                    for r in episodes
-                    if r.local_search
-                ),
-                total_local_expanded_states=sum(
-                    r.local_search.expanded_states
-                    for r in episodes
-                    if r.local_search
-                ),
-                total_algorithm_calls=sum(
-                    r.algorithm.calls for r in episodes if r.algorithm
-                ),
-                total_algorithm_expanded_states=sum(
-                    r.algorithm.expanded_states
-                    for r in episodes
-                    if r.algorithm
-                ),
-                mean_policy_elapsed_seconds=fmean(
-                    r.policy_elapsed_seconds for r in episodes
+                resources=ResearchResourceSummary(
+                    total_llm_calls=sum(
+                        r.llm.calls for r in episodes if r.llm
+                    ),
+                    total_llm_prompt_tokens=sum(
+                        r.llm.prompt_tokens for r in episodes if r.llm
+                    ),
+                    total_llm_output_tokens=sum(
+                        r.llm.output_tokens for r in episodes if r.llm
+                    ),
+                    total_memory_requests=sum(
+                        r.memory.requests for r in episodes if r.memory
+                    ),
+                    total_memory_hits=sum(
+                        r.memory.hits for r in episodes if r.memory
+                    ),
+                    total_memory_writes=sum(
+                        r.memory.writes for r in episodes if r.memory
+                    ),
+                    total_llm_calls_saved=sum(
+                        r.memory.llm_calls_saved
+                        for r in episodes
+                        if r.memory
+                    ),
+                    total_rule_checks=sum(
+                        r.rules.checks for r in episodes if r.rules
+                    ),
+                    total_reachability_calls=sum(
+                        r.rules.reachability_calls
+                        for r in episodes
+                        if r.rules
+                    ),
+                    total_local_search_calls=sum(
+                        r.local_search.calls
+                        for r in episodes
+                        if r.local_search
+                    ),
+                    total_local_expanded_states=sum(
+                        r.local_search.expanded_states
+                        for r in episodes
+                        if r.local_search
+                    ),
+                    total_algorithm_calls=sum(
+                        r.algorithm.calls
+                        for r in episodes
+                        if r.algorithm
+                    ),
+                    total_algorithm_expanded_states=sum(
+                        r.algorithm.expanded_states
+                        for r in episodes
+                        if r.algorithm
+                    ),
+                    mean_policy_elapsed_seconds=fmean(
+                        r.policy_elapsed_seconds for r in episodes
+                    ),
                 ),
             )
         )
@@ -143,7 +169,3 @@ def measure_rationale_intervention(
             for key in keys
         ),
     )
-
-
-def _ratio(numerator: int, denominator: int) -> float | None:
-    return numerator / denominator if denominator else None

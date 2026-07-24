@@ -26,9 +26,7 @@ from sokoban_agent.graph.agentic.memory.nodes import (
     remember_failure,
     remember_outcome,
     route_after_failure_memory,
-    route_after_grounding_recall,
     route_after_outcome_memory,
-    route_after_strategy_recall,
 )
 from sokoban_agent.graph.agentic.memory.static import get_static_board_facts
 from sokoban_agent.graph.agentic.metrics import (
@@ -53,6 +51,9 @@ from sokoban_agent.graph.agentic.nodes.strategy import (
     route_after_strategy_verification,
 )
 from sokoban_agent.graph.agentic.state import (
+    CURRENT_STATE_SCHEMA_VERSION,
+    GRAPH_REVISION,
+    AgenticInfoState,
     AgenticInput,
     AgenticRuntimeContext,
     AgenticState,
@@ -102,51 +103,52 @@ def initialize_agentic_state(
         env.close()
     resolved_level_id = str(raw_info["level_id"])
     return {
-        "level_id": resolved_level_id,
-        "level_sha256": level_sha256,
-        "level_rows": level_rows,
-        "seed": seed,
-        "max_steps": max_steps,
-        "observation": observation.tolist(),
-        "info": dict(raw_info),
-        "prompt": {
-            "name": context.get("prompt_name", "sokoban-strategy"),
-            "commit": context.get("prompt_commit", "latest"),
+        "meta": {
+            "state_schema_version": CURRENT_STATE_SCHEMA_VERSION,
+            "graph_revision": GRAPH_REVISION,
+            "level_id": resolved_level_id,
+            "level_sha256": level_sha256,
+            "level_rows": level_rows,
+            "seed": seed,
+            "max_steps": max_steps,
+            "prompt": {
+                "name": context.get("prompt_name", "sokoban-strategy"),
+                "commit": context.get("prompt_commit", "latest"),
+            },
+            "prompt_resolved": False,
+            "model_name": context.get("model_name", "unconfigured"),
+            "rationale_mode": context.get("rationale_mode", "on"),
+            "grounding_mode": context.get(
+                "grounding_mode", "local-search"
+            ),
+            "memory_mode": context.get("memory_mode", "episode"),
+            "memory_namespace": context.get(
+                "memory_namespace", "default"
+            ),
         },
-        "prompt_resolved": False,
-        "model_name": context.get("model_name", "unconfigured"),
-        "rationale_mode": context.get("rationale_mode", "on"),
-        "grounding_mode": context.get("grounding_mode", "local-search"),
-        "memory_mode": context.get("memory_mode", "episode"),
-        "memory_namespace": context.get("memory_namespace", "default"),
+        "planning": {
+            "board_analysis": None,
+            "strategy_hypothesis": None,
+            "strategy_input": {},
+            "strategy_attempts": 0,
+            "strategy_error": None,
+            "strategy_schema_issues": [],
+            "latest_strategy_feedback": [],
+            "strategy_violations": [],
+            "grounded_plan": None,
+            "grounding_failure": None,
+            "grounding_cache_key": None,
+            "completed_subgoals": [],
+        },
+        "memory": {"attempt_keys": [], "rejected_pushes": {}},
+        "execution": {"result": None, "reflection": None},
+        "observation": observation.tolist(),
+        "info": cast(AgenticInfoState, raw_info),
         "status": "initialized",
-        "board_analysis": None,
-        "strategy_hypothesis": None,
-        "strategy_input": {},
-        "strategy_attempts": 0,
-        "strategy_error": None,
-        "strategy_schema_issues": [],
-        "latest_strategy_feedback": [],
-        "strategy_violations": [],
-        "active_subgoal": None,
-        "grounded_plan": None,
-        "grounded_actions": [],
-        "grounding_failure": None,
         "action_history": [],
-        "execution_result": None,
-        "reflection_result": None,
-        "completed_subgoals": [],
-        "attempt_keys": [],
         "cycle_detected": False,
-        "rejected_pushes": {},
-        "strategy_memory_hit": False,
-        "grounding_memory_hit": False,
-        "grounding_cache_key": None,
         "metrics": initial_agentic_metrics(),
         "push_count": 0,
-        "protected_constraints": [],
-        "expected_effect": None,
-        "failure_conditions": [],
         "plan_revisions": [],
         "feedback": [],
         "decision_events": [
@@ -165,7 +167,8 @@ def analyze_agentic_board(
 ) -> dict[str, object]:
     """Expose deterministic board facts as a checkpointed graph update."""
 
-    previous_payload = state.get("board_analysis")
+    planning = state["planning"]
+    previous_payload = planning["board_analysis"]
     previous = (
         BoardAnalysis.model_validate(previous_payload)
         if previous_payload is not None
@@ -190,7 +193,10 @@ def analyze_agentic_board(
         raise TypeError("graph info steps must be an integer")
     metrics = state["metrics"]
     return {
-        "board_analysis": analysis.model_dump(mode="json"),
+        "planning": {
+            **planning,
+            "board_analysis": analysis.model_dump(mode="json"),
+        },
         "metrics": update_agentic_metrics(
             metrics,
             rules={
@@ -229,7 +235,7 @@ def route_after_analysis(
 
     return (
         "compose_strategy_input"
-        if state["prompt_resolved"]
+        if state["meta"]["prompt_resolved"]
         else "resolve_prompt"
     )
 
@@ -298,14 +304,6 @@ def build_agentic_graph(
     builder.add_edge("recall_failures", "compose_strategy_input")
     builder.add_edge("compose_strategy_input", "recall_strategy")
     builder.add_conditional_edges(
-        "recall_strategy",
-        route_after_strategy_recall,
-        {
-            "propose_strategy": "propose_strategy",
-            "verify_strategy": "verify_strategy",
-        },
-    )
-    builder.add_conditional_edges(
         "propose_strategy",
         route_after_strategy_proposal,
         {
@@ -338,14 +336,6 @@ def build_agentic_graph(
         {
             "ground_subgoal": "recall_grounding",
             "__end__": END,
-        },
-    )
-    builder.add_conditional_edges(
-        "recall_grounding",
-        route_after_grounding_recall,
-        {
-            "ground_subgoal": "ground_subgoal",
-            "execute_until_push": "execute_until_push",
         },
     )
     builder.add_conditional_edges(

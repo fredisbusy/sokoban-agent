@@ -9,14 +9,12 @@ from typing import Any, cast
 import nbformat
 from nbformat.v4 import new_code_cell, new_markdown_cell, new_notebook
 
-LEVEL_IDS = ["tiny-push", "tiny-walk", "heldout-turn"]
-SEEDS = [0, 1]
+LEVEL_IDS, SEEDS = ["tiny-push", "tiny-walk", "heldout-turn"], [0, 1]
 MAX_STEPS, MAX_ATTEMPTS = 15, 3
 _new_code_cell = cast(Callable[[str], Any], new_code_cell)
 _new_markdown_cell = cast(Callable[[str], Any], new_markdown_cell)
 _new_notebook = cast(Callable[..., Any], new_notebook)
 _write_notebook = cast(Callable[[Any, Path], None], nbformat.write)
-
 def build_notebook(output_path: Path) -> None:
     notebook = _new_notebook(
         cells=[
@@ -47,7 +45,6 @@ def build_notebook(output_path: Path) -> None:
             ),
             _new_markdown_cell("### 1. Load dependencies and fixed parameters"),
             _new_code_cell(
-                "from dataclasses import asdict\n\n"
                 "import matplotlib.pyplot as plt\n"
                 "import numpy as np\n"
                 "import pandas as pd\n"
@@ -62,6 +59,10 @@ def build_notebook(output_path: Path) -> None:
                 "from sokoban_agent.evaluation import (\n"
                 "    run_benchmark_traces,\n"
                 "    summarize_by_planner,\n"
+                ")\n"
+                "from sokoban_agent.evaluation.schemas.baseline_rows import (\n"
+                "    BaselineEpisodeRowV1,\n"
+                "    planner_summary_to_flat_dict,\n"
                 ")\n"
                 "from sokoban_agent.planning import (\n"
                 "    AStarPlanner,\n"
@@ -154,7 +155,7 @@ def build_notebook(output_path: Path) -> None:
                 "    env.close()\n\n"
                 "results = [trace.result for trace in traces]\n"
                 "results_df = pd.DataFrame.from_records(\n"
-                "    asdict(result) for result in results\n"
+                "    BaselineEpisodeRowV1.to_dict(result) for result in results\n"
                 ")\n"
                 "results_df"
             ),
@@ -164,7 +165,8 @@ def build_notebook(output_path: Path) -> None:
             ),
             _new_code_cell(
                 "summary_df = pd.DataFrame.from_records(\n"
-                "    asdict(summary) for summary in summarize_by_planner(results)\n"
+                "    planner_summary_to_flat_dict(summary)\n"
+                "    for summary in summarize_by_planner(results)\n"
                 ").set_index('planner_name')\n"
                 "summary_columns = [\n"
                 "    'episode_count',\n"
@@ -390,11 +392,9 @@ def build_notebook(output_path: Path) -> None:
     )
     output_path.parent.mkdir(parents=True, exist_ok=True)
     _write_notebook(notebook, output_path)
-
 def main() -> None:
     repository_root = Path(__file__).resolve().parents[1]
     output = repository_root / "notebooks" / "langgraph_planner_comparison.ipynb"
     build_notebook(output)
-
 if __name__ == "__main__":
     main()

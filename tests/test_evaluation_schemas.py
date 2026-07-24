@@ -56,5 +56,6 @@ def test_internal_result_contracts_are_composed_not_flat_metric_bags() -> None:
         "elapsed_seconds",
     }
     assert "metrics" in AgenticState.__required_keys__
+    assert len(AgenticState.__required_keys__) <= 15
     assert "llm_calls" not in AgenticState.__required_keys__
     assert "rule_checks" not in AgenticState.__required_keys__

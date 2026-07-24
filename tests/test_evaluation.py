@@ -18,6 +18,13 @@ from sokoban_agent.evaluation import (
     run_episode_trace,
     summarize_by_planner,
 )
+from sokoban_agent.evaluation.schemas.baseline import (
+    BaselineEpisodeOutcome,
+    EpisodeTiming,
+    GuardUsage,
+    PlannerEpisodeIdentity,
+)
+from sokoban_agent.evaluation.schemas.reference import ReferenceResult
 from sokoban_agent.graph import SokobanGraph
 from sokoban_agent.planning import (
     BFSPlanner,
@@ -213,50 +220,37 @@ def test_trace_benchmark_runs_the_same_case_grid() -> None:
 def test_summarize_by_planner_calculates_required_metrics() -> None:
     results = [
         EpisodeResult(
-            "agent",
-            "one",
-            1,
-            True,
-            False,
-            False,
-            2,
-            0,
-            10.0,
-            0.1,
-            guard_proposed_actions=2,
-            guard_adopted_actions=1,
-            guard_accepted=1,
-            reference_solved=True,
-            action_overhead_vs_reference=0,
+            identity=PlannerEpisodeIdentity("agent", "one", 1),
+            outcome=BaselineEpisodeOutcome(
+                True, False, False, 2, 0, 10.0
+            ),
+            guard=GuardUsage(
+                proposed_actions=2, adopted_actions=1, accepted=1
+            ),
+            reference=ReferenceResult(
+                solved=True, action_count=2
+            ),
+            timing=EpisodeTiming(0.1),
         ),
         EpisodeResult(
-            "agent",
-            "two",
-            2,
-            True,
-            False,
-            False,
-            4,
-            1,
-            9.0,
-            0.2,
-            guard_proposed_actions=2,
-            guard_adopted_actions=2,
-            guard_suffix_added=1,
-            reference_solved=True,
-            action_overhead_vs_reference=1,
+            identity=PlannerEpisodeIdentity("agent", "two", 2),
+            outcome=BaselineEpisodeOutcome(
+                True, False, False, 4, 1, 9.0
+            ),
+            guard=GuardUsage(
+                proposed_actions=2, adopted_actions=2, suffix_added=1
+            ),
+            reference=ReferenceResult(
+                solved=True, action_count=3
+            ),
+            timing=EpisodeTiming(0.2),
         ),
         EpisodeResult(
-            "agent",
-            "three",
-            3,
-            False,
-            True,
-            False,
-            6,
-            2,
-            -10.0,
-            0.3,
+            identity=PlannerEpisodeIdentity("agent", "three", 3),
+            outcome=BaselineEpisodeOutcome(
+                False, True, False, 6, 2, -10.0
+            ),
+            timing=EpisodeTiming(0.3),
         ),
     ]
 

@@ -385,8 +385,7 @@ src/sokoban_agent/
 │   └── baseline/      # 단순 비교 Planner
 ├── graph/
 │   ├── baseline/      # plan-validate-execute 기준선
-│   ├── agentic/       # 구조화 문제 해결 graph, node, memory
-│   └── studio/        # 비교 baseline용 레거시 Studio graph
+│   └── agentic/       # 구조화 문제 해결 graph, node, memory
 ├── evaluation/
 │   ├── baseline/      # 기준선 실행, 집계, trajectory
 │   ├── agentic/       # 구조화 agent episode 평가

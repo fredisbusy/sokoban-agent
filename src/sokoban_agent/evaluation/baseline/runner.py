@@ -7,7 +7,16 @@ from time import perf_counter
 
 from sokoban_agent.env import SokobanEnv
 from sokoban_agent.evaluation.research.reference import measure_bounded_astar_reference
-from sokoban_agent.evaluation.schemas.episode import EpisodeResult
+from sokoban_agent.evaluation.schemas.baseline import (
+    AlgorithmUsage,
+    BaselineEpisodeOutcome,
+    BaselineLLMUsage,
+    EpisodeResult,
+    EpisodeTiming,
+    GuardUsage,
+    PlannerEpisodeIdentity,
+    PlanningUsage,
+)
 from sokoban_agent.evaluation.schemas.reference import ReferenceResult
 from sokoban_agent.graph import SokobanGraph, StepObserver
 from sokoban_agent.planning import Planner
@@ -57,74 +66,64 @@ def run_episode(
     llm = metrics["llm"]
     action_count = len(state["action_history"])
     return EpisodeResult(
-        planner_name=graph.name,
-        level_id=state["level_id"],
-        seed=seed,
-        success=bool(info["success"]),
-        deadlock=bool(info["deadlock"]),
-        truncated=state["truncated"],
-        action_count=action_count,
-        invalid_moves=episode["validation_rejections"],
-        total_reward=episode["total_reward"],
-        elapsed_seconds=elapsed_seconds,
-        failure_reason=state["failure_reason"],
-        planning_calls=planning["calls"],
-        planning_retries=planning["retries"],
-        planning_errors=planning["errors"],
-        planning_elapsed_seconds=planning["elapsed_seconds"],
-        algorithm_calls=algorithm["calls"],
-        algorithm_requests=algorithm["requests"],
-        algorithm_cache_hits=algorithm["cache_hits"],
-        algorithm_failures=algorithm["failures"],
-        algorithm_fallbacks=algorithm["fallbacks"],
-        algorithm_expanded_states=algorithm["expanded_states"],
-        algorithm_elapsed_seconds=algorithm["elapsed_seconds"],
-        llm_calls=llm["calls"],
-        llm_retries=llm["retries"],
-        llm_client_errors=llm["client_errors"],
-        llm_format_errors=llm["format_errors"],
-        llm_invalid_actions=llm["invalid_actions"],
-        llm_elapsed_seconds=llm["elapsed_seconds"],
-        llm_load_seconds=llm["load_seconds"],
-        llm_prompt_eval_seconds=llm["prompt_eval_seconds"],
-        llm_eval_seconds=llm["eval_seconds"],
-        llm_prompt_tokens=llm["prompt_tokens"],
-        llm_output_tokens=llm["output_tokens"],
-        push_count=episode["push_count"],
-        revisited_states=episode["revisited_states"],
-        repeated_plans=episode["repeated_plans"],
-        guard_accepted=guard["accepted"],
-        guard_suffix_added=guard["suffix_added"],
-        guard_replaced=guard["replaced"],
-        guard_failed=guard["failed"],
-        guard_proposed_actions=guard["proposed_actions"],
-        guard_legal_prefix_actions=guard["legal_prefix_actions"],
-        guard_adopted_actions=guard["adopted_actions"],
-        guard_suffix_expanded_states=guard["suffix_expanded_states"],
-        guard_reference_calls=guard["reference_calls"],
-        guard_reference_action_count=guard["reference_action_count"],
-        guard_reference_expanded_states=guard["reference_expanded_states"],
-        guard_reference_elapsed_seconds=guard["reference_elapsed_seconds"],
-        guard_expansions_saved=guard["expansions_saved"],
-        reference_solved=reference.solved,
-        reference_action_count=reference.action_count,
-        reference_push_count=reference.push_count,
-        reference_expanded_states=reference.expanded_states,
-        reference_elapsed_seconds=reference.elapsed_seconds,
-        action_overhead_vs_reference=(
-            action_count - reference.action_count
-            if bool(info["success"]) and reference.action_count is not None
-            else None
+        identity=PlannerEpisodeIdentity(graph.name, state["level_id"], seed),
+        outcome=BaselineEpisodeOutcome(
+            success=bool(info["success"]),
+            deadlock=bool(info["deadlock"]),
+            truncated=state["truncated"],
+            action_count=action_count,
+            invalid_moves=episode["validation_rejections"],
+            total_reward=episode["total_reward"],
+            failure_reason=state["failure_reason"],
+            push_count=episode["push_count"],
+            revisited_states=episode["revisited_states"],
+            repeated_plans=episode["repeated_plans"],
         ),
-        push_overhead_vs_reference=(
-            episode["push_count"] - reference.push_count
-            if bool(info["success"]) and reference.push_count is not None
-            else None
+        planning=PlanningUsage(
+            calls=planning["calls"],
+            retries=planning["retries"],
+            errors=planning["errors"],
+            elapsed_seconds=planning["elapsed_seconds"],
         ),
-        policy_elapsed_seconds=max(
-            0.0,
-            elapsed_seconds - guard["reference_elapsed_seconds"],
+        algorithm=AlgorithmUsage(
+            calls=algorithm["calls"],
+            requests=algorithm["requests"],
+            cache_hits=algorithm["cache_hits"],
+            failures=algorithm["failures"],
+            fallbacks=algorithm["fallbacks"],
+            expanded_states=algorithm["expanded_states"],
+            elapsed_seconds=algorithm["elapsed_seconds"],
         ),
+        llm=BaselineLLMUsage(
+            calls=llm["calls"],
+            retries=llm["retries"],
+            client_errors=llm["client_errors"],
+            format_errors=llm["format_errors"],
+            invalid_actions=llm["invalid_actions"],
+            elapsed_seconds=llm["elapsed_seconds"],
+            load_seconds=llm["load_seconds"],
+            prompt_eval_seconds=llm["prompt_eval_seconds"],
+            eval_seconds=llm["eval_seconds"],
+            prompt_tokens=llm["prompt_tokens"],
+            output_tokens=llm["output_tokens"],
+        ),
+        guard=GuardUsage(
+            accepted=guard["accepted"],
+            suffix_added=guard["suffix_added"],
+            replaced=guard["replaced"],
+            failed=guard["failed"],
+            proposed_actions=guard["proposed_actions"],
+            legal_prefix_actions=guard["legal_prefix_actions"],
+            adopted_actions=guard["adopted_actions"],
+            suffix_expanded_states=guard["suffix_expanded_states"],
+            reference_calls=guard["reference_calls"],
+            reference_action_count=guard["reference_action_count"],
+            reference_expanded_states=guard["reference_expanded_states"],
+            reference_elapsed_seconds=guard["reference_elapsed_seconds"],
+            expansions_saved=guard["expansions_saved"],
+        ),
+        reference=reference,
+        timing=EpisodeTiming(elapsed_seconds),
     )
 
 

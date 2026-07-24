@@ -66,13 +66,20 @@ class StrategyNodes:
         """Resolve an assistant prompt selector to an immutable commit."""
 
         context = runtime.context or {}
-        current = state["prompt"]
+        meta = state["meta"]
+        current = meta["prompt"]
         name = context.get("prompt_name", current["name"])
         selector = context.get("prompt_commit", current["commit"])
         reference = self._prompt_source().resolve(name, selector)
         return {
-            "prompt": {"name": reference.name, "commit": reference.commit},
-            "prompt_resolved": True,
+            "meta": {
+                **meta,
+                "prompt": {
+                    "name": reference.name,
+                    "commit": reference.commit,
+                },
+                "prompt_resolved": True,
+            },
             "status": "prompt_resolved",
             "decision_events": [
                 {
@@ -92,11 +99,12 @@ class StrategyNodes:
     ) -> dict[str, object]:
         """Compose safe prompt variables from BoardAnalysis and feedback."""
 
-        analysis = BoardAnalysis.model_validate(state["board_analysis"])
+        planning = state["planning"]
+        analysis = BoardAnalysis.model_validate(planning["board_analysis"])
         model_context = compact_board_analysis(analysis)
         recent_pushes = [
             f"{subgoal['box_id']}:{subgoal['direction']}"
-            for subgoal in state["completed_subgoals"][-4:]
+            for subgoal in planning["completed_subgoals"][-4:]
         ]
         model_context = without_immediate_reverse(
             model_context,
@@ -109,7 +117,7 @@ class StrategyNodes:
         metrics = state["metrics"]
         model_context["recent_pushes"] = recent_pushes
         variables: dict[str, object] = {
-            "level_id": state["level_id"],
+            "level_id": state["meta"]["level_id"],
             "board_analysis_json": json.dumps(
                 model_context,
                 ensure_ascii=False,
@@ -117,17 +125,17 @@ class StrategyNodes:
                 separators=(",", ":"),
             ),
             "feedback_json": json.dumps(
-                state["latest_strategy_feedback"],
+                planning["latest_strategy_feedback"],
                 ensure_ascii=False,
             ),
             "plan_revisions_json": json.dumps(
                 state["plan_revisions"][-3:],
                 ensure_ascii=False,
             ),
-            "rationale_mode": state["rationale_mode"],
+            "rationale_mode": state["meta"]["rationale_mode"],
         }
         return {
-            "strategy_input": variables,
+            "planning": {**planning, "strategy_input": variables},
             "metrics": update_agentic_metrics(
                 metrics,
                 memory={
@@ -150,28 +158,32 @@ class StrategyNodes:
     def propose_strategy(self, state: AgenticState) -> dict[str, object]:
         """Render the pinned prompt and request one structured hypothesis."""
 
-        prompt = state["prompt"]
+        meta = state["meta"]
+        planning = state["planning"]
+        prompt = meta["prompt"]
         reference = PromptReferenceValue(
             name=prompt["name"],
             commit=prompt["commit"],
         )
         rendered = self._prompt_source().render(
             reference,
-            state["strategy_input"],
+            planning["strategy_input"],
         )
         completion = self._strategy_generator().generate(
             rendered,
-            seed=state["seed"],
+            seed=meta["seed"],
             response_schema=StrategyDecision.model_json_schema(),
         )
-        attempt = state["strategy_attempts"] + 1
+        attempt = planning["strategy_attempts"] + 1
         try:
             response = _validate_strategy_response(completion.content)
             hypothesis = (
                 response
                 if isinstance(response, StrategyHypothesis)
                 else materialize_strategy(
-                    BoardAnalysis.model_validate(state["board_analysis"]),
+                    BoardAnalysis.model_validate(
+                        planning["board_analysis"]
+                    ),
                     response,
                 )
             )
@@ -183,7 +195,14 @@ class StrategyNodes:
                 f"{issues[0]['path']} {issues[0]['message']}"
             )
             return {
-                "strategy_attempts": attempt,
+                "planning": {
+                    **planning,
+                    "strategy_attempts": attempt,
+                    "strategy_hypothesis": None,
+                    "strategy_error": "strategy_schema_error",
+                    "strategy_schema_issues": issues,
+                    "latest_strategy_feedback": feedback,
+                },
                 **completion_metrics(
                     state,
                     completion,
@@ -199,10 +218,6 @@ class StrategyNodes:
                         ),
                     },
                 ),
-                "strategy_hypothesis": None,
-                "strategy_error": "strategy_schema_error",
-                "strategy_schema_issues": issues,
-                "latest_strategy_feedback": feedback,
                 "status": "strategy_schema_error",
                 "feedback": feedback,
                 "decision_events": [
@@ -214,7 +229,15 @@ class StrategyNodes:
                 ],
             }
         return {
-            "strategy_attempts": attempt,
+            "planning": {
+                **planning,
+                "strategy_attempts": attempt,
+                "strategy_hypothesis": hypothesis.model_dump(mode="json"),
+                "strategy_error": None,
+                "strategy_schema_issues": [],
+                "latest_strategy_feedback": [],
+                "strategy_violations": [],
+            },
             **completion_metrics(
                 state,
                 completion,
@@ -224,11 +247,6 @@ class StrategyNodes:
                     )
                 },
             ),
-            "strategy_hypothesis": hypothesis.model_dump(mode="json"),
-            "strategy_error": None,
-            "strategy_schema_issues": [],
-            "latest_strategy_feedback": [],
-            "strategy_violations": [],
             "status": "strategy_proposed",
             "decision_events": [
                 {
@@ -242,14 +260,15 @@ class StrategyNodes:
     def verify_strategy(self, state: AgenticState) -> dict[str, object]:
         """Reject semantic conflicts before any environment transition."""
 
-        analysis = BoardAnalysis.model_validate(state["board_analysis"])
+        planning = state["planning"]
+        analysis = BoardAnalysis.model_validate(planning["board_analysis"])
         hypothesis = StrategyHypothesis.model_validate(
-            state["strategy_hypothesis"]
+            planning["strategy_hypothesis"]
         )
         violations = validate_strategy(analysis, hypothesis)
         previous = (
-            PushSubgoal.model_validate(state["completed_subgoals"][-1])
-            if state["completed_subgoals"]
+            PushSubgoal.model_validate(planning["completed_subgoals"][-1])
+            if planning["completed_subgoals"]
             else None
         )
         violations.extend(validate_strategy_progress(previous, hypothesis))
@@ -263,7 +282,12 @@ class StrategyNodes:
             ]
             metrics = state["metrics"]
             return {
-                "strategy_violations": payloads,
+                "planning": {
+                    **planning,
+                    "strategy_violations": payloads,
+                    "strategy_error": "strategy_semantic_error",
+                    "latest_strategy_feedback": feedback,
+                },
                 "metrics": update_agentic_metrics(
                     metrics,
                     rules={"checks": metrics["rules"]["checks"] + 1},
@@ -274,9 +298,7 @@ class StrategyNodes:
                         )
                     },
                 ),
-                "strategy_error": "strategy_semantic_error",
                 "status": "strategy_semantic_error",
-                "latest_strategy_feedback": feedback,
                 "feedback": feedback,
                 "decision_events": [
                     {
@@ -288,25 +310,16 @@ class StrategyNodes:
             }
         metrics = state["metrics"]
         return {
-            "strategy_violations": [],
+            "planning": {
+                **planning,
+                "strategy_violations": [],
+                "strategy_error": None,
+                "latest_strategy_feedback": [],
+            },
             "metrics": update_agentic_metrics(
                 metrics,
                 rules={"checks": metrics["rules"]["checks"] + 1},
             ),
-            "strategy_error": None,
-            "latest_strategy_feedback": [],
-            "active_subgoal": hypothesis.subgoal.model_dump(mode="json"),
-            "protected_constraints": [
-                item.model_dump(mode="json")
-                for item in hypothesis.protected_constraints
-            ],
-            "expected_effect": hypothesis.expected_effect.model_dump(
-                mode="json"
-            ),
-            "failure_conditions": [
-                item.model_dump(mode="json")
-                for item in hypothesis.failure_conditions
-            ],
             "status": "strategy_ready",
             "decision_events": [
                 {
@@ -327,9 +340,10 @@ class StrategyNodes:
 def route_after_strategy_proposal(state: AgenticState) -> StrategyRoute:
     """Route schema failures to bounded correction and valid output to verify."""
 
-    if state.get("strategy_error") is None:
+    planning = state["planning"]
+    if planning["strategy_error"] is None:
         return "verify_strategy"
-    if state["strategy_attempts"] < 2:
+    if planning["strategy_attempts"] < 2:
         return "compose_strategy_input"
     return "__end__"
 
@@ -337,7 +351,7 @@ def route_after_strategy_proposal(state: AgenticState) -> StrategyRoute:
 def route_after_strategy_verification(state: AgenticState) -> StrategyRoute:
     """Route semantic violations to bounded correction."""
 
-    if not state["strategy_violations"]:
+    if not state["planning"]["strategy_violations"]:
         return "detect_repetition"
     return "remember_failure"
 

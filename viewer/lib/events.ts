@@ -8,7 +8,7 @@ const PHASE_BY_NODE: Array<[RegExp, Phase]> = [
   [/plan|strategy|prompt|analy|observe/i, "planning"],
 ];
 
-export function applyUpdate(
+export function applyGraphUpdate(
   previousState: GraphState,
   payload: unknown,
 ): { node: string; state: GraphState } {
@@ -29,18 +29,20 @@ interface NormalizeEventInput {
   state: GraphState;
 }
 
-export function normalizeEvent({
+export function decodeAgenticEventV1({
   id,
   threadId,
   node,
   state,
 }: NormalizeEventInput): ViewEvent {
+  const meta = objectOrEmpty(state.meta);
+  const planning = objectOrEmpty(state.planning);
   const info = objectOrEmpty(state.info);
-  const execution = objectOrEmpty(state.execution_result);
-  const reflection = objectOrEmpty(state.reflection_result);
-  const hypothesis = objectOrEmpty(state.strategy_hypothesis);
-  const subgoal = objectOrEmpty(state.active_subgoal);
-  const proposal = objectOrEmpty(state.proposal);
+  const executionState = objectOrEmpty(state.execution);
+  const execution = objectOrEmpty(executionState.result);
+  const reflection = objectOrEmpty(executionState.reflection);
+  const hypothesis = objectOrEmpty(planning.strategy_hypothesis);
+  const subgoal = objectOrEmpty(hypothesis.subgoal);
   const metrics = objectOrEmpty(state.metrics);
   const episodeMetrics = objectOrEmpty(metrics.episode);
   const llmMetrics = objectOrEmpty(metrics.llm);
@@ -59,7 +61,7 @@ export function normalizeEvent({
     node,
     phase: terminalPhase(state, info) ?? phaseFor(node, status),
     step: integer(info.steps, integer(state.action_count, history.length)),
-    maxSteps: integer(state.max_steps, null),
+    maxSteps: integer(meta.max_steps, null),
     board,
     action: stringOrNull(actions.at(-1) ?? history.at(-1)),
     actionCount: integer(state.action_count, history.length) ?? history.length,
@@ -74,52 +76,89 @@ export function normalizeEvent({
     strategy: {
       hypothesis: displayValue(
         hypothesis.summary
-          ?? hypothesis.hypothesis
-          ?? proposal.goal
-          ?? state.planner_goal,
+          ?? hypothesis.hypothesis,
       ),
       assignment: displayAssignments(
         hypothesis.assignments ?? hypothesis.assignment ?? hypothesis.box_goal_assignment,
       ),
       subgoal: displayValue(subgoal.summary ?? subgoal.description ?? subgoal),
-      protectedCells: arrayOrEmpty(state.protected_constraints).map(displayValue),
-      risk: displayValue(
-        hypothesis.risk
-          ?? proposal.risk
-          ?? proposal.guard_summary
-          ?? state.risk
-          ?? state.guard_summary,
-      ),
+      protectedCells: arrayOrEmpty(hypothesis.protected_constraints).map(displayValue),
+      risk: displayValue(hypothesis.risk),
     },
     effect: {
-      expected: displayValue(state.expected_effect),
+      expected: displayValue(hypothesis.expected_effect),
       observed: displayValue(reflection),
     },
     revision: displayValue(arrayOrEmpty(state.plan_revisions).at(-1)),
     metrics: {
       llmCalls: integer(
-        state.llm_calls,
-        integer(llmMetrics.calls, integer(state.planning_attempts, null)),
+        llmMetrics.calls,
+        null,
       ),
       promptTokens: integer(
-        state.llm_prompt_tokens,
-        integer(llmMetrics.prompt_tokens, null),
+        llmMetrics.prompt_tokens,
+        null,
       ),
       outputTokens: integer(
-        state.llm_output_tokens,
-        integer(llmMetrics.output_tokens, null),
+        llmMetrics.output_tokens,
+        null,
       ),
       localSearchCalls: integer(
-        state.local_search_calls,
-        integer(searchMetrics.calls, null),
+        searchMetrics.calls,
+        null,
       ),
       expandedStates: integer(
-        state.local_expanded_states,
-        integer(
-          searchMetrics.expanded_states,
-          integer(algorithmMetrics.expanded_states, null),
-        ),
+        searchMetrics.expanded_states,
+        integer(algorithmMetrics.expanded_states, null),
       ),
+    },
+  };
+}
+
+export function decodeBaselineEventV1({
+  id,
+  threadId,
+  node,
+  state,
+}: NormalizeEventInput): ViewEvent {
+  const proposal = objectOrEmpty(state.proposal);
+  const metrics = objectOrEmpty(state.metrics);
+  const episode = objectOrEmpty(metrics.episode);
+  const llm = objectOrEmpty(metrics.llm);
+  const algorithm = objectOrEmpty(metrics.algorithm);
+  const history = arrayOrEmpty(state.action_history);
+  return {
+    eventId: id ?? `${node}-${Date.now()}`,
+    threadId,
+    node,
+    phase: terminalPhase(state, {}) ?? phaseFor(node, String(state.status ?? "running")),
+    step: integer(state.action_count, history.length),
+    maxSteps: integer(state.max_steps, null),
+    board: typeof state.board === "string"
+      ? state.board
+      : boardFromObservation(state.observation),
+    action: stringOrNull(history.at(-1)),
+    actionCount: integer(state.action_count, history.length) ?? history.length,
+    pushCount: integer(episode.push_count, null),
+    status: String(state.status ?? "running"),
+    success: state.success === true,
+    deadlock: state.deadlock === true,
+    truncated: state.truncated === true,
+    strategy: {
+      hypothesis: displayValue(proposal.goal),
+      assignment: null,
+      subgoal: null,
+      protectedCells: [],
+      risk: displayValue(proposal.risk),
+    },
+    effect: { expected: null, observed: null },
+    revision: null,
+    metrics: {
+      llmCalls: integer(llm.calls, null),
+      promptTokens: integer(llm.prompt_tokens, null),
+      outputTokens: integer(llm.output_tokens, null),
+      localSearchCalls: null,
+      expandedStates: integer(algorithm.expanded_states, null),
     },
   };
 }

@@ -42,13 +42,16 @@ def build_notebook(output_path: Path) -> None:
             ),
             _new_markdown_cell("### 1. Setup"),
             _new_code_cell(
-                "from dataclasses import asdict\n\n"
                 "import matplotlib.pyplot as plt\n"
                 "import pandas as pd\n\n"
                 "from sokoban_agent.env import SokobanEnv\n"
                 "from sokoban_agent.evaluation import (\n"
                 "    run_benchmark,\n"
                 "    summarize_by_planner,\n"
+                ")\n"
+                "from sokoban_agent.evaluation.schemas.baseline_rows import (\n"
+                "    BaselineEpisodeRowV1,\n"
+                "    planner_summary_to_flat_dict,\n"
                 ")\n"
                 "from sokoban_agent.planning import BFSPlanner, RandomPlanner\n\n"
                 f"LEVEL_IDS = {LEVEL_IDS!r}\n"
@@ -68,14 +71,15 @@ def build_notebook(output_path: Path) -> None:
                 "finally:\n"
                 "    env.close()\n\n"
                 "results_df = pd.DataFrame.from_records(\n"
-                "    asdict(result) for result in results\n"
+                "    BaselineEpisodeRowV1.to_dict(result) for result in results\n"
                 ")\n"
                 "results_df.head(8)"
             ),
             _new_markdown_cell("## Results\n\n### 3. Compare metrics"),
             _new_code_cell(
                 "summary_df = pd.DataFrame.from_records(\n"
-                "    asdict(summary) for summary in summarize_by_planner(results)\n"
+                "    planner_summary_to_flat_dict(summary)\n"
+                "    for summary in summarize_by_planner(results)\n"
                 ").set_index('planner_name')\n"
                 "summary_df"
             ),

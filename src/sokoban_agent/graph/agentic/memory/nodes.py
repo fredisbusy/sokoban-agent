@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import Literal, cast
 
 from langgraph.runtime import Runtime
+from langgraph.types import Command
 
 from sokoban_agent.graph.agentic.memory.keys import (
     board_memory_key,
@@ -22,6 +23,7 @@ from sokoban_agent.graph.agentic.metrics import update_agentic_metrics
 from sokoban_agent.graph.agentic.state import (
     AgenticRuntimeContext,
     AgenticState,
+    active_subgoal,
 )
 from sokoban_agent.planning.agentic.grounding import (
     SubgoalGroundingError,
@@ -72,7 +74,7 @@ def recall_failed_decisions(
     count = len(rejected.get(key, []))
     metrics = state["metrics"]
     return {
-        "rejected_pushes": rejected,
+        "memory": {**state["memory"], "rejected_pushes": rejected},
         "metrics": update_agentic_metrics(
             metrics,
             memory={
@@ -97,9 +99,13 @@ def filter_rejected_pushes(
 ) -> tuple[dict[str, object], int]:
     """Remove decisions already rejected at the planner-visible abstraction."""
 
-    if state["memory_mode"] == "off":
+    if state["meta"]["memory_mode"] == "off":
         return model_context, 0
-    rejected = set(state["rejected_pushes"].get(board_memory_key(state), []))
+    rejected = set(
+        state["memory"]["rejected_pushes"].get(
+            board_memory_key(state), []
+        )
+    )
     options = model_context.get("safe_push_options")
     if not rejected or not isinstance(options, list):
         return model_context, 0
@@ -120,7 +126,7 @@ def filter_rejected_pushes(
 def recall_strategy(
     state: AgenticState,
     runtime: Runtime[AgenticRuntimeContext],
-) -> dict[str, object]:
+) -> Command[StrategyRecallRoute]:
     """Recall an exact validated decision before making another model call."""
 
     requests = hits = 0
@@ -140,9 +146,12 @@ def recall_strategy(
             except (TypeError, ValueError):
                 hypothesis = None
     metrics = state["metrics"]
-    return {
-        "strategy_hypothesis": hypothesis,
-        "strategy_memory_hit": hits == 1,
+    return Command(
+        update={
+        "planning": {
+            **state["planning"],
+            "strategy_hypothesis": hypothesis,
+        },
         "metrics": update_agentic_metrics(
             metrics,
             memory={
@@ -166,17 +175,15 @@ def recall_strategy(
                 else "재사용할 검증 전략이 없습니다",
             )
         ],
-    }
-
-
-def route_after_strategy_recall(state: AgenticState) -> StrategyRecallRoute:
-    return "verify_strategy" if state["strategy_memory_hit"] else "propose_strategy"
+        },
+        goto="verify_strategy" if hits else "propose_strategy",
+    )
 
 
 def recall_grounding(
     state: AgenticState,
     runtime: Runtime[AgenticRuntimeContext],
-) -> dict[str, object]:
+) -> Command[GroundingRecallRoute]:
     """Recall and linearly revalidate an exact single-push grounding plan."""
 
     requests = hits = 0
@@ -195,8 +202,10 @@ def recall_grounding(
                 )
                 validate_grounded_push_plan(
                     observation(state),
-                    BoardAnalysis.model_validate(state["board_analysis"]),
-                    PushSubgoal.model_validate(state["active_subgoal"]),
+                    BoardAnalysis.model_validate(
+                        state["planning"]["board_analysis"]
+                    ),
+                    PushSubgoal.model_validate(active_subgoal(state)),
                     constraints(state),
                     candidate,
                 )
@@ -204,18 +213,19 @@ def recall_grounding(
                 hits = 1
             except (SubgoalGroundingError, TypeError, ValueError):
                 plan = None
-    actions = (
-        [*plan.player_actions, plan.push_action] if plan is not None else []
-    )
     metrics = state["metrics"]
-    return {
-        "grounded_plan": (
-            plan.model_dump(mode="json") if plan is not None else None
-        ),
-        "grounded_actions": actions,
-        "grounding_failure": None,
-        "grounding_memory_hit": hits == 1,
-        "grounding_cache_key": cache_key,
+    return Command(
+        update={
+        "planning": {
+            **state["planning"],
+            "grounded_plan": (
+                plan.model_dump(mode="json")
+                if plan is not None
+                else None
+            ),
+            "grounding_failure": None,
+            "grounding_cache_key": cache_key,
+        },
         "metrics": update_agentic_metrics(
             metrics,
             memory={
@@ -242,11 +252,9 @@ def recall_grounding(
                 else "재사용할 접지 경로가 없습니다",
             )
         ],
-    }
-
-
-def route_after_grounding_recall(state: AgenticState) -> GroundingRecallRoute:
-    return "execute_until_push" if state["grounding_memory_hit"] else "ground_subgoal"
+        },
+        goto="execute_until_push" if hits else "ground_subgoal",
+    )
 
 
 def remember_failure(
@@ -258,7 +266,7 @@ def remember_failure(
     rejected = copy_rejections(state)
     push_id = _rejected_push_id(state)
     writes = 0
-    if state["memory_mode"] != "off" and push_id is not None:
+    if state["meta"]["memory_mode"] != "off" and push_id is not None:
         key = board_memory_key(state)
         rejected[key] = sorted({*rejected.get(key, []), push_id})
         if shared_memory(state) and runtime.store is not None:
@@ -271,7 +279,7 @@ def remember_failure(
             writes = 1
     metrics = state["metrics"]
     return {
-        "rejected_pushes": rejected,
+        "memory": {**state["memory"], "rejected_pushes": rejected},
         "metrics": update_agentic_metrics(
             metrics,
             memory={"writes": metrics["memory"]["writes"] + writes},
@@ -292,7 +300,7 @@ def remember_failure(
 def route_after_failure_memory(state: AgenticState) -> FailureMemoryRoute:
     return (
         "compose_strategy_input"
-        if state["strategy_attempts"] < 2
+        if state["planning"]["strategy_attempts"] < 2
         else "__end__"
     )
 
@@ -303,7 +311,9 @@ def remember_outcome(
 ) -> dict[str, object]:
     """Persist only strategies and paths proven by the environment."""
 
-    reflection = cast(dict[str, object], state["reflection_result"])
+    reflection = cast(
+        dict[str, object], state["execution"]["reflection"]
+    )
     writes = 0
     rejected = copy_rejections(state)
     matched = reflection.get("matched") is True
@@ -311,17 +321,17 @@ def remember_outcome(
         runtime.store.put(
             memory_namespace(state, "strategies"),
             strategy_memory_key(state),
-            {"hypothesis": state["strategy_hypothesis"]},
+            {"hypothesis": state["planning"]["strategy_hypothesis"]},
             index=False,
         )
         runtime.store.put(
             memory_namespace(state, "grounding"),
-            cast(str, state["grounding_cache_key"]),
-            {"plan": state["grounded_plan"]},
+            cast(str, state["planning"]["grounding_cache_key"]),
+            {"plan": state["planning"]["grounded_plan"]},
             index=False,
         )
         writes = 2
-    elif not matched and state["memory_mode"] != "off":
+    elif not matched and state["meta"]["memory_mode"] != "off":
         push_id = current_push_id(state)
         key = board_memory_key(state)
         rejected[key] = sorted({*rejected.get(key, []), push_id})
@@ -335,7 +345,7 @@ def remember_outcome(
             writes = 1
     metrics = state["metrics"]
     return {
-        "rejected_pushes": rejected,
+        "memory": {**state["memory"], "rejected_pushes": rejected},
         "metrics": update_agentic_metrics(
             metrics,
             memory={"writes": metrics["memory"]["writes"] + writes},
@@ -368,7 +378,7 @@ def _rejected_push_id(state: AgenticState) -> str | None:
         return current_push_id(state)
     codes = {
         item.get("code")
-        for item in state["strategy_violations"]
+        for item in state["planning"]["strategy_violations"]
         if isinstance(item, dict)
     }
     return (
