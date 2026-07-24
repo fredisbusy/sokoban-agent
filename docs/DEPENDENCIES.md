@@ -1,23 +1,30 @@
 # 의존성과 기술 선택
 
-기본 설치는 Sokoban 환경과 기준선 실행에 필요한 패키지만 포함한다.
-기능별 라이브러리는 배포 기능이면 optional extra, 로컬 연구 도구이면
-dependency group으로 분리한다.
+기본 설치는 환경, LangGraph 실행 코어, 구조화 전략 모델과 Ollama Adapter에
+필요한 Python 패키지를 포함한다. 현재 공개 모듈과 `sokoban-agentic`
+진입점이 LLM 계약을 직접 사용하므로 LLM 패키지를 optional extra로
+분리하지 않는다. 로컬 검증·노트북·Studio 도구만 dependency group으로
+분리한다.
 
 ## 설치 경계
 
 | 범위 | 구성 | 설치 |
 | --- | --- | --- |
-| core | Gymnasium, NumPy, LangGraph | `make sync` |
-| LLM | ChatLiteLLM, Pydantic, python-dotenv | `make sync` |
-| vision | OpenCV, Pillow | `make sync` |
-| dev | pytest, Ruff, mypy와 LLM 테스트 의존성 | `make sync` |
-| notebook | Jupyter, nbclient, nbformat, pandas, Matplotlib | `make sync` |
+| runtime | Gymnasium, NumPy, LangGraph, LangChain, LangSmith, ChatLiteLLM, Pydantic, python-dotenv, certifi | `make sync` |
+| dev | pytest, Ruff, mypy | `make sync` |
+| notebook | IPython, JupyterLab, nbconvert, nbformat, pandas, Matplotlib | `make sync` |
 | studio | LangGraph CLI, 로컬 in-memory Agent Server | `make sync` |
+| viewer | Next.js, React, LangGraph SDK, TypeScript | `make viewer-sync` |
 
-`dev`에는 optional LLM 기능까지 항상 테스트하기 위해 LLM 패키지를
-의도적으로 다시 선언한다. 배포 패키지의 기본 의존성에는 포함되지 않는다.
-로컬 개발에서는 `make sync`가 모든 extra와 dependency group을 함께 설치한다.
+`make sync`는 `uv sync --all-groups`로 Python runtime과 모든 연구 도구를
+설치한다. Viewer는 별도 Node.js 애플리케이션이므로 최초 한 번
+`make viewer-sync`로 lockfile 기준 설치한다.
+
+현재 보드 입력은 Gymnasium의 구조화된 `uint8` 배열이고, 터미널은 ANSI,
+웹은 CSS Grid로 렌더링한다. 화면 이미지를 읽는 perception은 아직 구현하지
+않았으므로 OpenCV와 Pillow를 직접 의존성으로 두지 않는다. 향후 perception을
+구현할 때는 입력 계약과 테스트가 생긴 뒤 필요한 이미지 라이브러리를
+선정한다.
 
 ## 기준선 탐색
 
@@ -40,20 +47,19 @@ LangSmith tracing을 우선 사용한다.
 ### Studio
 
 `studio` 그룹은 로컬 시각화와 디버깅에만 필요하다. `langgraph dev`가
-현재 `langgraph.json`의 baseline Studio 그래프를 읽어 로컬 Agent Server를
-띄운다. 구조화된 에이전트로 전환할 때는 Studio 전용 workflow를 유지하지
-않고 CLI·평가와 같은 compiled `StateGraph`를 가리키게 한다. 원격 LangSmith
-추적은 실행 환경의 데이터 정책에 따라 명시적으로 켜거나 끈다. 활성화할
-때는 LangGraph node와 `ChatLiteLLM` 호출을 하나의 trace로 관리하고 민감한
-입력에는 LangSmith masking을 적용한다.
+`langgraph.json`이 가리키는 구조화 `StateGraph`를 로컬 Agent Server로
+띄운다. CLI·평가·Studio는 모두 `graph/agentic/builder.py`의 같은 graph
+factory를 사용한다. 원격 LangSmith 추적은 실행 환경의 데이터 정책에 따라
+명시적으로 켜거나 끈다. 활성화할 때는 LangGraph node와 `ChatLiteLLM`
+호출을 하나의 trace로 관리하고 민감한 입력에는 LangSmith masking을
+적용한다.
 
 ### prompt 관리
 
 구조화된 전략 prompt의 실행 순서는 LangGraph node와 edge로 관리하고,
 본문·commit·환경 tag는 LangSmith Prompt Management를 사용한다. 이는
-LangSmith tracing 활성화와 별개다. 실제 구현 단계에서 LangSmith SDK는 LLM
-optional extra에 추가하고 prompt 이름과 고정 commit을 runtime context로
-주입한다.
+LangSmith tracing 활성화와 별개다. LangSmith SDK는 runtime 의존성이며,
+prompt 이름과 고정 commit은 runtime context로 주입한다.
 
 자체 prompt registry, cache, version database와 승격 도구는 만들지 않는다.
 연구 실행은 mutable tag 대신 commit을 고정하고, offline 단위 테스트에는
@@ -75,9 +81,9 @@ provider 고유 응답 필드가 꼭 필요한 연구 지표라면 먼저 LiteLL
 `response_metadata` 확장으로 수집하고, 이를 이유로 별도 HTTP client를
 만들지 않는다.
 
-## 향후 memory
+## memory
 
-현재 LangGraph 체크포인트는 한 프로세스 안의 실행 상태이며 의미 기반 장기
-기억이 아니다. 실패 계획과 데드락을 세션 간 검색할 때는 LangGraph Store를
-우선 사용하고, 저장 Adapter를 교체해야 할 실제 요구가 생길 때만 별도
-저장소 seam을 추가한다.
+에피소드 내부 실행 상태는 checkpointer가, thread 간 공유 가능한 분석·전략·
+접지 결과는 LangGraph Store가 소유한다. `memory_mode=off|episode|shared`로
+실험의 정보 누설 범위를 통제하며, 별도 저장소 라이브러리나 자체 memory
+framework는 사용하지 않는다.

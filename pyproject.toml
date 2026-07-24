@@ -5,22 +5,15 @@ description = "Research workspace for an AI agent that learns to play Sokoban."
 readme = "README.md"
 requires-python = ">=3.13,<3.14"
 dependencies = [
+    "certifi>=2024.8.30",
     "gymnasium>=1.0.0",
     "langchain-core>=1.5.0,<2.0.0",
+    "langchain-litellm>=0.5.0,<1.0.0",
     "langgraph>=1.0.0,<2.0.0",
     "langsmith>=0.10.0,<1.0.0",
     "numpy>=2.0.0",
-]
-
-[project.optional-dependencies]
-llm = [
-    "langchain-litellm>=0.5.0,<1.0.0",
     "pydantic>=2.9.0",
     "python-dotenv>=1.0.1",
-]
-vision = [
-    "opencv-python>=4.10.0.84",
-    "pillow>=10.4.0",
 ]
 
 [project.scripts]
@@ -29,18 +22,16 @@ sokoban-agentic = "sokoban_agent.agentic_cli:main"
 
 [dependency-groups]
 dev = [
-    "langchain-litellm>=0.5.0,<1.0.0",
     "mypy>=1.11.0",
-    "pydantic>=2.9.0",
     "pytest>=8.3.0",
-    "python-dotenv>=1.0.1",
     "ruff>=0.6.0",
 ]
 notebook = [
     "ipykernel>=6.29.0",
+    "ipython>=9.0.0",
     "jupyterlab>=4.2.0",
     "matplotlib>=3.9.0",
-    "nbclient>=0.10.0",
+    "nbconvert>=7.16.0",
     "nbformat>=5.10.0",
     "pandas>=2.2.0",
 ]

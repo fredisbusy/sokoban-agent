@@ -36,7 +36,10 @@ Ollama 없이도 LangGraph와 Random/BFS Planner를 사용할 수 있습니다.
 
 ### 의존성 설치
 
-개발, LLM, vision, notebook, Studio 의존성을 한 번에 설치합니다.
+실행 의존성과 dev, notebook, Studio 연구 도구를 한 번에 설치합니다.
+화면 기반 perception은 아직 구현하지 않았으므로 OpenCV와 Pillow를
+프로젝트의 직접 의존성으로 두지 않습니다. Pillow는 Matplotlib의 전이
+의존성으로 설치될 수 있습니다.
 
 ```bash
 make sync
@@ -383,7 +386,7 @@ src/sokoban_agent/
 ├── graph/
 │   ├── baseline/      # plan-validate-execute 기준선
 │   ├── agentic/       # 구조화 문제 해결 graph, node, memory
-│   └── studio/        # Studio 비교 graph
+│   └── studio/        # 비교 baseline용 레거시 Studio graph
 ├── evaluation/
 │   ├── baseline/      # 기준선 실행, 집계, trajectory
 │   ├── agentic/       # 구조화 agent episode 평가
@@ -391,7 +394,7 @@ src/sokoban_agent/
 │   └── schemas/       # episode, research, reference, trace 데이터 계약
 └── play.py            # 터미널 플레이
 assets/levels/         # 저장소에 포함된 예제 레벨
-notebooks/             # 실행 결과를 포함한 기준선 비교
+notebooks/             # 기준선·구조화 정책 실험과 시각화
 scripts/               # Ollama 확인과 노트북 생성
 tests/                 # 환경, 레벨, 클라이언트, 플레이 검증
 docs/                  # 목표와 아키텍처
@@ -416,8 +419,11 @@ Adapter에서만 생성합니다.
 
 에이전트 실행과 동시에 플레이어·상자 이동 및 구조화된 전략 상태를 보려면
 두 터미널에서 Agent Server와 Next.js·TypeScript 관찰 화면을 각각 실행한다.
+최초 한 번은 관찰 화면의 npm 의존성을 설치한다.
 
 ```bash
+make viewer-sync
+
 # 터미널 1
 make studio
 
