@@ -64,3 +64,38 @@
   - terminal/non-terminal status의 `Literal` union과 JSON-safe TypedDict를
     정의하고, graph-to-viewer/evaluation adapter에서 exhaustive mapping을
     강제한다.
+
+## 2026-07-24 발견성 추가 검토
+
+### P1. production composition root가 여러 파일에 흩어져 있다
+
+- graph factory는 injection seam을 제공하지만 production adapter 기본값은
+  `StrategyNodes`, persistence 기본값은 `AgenticGraphRunner`, entrypoint 선택은
+  CLI와 `langgraph.json`에 나뉜다.
+- prompt, model, store, checkpointer provider를 한눈에 보여 주는 명시적
+  composition root가 필요하다.
+
+### P2. orchestration과 domain이 같은 `agentic` 이름을 공유한다
+
+- `graph/agentic`은 orchestration, `planning/agentic`은 domain service와 외부
+  adapter를 함께 소유한다.
+- domain slice는 `structured` 또는 `strategy`로 의미를 좁히고, port와
+  LangSmith/LiteLLM adapter를 분리하는 편이 탐색하기 쉽다.
+
+### P2. 문서가 현재와 역사적 구조를 함께 설명한다
+
+- `langgraph.json`은 이미 structured graph를 로드하지만 architecture 문서는
+  이를 목표 구조로, legacy Studio graph를 현재 구조로도 설명한다.
+- current architecture와 historical baseline/ADR을 분리해야 한다.
+
+### P2. baseline evaluation이 research oracle에 상향 의존한다
+
+- `evaluation/baseline/runner.py`가 `evaluation/research/reference.py`를 직접
+  import한다.
+- reference adapter를 중립 모듈로 옮기거나 protocol로 주입해야 한다.
+
+### P3. 넓은 package facade가 소유권을 평탄화한다
+
+- `planning/__init__.py`가 structured, baseline, LLM, search, guard symbol을
+  함께 export한다.
+- facade를 좁히고 import-boundary test로 방향을 강제하는 것이 좋다.

@@ -45,3 +45,23 @@
 - viewer dependency가 설치되지 않아 typecheck/build는 실행하지 못했다.
 - Agent Server가 localhost 밖에 노출될 경우 request limit과 tenant memory
   namespace는 별도 보안 완료 조건이 필요하다.
+
+## 2026-07-24 LangGraph 발견성 결론
+
+실행 코어는 충분히 LangGraph-first다. StateGraph가 전이를 소유하고, state
+reducer, runtime context, retry policy, checkpointer/store를 프레임워크 방식으로
+사용하며 CLI와 평가가 주 structured graph factory를 공유한다.
+
+현재 불편의 원인은 LangGraph 오용이 아니라 topology 발견성이다. 세 graph
+family가 공존하고, legacy graph가 현재 Studio entrypoint처럼 이름 붙어 있으며,
+production provider 조립이 여러 파일에 흩어져 있다.
+
+우선순위는 다음과 같다.
+
+1. 실제 모델 선택과 provenance 불일치 수정
+2. legacy Studio graph 제거 또는 baseline history로 명확히 이동
+3. graph inventory와 단일 composition root 추가
+4. structured planning port와 외부 adapter 분리
+5. current/historical architecture 문서 분리와 import boundary 검사
+
+추가 검증으로 graph 관련 표적 테스트 17개가 통과했다.

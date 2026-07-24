@@ -32,3 +32,9 @@
 - subprocess는 인자 배열을 사용해 shell injection 징후가 없다.
 - pickle, eval, 동적 코드 실행과 추적된 실제 secret은 발견하지 못했다.
 - viewer는 React escaping을 사용하며 확인 범위에서 직접 XSS 징후가 없다.
+
+## 2026-07-24 추가 확인
+
+아키텍처 범위에서 새로운 차단 보안 이슈는 확인하지 않았다. 다만 runtime
+context와 process environment가 모델 설정을 나눠 소유하므로 provenance
+감사 가능성이 약해진다.

@@ -49,3 +49,8 @@
 - 방향:
   - 첫 parse를 재사용하고, header streaming scan이나 고정 index manifest로
     파일 count와 parsing을 분리한다.
+
+## 2026-07-24 추가 확인
+
+새로운 차단 성능 이슈는 확인하지 않았다. composition root 정리는 기존의
+adapter 재생성과 graph/store 수명 문제를 함께 해소하는 방향이어야 한다.

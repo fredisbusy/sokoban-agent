@@ -27,3 +27,10 @@
 - Viewer typecheck/build: `node_modules`가 없어 실행하지 못함
 
 Python 파일은 모두 400줄 이하이며, 정확히 400줄인 파일은 2개다.
+
+## 2026-07-24 추가 검토 범위
+
+- LangGraph 공식 application structure와 graph API 기준 비교
+- 현재 graph family와 entrypoint별 provider wiring 추적
+- NestJS 개발자 관점의 module/provider 발견성 평가
+- 제품 코드는 변경하지 않고 graph 관련 표적 테스트만 재검증

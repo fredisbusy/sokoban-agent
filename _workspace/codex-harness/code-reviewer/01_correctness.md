@@ -56,3 +56,10 @@
 - 방향:
   - phase별 최대 전이 수와 retry budget에서 계산하거나 별도
     `max_graph_steps` 정책을 명시하고 긴 synthetic fixture로 검증한다.
+
+## P2. oracle 격리 테스트가 호출이 아니라 노드 이름만 검사한다
+
+- `tests/test_agentic_graph.py:242-251`은 노드 이름에 oracle 관련 문자열이
+  없는지만 확인한다.
+- 전역 oracle adapter와 guard seam을 monkeypatch해 구조화 graph 전체 실행에서
+  실제 호출이 0회인지 검증해야 한다.
