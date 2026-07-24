@@ -1,6 +1,10 @@
 import json
 from collections.abc import Mapping
+from typing import Any
 
+import pytest
+
+import sokoban_agent.evaluation.research.experiment as experiment_module
 from sokoban_agent.evaluation.research.cohort import (
     AgenticCohortManifest,
     AgenticLevelCase,
@@ -9,6 +13,7 @@ from sokoban_agent.evaluation.research.experiment import (
     ResearchRunConfig,
     run_research_experiment,
 )
+from sokoban_agent.graph.agentic.runtime import AgenticGraphRunner
 from sokoban_agent.planning import AStarPlanner
 from sokoban_agent.planning.agentic.runtime import (
     PromptReferenceValue,
@@ -30,13 +35,18 @@ class FixturePromptSource:
 
 
 class DirectPushGenerator:
+    def resolve_model_name(self, requested: str | None) -> str:
+        return requested or "fixture-model"
+
     def generate(
         self,
         prompt: RenderedStrategyPrompt,
         *,
+        model_name: str,
         seed: int | None,
         response_schema: Mapping[str, object],
     ) -> TextCompletion:
+        assert model_name == "fixture-model"
         del prompt, seed, response_schema
         payload = {
             "summary": "B1을 T1으로 올린다",
@@ -103,7 +113,17 @@ def _manifest() -> AgenticCohortManifest:
     )
 
 
-def test_research_experiment_runs_six_policies_on_identical_cases() -> None:
+def test_research_experiment_runs_six_policies_on_identical_cases(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    created_runners: list[AgenticGraphRunner] = []
+
+    class CountingRunner(AgenticGraphRunner):
+        def __init__(self, **kwargs: Any) -> None:
+            super().__init__(**kwargs)
+            created_runners.append(self)
+
+    monkeypatch.setattr(experiment_module, "AgenticGraphRunner", CountingRunner)
     experiment = run_research_experiment(
         _manifest(),
         ResearchRunConfig(
@@ -149,6 +169,7 @@ def test_research_experiment_runs_six_policies_on_identical_cases() -> None:
     assert experiment.run_manifest["prompt_commit"] == "fixture-commit"
     assert experiment.run_manifest["cohort_sha256"] == "fixture-sha"
     assert len(experiment.summaries) == 6
+    assert len(created_runners) == 1
     assert experiment.rationale_intervention.compared_cases == 1
     assert experiment.rationale_intervention.action_sequence_changes == 0
     payload = experiment.to_json_dict()

@@ -30,13 +30,22 @@ class StaticPromptSource:
 
 
 class StaticStrategyGenerator:
+    def __init__(self) -> None:
+        self.calls = 0
+
+    def resolve_model_name(self, requested: str | None) -> str:
+        return requested or "fixture-model"
+
     def generate(
         self,
         prompt: RenderedStrategyPrompt,
         *,
+        model_name: str,
         seed: int | None,
         response_schema: Mapping[str, object],
     ) -> TextCompletion:
+        assert model_name in {"test-model", "fixture-model"}
+        self.calls += 1
         response = {
             "summary": "B1을 T1으로 올린다",
             "assignments": [
@@ -244,7 +253,7 @@ def test_agentic_graph_reducer_accumulates_decision_events_per_thread() -> None:
 
 
 def test_agentic_graph_excludes_global_search_oracle_nodes() -> None:
-    graph = build_agentic_graph()
+    graph = _build_test_graph()
 
     node_names = set(graph.get_graph().nodes)
 
@@ -265,7 +274,57 @@ def test_agentic_graph_has_agent_server_defaults() -> None:
         "name": "sokoban-strategy",
         "commit": "fixture-commit",
     }
-    assert result["meta"]["model_name"] == "unconfigured"
+    assert result["meta"]["model_name"] == "fixture-model"
+
+
+def test_agentic_graph_ends_before_planning_when_reset_is_solved() -> None:
+    generator = StaticStrategyGenerator()
+    graph = build_agentic_graph(
+        prompt_source=StaticPromptSource(),
+        strategy_generator=generator,
+    )
+
+    result = graph.invoke(
+        {
+            "level_id": "solved-at-reset",
+            "level_rows": [
+                "#####",
+                "# * #",
+                "# @ #",
+                "#####",
+            ],
+        }
+    )
+
+    assert result["status"] == "success"
+    assert result["info"]["success"] is True
+    assert generator.calls == 0
+    assert [event["stage"] for event in result["decision_events"]] == [
+        "initialize"
+    ]
+
+
+def test_agentic_graph_ends_before_planning_on_initial_deadlock() -> None:
+    generator = StaticStrategyGenerator()
+    graph = build_agentic_graph(
+        prompt_source=StaticPromptSource(),
+        strategy_generator=generator,
+    )
+
+    result = graph.invoke(
+        {
+            "level_id": "deadlock-at-reset",
+            "level_rows": [
+                "#####",
+                "#$@.#",
+                "#####",
+            ],
+        }
+    )
+
+    assert result["status"] == "deadlock"
+    assert result["info"]["deadlock"] is True
+    assert generator.calls == 0
 
 
 def test_langgraph_config_loads_agentic_graph_directly() -> None:
@@ -273,6 +332,6 @@ def test_langgraph_config_loads_agentic_graph_directly() -> None:
 
     assert config["graphs"] == {
         "sokoban_agent": (
-            "./src/sokoban_agent/graph/agentic/builder.py:graph"
+            "./src/sokoban_agent/graph/agentic/composition.py:graph"
         )
     }

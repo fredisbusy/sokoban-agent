@@ -10,7 +10,7 @@ from sokoban_agent.env import (
     level_rows_sha256,
     load_level_catalog,
 )
-from sokoban_agent.graph.agentic.builder import initialize_agentic_state
+from sokoban_agent.graph.agentic.initialization import initialize_agentic_state
 from sokoban_agent.graph.agentic.state import AgenticRuntimeContext
 
 
@@ -70,6 +70,7 @@ def test_agentic_graph_resolves_catalog_id_and_checksum() -> None:
             "max_steps": record.recommended_max_steps,
         },
         Runtime[AgenticRuntimeContext](context={}),
+        resolve_model_name=lambda requested: requested or "fixture-model",
     )
 
     assert state["meta"]["level_id"] == record.level_id
@@ -85,4 +86,5 @@ def test_agentic_graph_rejects_stale_catalog_reference() -> None:
                 "level_sha256": "stale",
             },
             Runtime[AgenticRuntimeContext](context={}),
+            resolve_model_name=lambda requested: requested or "fixture-model",
         )

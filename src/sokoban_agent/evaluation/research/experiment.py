@@ -37,6 +37,7 @@ from sokoban_agent.evaluation.schemas.research import (
     ResearchEpisodeRecord,
     ResearchExperiment,
 )
+from sokoban_agent.graph.agentic.runtime import AgenticGraphRunner
 from sokoban_agent.planning import Planner
 from sokoban_agent.planning.agentic.runtime import (
     PromptSource,
@@ -68,6 +69,10 @@ def run_research_experiment(
     """Run all six policies over the exact same level and seed grid."""
 
     records: list[ResearchEpisodeRecord] = []
+    agentic_runner = AgenticGraphRunner(
+        prompt_source=prompt_source,
+        strategy_generator=strategy_generator,
+    )
     for case in cohort.levels:
         reference = _reference(case, config)
         for seed in config.seeds:
@@ -94,8 +99,7 @@ def run_research_experiment(
                         "grounding_mode": grounding_mode,
                         "memory_mode": "off",
                     },
-                    prompt_source=prompt_source,
-                    strategy_generator=strategy_generator,
+                    runner=agentic_runner,
                     thread_id=f"{policy_name}:{case.level_id}:{seed}",
                 )
                 records.append(

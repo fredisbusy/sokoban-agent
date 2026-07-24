@@ -16,6 +16,7 @@ from sokoban_agent.evaluation import (
     load_agentic_cohort_manifest,
     run_research_experiment,
 )
+from sokoban_agent.graph.agentic.composition import production_dependencies
 from sokoban_agent.planning import LLMPlanner, SearchGuardPlanner
 from sokoban_agent.planning.llm.client import LiteLLMClient, OllamaSettings
 
@@ -68,11 +69,14 @@ def main() -> None:
         fallback_policy="full",
         measure_contribution=True,
     )
+    dependencies = production_dependencies(settings)
     experiment = run_research_experiment(
         cohort,
         config,
         primitive_planner=primitive,
         full_guard_planner=full_guard,
+        prompt_source=dependencies.prompt_source,
+        strategy_generator=dependencies.strategy_generator,
     )
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(

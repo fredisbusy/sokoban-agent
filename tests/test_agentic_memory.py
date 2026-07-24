@@ -34,13 +34,18 @@ class MemoryStrategyGenerator:
         self.push_ids = list(push_ids)
         self.calls = 0
 
+    def resolve_model_name(self, requested: str | None) -> str:
+        return requested or "fixture-model"
+
     def generate(
         self,
         prompt: RenderedStrategyPrompt,
         *,
+        model_name: str,
         seed: int | None,
         response_schema: Mapping[str, object],
     ) -> TextCompletion:
+        assert model_name == "fixture-model"
         push_id = self.push_ids[self.calls]
         self.calls += 1
         protected_cells = (

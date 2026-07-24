@@ -9,7 +9,11 @@ from langgraph.checkpoint.memory import InMemorySaver
 from langgraph.store.base import BaseStore
 from langgraph.store.memory import InMemoryStore
 
-from sokoban_agent.graph.agentic.builder import build_agentic_graph
+from sokoban_agent.graph.agentic.composition import (
+    AgenticDependencies,
+    build_production_agentic_graph,
+    production_dependencies,
+)
 from sokoban_agent.graph.agentic.state import (
     CURRENT_STATE_SCHEMA_VERSION,
     AgenticInput,
@@ -37,13 +41,21 @@ class AgenticGraphRunner:
         checkpointer: InMemorySaver | None = None,
         store: BaseStore | None = None,
     ) -> None:
+        if (prompt_source is None) != (strategy_generator is None):
+            raise ValueError(
+                "prompt_source and strategy_generator must be provided together"
+            )
+        dependencies = (
+            production_dependencies()
+            if prompt_source is None or strategy_generator is None
+            else AgenticDependencies(prompt_source, strategy_generator)
+        )
         self.checkpointer = checkpointer or InMemorySaver()
         self.store = store or InMemoryStore()
-        self.graph: Any = build_agentic_graph(
+        self.graph: Any = build_production_agentic_graph(
             checkpointer=self.checkpointer,
             store=self.store,
-            prompt_source=prompt_source,
-            strategy_generator=strategy_generator,
+            dependencies=dependencies,
         )
 
     def run(

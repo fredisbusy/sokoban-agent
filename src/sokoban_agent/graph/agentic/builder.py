@@ -9,15 +9,11 @@ from langgraph.checkpoint.memory import InMemorySaver
 from langgraph.graph import END, START, StateGraph
 from langgraph.runtime import Runtime
 from langgraph.store.base import BaseStore
-from langgraph.store.memory import InMemoryStore
 from langgraph.types import RetryPolicy
 
-from sokoban_agent.env import (
-    DEFAULT_LEVEL_CATALOG,
-    FixedLevelProvider,
-    SokobanEnv,
-    level_rows_sha256,
-    parse_level,
+from sokoban_agent.graph.agentic.initialization import (
+    bind_initialize_node,
+    route_after_initialize,
 )
 from sokoban_agent.graph.agentic.memory.nodes import (
     recall_failed_decisions,
@@ -30,7 +26,6 @@ from sokoban_agent.graph.agentic.memory.nodes import (
 )
 from sokoban_agent.graph.agentic.memory.static import get_static_board_facts
 from sokoban_agent.graph.agentic.metrics import (
-    initial_agentic_metrics,
     update_agentic_metrics,
 )
 from sokoban_agent.graph.agentic.nodes.execution import (
@@ -51,9 +46,6 @@ from sokoban_agent.graph.agentic.nodes.strategy import (
     route_after_strategy_verification,
 )
 from sokoban_agent.graph.agentic.state import (
-    CURRENT_STATE_SCHEMA_VERSION,
-    GRAPH_REVISION,
-    AgenticInfoState,
     AgenticInput,
     AgenticRuntimeContext,
     AgenticState,
@@ -66,99 +58,6 @@ from sokoban_agent.planning.agentic.runtime import (
     TransientAgenticError,
 )
 from sokoban_agent.planning.contracts import Observation
-
-
-def initialize_agentic_state(
-    state: AgenticInput,
-    runtime: Runtime[AgenticRuntimeContext],
-) -> AgenticState:
-    """Reset the requested level into JSON-safe graph state."""
-
-    context = runtime.context or {}
-    level_id = state.get("level_id", "tiny-push")
-    seed = state.get("seed", 0)
-    max_steps = state.get("max_steps", 15)
-    supplied_rows = state.get("level_rows")
-    if supplied_rows is None:
-        catalog_record = DEFAULT_LEVEL_CATALOG.get(level_id)
-        level_rows = list(catalog_record.rows)
-        level_sha256 = catalog_record.sha256
-    else:
-        level_rows = supplied_rows
-        level_sha256 = level_rows_sha256(level_rows)
-    expected_sha256 = state.get("level_sha256")
-    if expected_sha256 is not None and expected_sha256 != level_sha256:
-        raise ValueError(
-            f"{level_id} checksum mismatch: "
-            f"expected {expected_sha256}, got {level_sha256}"
-        )
-    level_provider = FixedLevelProvider([parse_level(level_id, level_rows)])
-    env = SokobanEnv(max_steps=max_steps, level_provider=level_provider)
-    try:
-        observation, raw_info = env.reset(
-            seed=seed,
-            options={"level_id": level_id},
-        )
-    finally:
-        env.close()
-    resolved_level_id = str(raw_info["level_id"])
-    return {
-        "meta": {
-            "state_schema_version": CURRENT_STATE_SCHEMA_VERSION,
-            "graph_revision": GRAPH_REVISION,
-            "level_id": resolved_level_id,
-            "level_sha256": level_sha256,
-            "level_rows": level_rows,
-            "seed": seed,
-            "max_steps": max_steps,
-            "prompt": {
-                "name": context.get("prompt_name", "sokoban-strategy"),
-                "commit": context.get("prompt_commit", "latest"),
-            },
-            "prompt_resolved": False,
-            "model_name": context.get("model_name", "unconfigured"),
-            "rationale_mode": context.get("rationale_mode", "on"),
-            "grounding_mode": context.get(
-                "grounding_mode", "local-search"
-            ),
-            "memory_mode": context.get("memory_mode", "episode"),
-            "memory_namespace": context.get(
-                "memory_namespace", "default"
-            ),
-        },
-        "planning": {
-            "board_analysis": None,
-            "strategy_hypothesis": None,
-            "strategy_input": {},
-            "strategy_attempts": 0,
-            "strategy_error": None,
-            "strategy_schema_issues": [],
-            "latest_strategy_feedback": [],
-            "strategy_violations": [],
-            "grounded_plan": None,
-            "grounding_failure": None,
-            "grounding_cache_key": None,
-            "completed_subgoals": [],
-        },
-        "memory": {"attempt_keys": [], "rejected_pushes": {}},
-        "execution": {"result": None, "reflection": None},
-        "observation": observation.tolist(),
-        "info": cast(AgenticInfoState, raw_info),
-        "status": "initialized",
-        "action_history": [],
-        "cycle_detected": False,
-        "metrics": initial_agentic_metrics(),
-        "push_count": 0,
-        "plan_revisions": [],
-        "feedback": [],
-        "decision_events": [
-            {
-                "step": 0,
-                "stage": "initialize",
-                "summary": f"{resolved_level_id} 레벨을 초기화했습니다",
-            }
-        ],
-    }
 
 
 def analyze_agentic_board(
@@ -242,10 +141,10 @@ def route_after_analysis(
 
 def build_agentic_graph(
     *,
+    prompt_source: PromptSource,
+    strategy_generator: StrategyGenerator,
     checkpointer: InMemorySaver | None = None,
     store: BaseStore | None = None,
-    prompt_source: PromptSource | None = None,
-    strategy_generator: StrategyGenerator | None = None,
 ) -> Any:
     """Compile the structured agent graph using LangGraph primitives."""
 
@@ -263,7 +162,10 @@ def build_agentic_graph(
         context_schema=AgenticRuntimeContext,
         input_schema=AgenticInput,
     )
-    builder.add_node("initialize", initialize_agentic_state)
+    builder.add_node(
+        "initialize",
+        cast(Any, bind_initialize_node(strategy_nodes.resolve_model_name)),
+    )
     builder.add_node("analyze", analyze_agentic_board)
     builder.add_node(
         "resolve_prompt",
@@ -291,7 +193,11 @@ def build_agentic_graph(
     builder.add_node("remember_outcome", remember_outcome)
     builder.add_node("observe", observe_agentic_state)
     builder.add_edge(START, "initialize")
-    builder.add_edge("initialize", "analyze")
+    builder.add_conditional_edges(
+        "initialize",
+        route_after_initialize,
+        {"analyze": "analyze", "__end__": END},
+    )
     builder.add_conditional_edges(
         "analyze",
         route_after_analysis,
@@ -364,8 +270,5 @@ def build_agentic_graph(
     builder.add_edge("observe", "analyze")
     return builder.compile(
         checkpointer=checkpointer,
-        store=store or InMemoryStore(),
+        store=store,
     )
-
-
-graph = build_agentic_graph()

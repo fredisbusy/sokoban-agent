@@ -55,13 +55,18 @@ class DirectPushGenerator:
     def __init__(self, *, column: int = 2) -> None:
         self.column = column
 
+    def resolve_model_name(self, requested: str | None) -> str:
+        return requested or "fixture-model"
+
     def generate(
         self,
         prompt: RenderedStrategyPrompt,
         *,
+        model_name: str,
         seed: int | None,
         response_schema: Mapping[str, object],
     ) -> TextCompletion:
+        assert model_name == "fixture-model"
         del prompt, seed, response_schema
         payload = _push_payload(
             direction="UP",
@@ -75,13 +80,18 @@ class TinyWalkGenerator:
     def __init__(self) -> None:
         self.calls = 0
 
+    def resolve_model_name(self, requested: str | None) -> str:
+        return requested or "fixture-model"
+
     def generate(
         self,
         prompt: RenderedStrategyPrompt,
         *,
+        model_name: str,
         seed: int | None,
         response_schema: Mapping[str, object],
     ) -> TextCompletion:
+        assert model_name == "fixture-model"
         del prompt, seed, response_schema
         variants = (
             _push_payload(

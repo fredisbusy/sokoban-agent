@@ -35,8 +35,6 @@ from sokoban_agent.planning.agentic.models import (
     validate_strategy_progress,
 )
 from sokoban_agent.planning.agentic.runtime import (
-    LangSmithPromptSource,
-    LiteLLMStrategyGenerator,
     PromptReferenceValue,
     PromptSource,
     StrategyGenerator,
@@ -55,8 +53,13 @@ StrategyRoute = Literal[
 class StrategyNodes:
     """Dependency boundary for the prompt and model lifecycle nodes."""
 
-    prompt_source: PromptSource | None = None
-    strategy_generator: StrategyGenerator | None = None
+    prompt_source: PromptSource
+    strategy_generator: StrategyGenerator
+
+    def resolve_model_name(self, requested: str | None) -> str:
+        """Resolve the model before any memory key or model call is produced."""
+
+        return self.strategy_generator.resolve_model_name(requested)
 
     def resolve_prompt(
         self,
@@ -70,7 +73,7 @@ class StrategyNodes:
         current = meta["prompt"]
         name = context.get("prompt_name", current["name"])
         selector = context.get("prompt_commit", current["commit"])
-        reference = self._prompt_source().resolve(name, selector)
+        reference = self.prompt_source.resolve(name, selector)
         return {
             "meta": {
                 **meta,
@@ -165,12 +168,13 @@ class StrategyNodes:
             name=prompt["name"],
             commit=prompt["commit"],
         )
-        rendered = self._prompt_source().render(
+        rendered = self.prompt_source.render(
             reference,
             planning["strategy_input"],
         )
-        completion = self._strategy_generator().generate(
+        completion = self.strategy_generator.generate(
             rendered,
+            model_name=meta["model_name"],
             seed=meta["seed"],
             response_schema=StrategyDecision.model_json_schema(),
         )
@@ -329,13 +333,6 @@ class StrategyNodes:
                 }
             ],
         }
-
-    def _prompt_source(self) -> PromptSource:
-        return self.prompt_source or LangSmithPromptSource()
-
-    def _strategy_generator(self) -> StrategyGenerator:
-        return self.strategy_generator or LiteLLMStrategyGenerator()
-
 
 def route_after_strategy_proposal(state: AgenticState) -> StrategyRoute:
     """Route schema failures to bounded correction and valid output to verify."""

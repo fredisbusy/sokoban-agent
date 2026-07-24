@@ -22,3 +22,17 @@
 
 노트북 세 개는 generator-only 방식으로 재생성했으며 실제 모델 실행은 자동
 회귀 게이트에 포함하지 않았다.
+
+## 2026-07-24 P7 검증
+
+- `uv run pytest`: 152 passed
+- `uv run ruff check .`: passed
+- `uv run mypy`: 107 source files passed
+- `viewer npm test`: 17 passed
+- `viewer npm run typecheck`: passed
+- `viewer npm run build`: passed
+- graph 표적 테스트: 35 passed
+
+실제 Ollama·LangSmith 네트워크 호출은 자동 회귀 게이트에 포함하지 않았다.
+대신 요청 model로 actual client를 생성·재사용하는 adapter 계약을 fake client로
+검증했다.

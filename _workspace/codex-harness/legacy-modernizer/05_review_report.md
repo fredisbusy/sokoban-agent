@@ -38,3 +38,18 @@
 
 `total_reward`와 `guard_reference_action_count`는 기존 v1 artifact의 생산
 diagnostic이므로 이번 breaking 내부 리팩터링에서도 외부 계약에 유지했다.
+
+## 2026-07-24 P7 교차 검토
+
+- graph topology와 production provider 조립이 분리되었고 `langgraph.json`은
+  composition root를 가리킨다.
+- CLI의 `--model`, state의 `meta.model_name`, 실제 LiteLLM client model이
+  하나의 effective model 계약을 사용한다.
+- 초기 성공·데드락은 analyze 이전에 종료하며 모델 호출이 발생하지 않는다.
+- 연구 실행은 episode마다 graph를 compile하지 않고 runner 하나를 재사용한다.
+- architecture graph inventory와 README 예제가 현재 nested metric 계약을
+  반영한다.
+
+잔여 후속은 manifest download path containment·size limit과 agentic runtime의
+port/adapter 물리적 파일 분리다. 둘은 이번 graph 발견성·수명 변경과 별도
+위험 축이므로 다음 단계로 분리한다.

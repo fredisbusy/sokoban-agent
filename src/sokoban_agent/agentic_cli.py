@@ -8,6 +8,7 @@ from collections.abc import Sequence
 
 from dotenv import load_dotenv
 
+from sokoban_agent.graph.agentic.composition import production_dependencies
 from sokoban_agent.graph.agentic.runtime import AgenticGraphRunner
 from sokoban_agent.planning.llm.client import OllamaSettings
 
@@ -57,8 +58,14 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     args = build_parser().parse_args(argv)
     load_dotenv(".env", override=True)
-    model_name = args.model or OllamaSettings.from_env().model
-    state = AgenticGraphRunner().run(
+    settings = OllamaSettings.from_env()
+    if args.model is not None:
+        settings = settings.model_copy(update={"model": args.model})
+    dependencies = production_dependencies(settings)
+    state = AgenticGraphRunner(
+        prompt_source=dependencies.prompt_source,
+        strategy_generator=dependencies.strategy_generator,
+    ).run(
         {
             "level_id": args.level_id,
             "seed": args.seed,
@@ -67,7 +74,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         context={
             "prompt_name": args.prompt_name,
             "prompt_commit": args.prompt_commit,
-            "model_name": model_name,
+            "model_name": settings.model,
             "rationale_mode": args.rationale_mode,
             "grounding_mode": args.grounding_mode,
             "memory_mode": args.memory_mode,

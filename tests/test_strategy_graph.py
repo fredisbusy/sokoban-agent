@@ -43,14 +43,20 @@ class SequenceStrategyGenerator(StrategyGenerator):
         self.responses = list(responses)
         self.calls = 0
         self.schemas: list[Mapping[str, object]] = []
+
+    def resolve_model_name(self, requested: str | None) -> str:
+        return requested or "fixture-model"
+
     def generate(
         self,
         prompt: RenderedStrategyPrompt,
         *,
+        model_name: str,
         seed: int | None,
         response_schema: Mapping[str, object],
     ) -> TextCompletion:
         assert prompt.system_prompt == "fixture system"
+        assert model_name == "fixture-model"
         assert seed == 7
         self.schemas.append(response_schema)
         response = self.responses[self.calls]
@@ -142,9 +148,7 @@ def _hypothesis(state: AgenticState) -> dict[str, object]:
 def test_strategy_nodes_use_pinned_prompt_and_board_analysis() -> None:
     prompt_source = FixedPromptSource()
     generator = SequenceStrategyGenerator(_strategy_json())
-
     result = _invoke(prompt_source, generator)
-
     assert result["status"] == "success"
     assert result["meta"]["prompt"] == {
         "name": "sokoban-strategy",
@@ -325,7 +329,6 @@ def test_agentic_loop_replans_after_each_push_until_success() -> None:
         prompt_source=prompt_source,
         strategy_generator=generator,
     )
-
     result = cast(
         AgenticState,
         graph.invoke(
@@ -337,7 +340,6 @@ def test_agentic_loop_replans_after_each_push_until_success() -> None:
             },
         ),
     )
-
     assert result["status"] == "success"
     assert result["info"]["success"] is True
     assert result["action_history"] == [
@@ -378,7 +380,6 @@ def test_agentic_loop_stops_when_step_limit_prevents_push() -> None:
         prompt_source=prompt_source,
         strategy_generator=generator,
     )
-
     result = cast(
         AgenticState,
         graph.invoke(
@@ -390,7 +391,6 @@ def test_agentic_loop_stops_when_step_limit_prevents_push() -> None:
             },
         ),
     )
-
     assert result["status"] == "step_limit"
     assert result["info"]["steps"] == 1
     assert result["action_history"] == ["RIGHT"]

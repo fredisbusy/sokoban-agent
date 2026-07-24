@@ -35,16 +35,23 @@ def run_agentic_episode(
     context: AgenticRuntimeContext,
     prompt_source: PromptSource | None = None,
     strategy_generator: StrategyGenerator | None = None,
+    runner: AgenticGraphRunner | None = None,
     thread_id: str | None = None,
 ) -> AgenticEpisodeResult:
     """Run and measure one structured policy without a second action loop."""
 
-    runner = AgenticGraphRunner(
+    if runner is not None and (
+        prompt_source is not None or strategy_generator is not None
+    ):
+        raise ValueError(
+            "runner cannot be combined with prompt or strategy providers"
+        )
+    graph_runner = runner or AgenticGraphRunner(
         prompt_source=prompt_source,
         strategy_generator=strategy_generator,
     )
     started_at = perf_counter()
-    state = runner.run(
+    state = graph_runner.run(
         graph_input,
         context=context,
         thread_id=thread_id,

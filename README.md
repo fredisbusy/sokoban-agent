@@ -195,7 +195,10 @@ from sokoban_agent.planning import SearchGuardPlanner
 hybrid = SearchGuardPlanner(planner)
 graph = SokobanGraph(SokobanEnv(), hybrid)
 state = graph.run(level_id="tiny-push")
-print(state["algorithm_calls"], state["algorithm_fallbacks"])
+print(
+    state["metrics"]["algorithm"]["calls"],
+    state["metrics"]["algorithm"]["fallbacks"],
+)
 ```
 
 ## LangGraph Studio

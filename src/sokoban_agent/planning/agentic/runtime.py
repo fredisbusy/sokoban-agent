@@ -19,7 +19,11 @@ from langsmith.utils import (
     LangSmithUserError,
 )
 
-from sokoban_agent.planning.llm.client import LiteLLMClient, TextCompletion
+from sokoban_agent.planning.llm.client import (
+    LiteLLMClient,
+    OllamaSettings,
+    TextCompletion,
+)
 
 
 class TransientAgenticError(RuntimeError):
@@ -65,10 +69,15 @@ class PromptSource(Protocol):
 class StrategyGenerator(Protocol):
     """Structured model boundary used by the strategy proposal node."""
 
+    def resolve_model_name(self, requested: str | None) -> str:
+        """Return the effective model identity used for this graph run."""
+        ...
+
     def generate(
         self,
         prompt: RenderedStrategyPrompt,
         *,
+        model_name: str,
         seed: int | None,
         response_schema: Mapping[str, object],
     ) -> TextCompletion:
@@ -188,17 +197,36 @@ class LiteLLMStrategyGenerator:
 
     def __init__(self, client: LiteLLMClient | None = None) -> None:
         self._client = client
+        self._settings = client.settings if client is not None else None
+        self._clients = (
+            {client.settings.model: client} if client is not None else {}
+        )
+
+    def resolve_model_name(self, requested: str | None) -> str:
+        """Resolve a run request against the actual LiteLLM client settings."""
+
+        if requested is not None and not requested.strip():
+            raise PromptConfigurationError("model_name must not be empty")
+        settings = self._settings_from_env()
+        model_name = requested or settings.model
+        if self._client is not None and model_name != settings.model:
+            raise PromptConfigurationError(
+                "injected strategy client model mismatch: "
+                f"expected {settings.model!r}, got {model_name!r}"
+            )
+        return model_name
 
     def generate(
         self,
         prompt: RenderedStrategyPrompt,
         *,
+        model_name: str,
         seed: int | None,
         response_schema: Mapping[str, object],
     ) -> TextCompletion:
         """Call Ollama while translating transport failures for retry policy."""
 
-        client = self._client or LiteLLMClient.from_env()
+        client = self._client_for(model_name)
         try:
             return client.complete(
                 prompt.user_prompt,
@@ -211,3 +239,24 @@ class LiteLLMStrategyGenerator:
             raise TransientAgenticError(
                 "Ollama strategy request failed temporarily"
             ) from error
+
+    def _settings_from_env(self) -> OllamaSettings:
+        if self._settings is None:
+            self._settings = OllamaSettings.from_env()
+        return self._settings
+
+    def _client_for(self, model_name: str) -> LiteLLMClient:
+        settings = self._settings_from_env()
+        cached = self._clients.get(model_name)
+        if cached is not None:
+            return cached
+        if self._client is not None:
+            raise PromptConfigurationError(
+                "injected strategy client model mismatch: "
+                f"expected {settings.model!r}, got {model_name!r}"
+            )
+        client = LiteLLMClient(
+            settings.model_copy(update={"model": model_name})
+        )
+        self._clients[model_name] = client
+        return client

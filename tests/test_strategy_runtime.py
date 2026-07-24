@@ -1,17 +1,25 @@
 from types import SimpleNamespace
 from typing import Any, cast
 
+import pytest
 from langchain_core.messages import AIMessage
 from langchain_core.prompts.structured import StructuredPrompt
 from langsmith import Client
 
+import sokoban_agent.planning.agentic.runtime as runtime_module
 from sokoban_agent.planning.agentic.runtime import (
     LangSmithPromptSource,
     LiteLLMStrategyGenerator,
+    PromptConfigurationError,
     PromptReferenceValue,
     RenderedStrategyPrompt,
 )
-from sokoban_agent.planning.llm.client import LiteLLMClient, OllamaSettings
+from sokoban_agent.planning.llm.client import (
+    CompletionMetrics,
+    LiteLLMClient,
+    OllamaSettings,
+    TextCompletion,
+)
 
 
 class PromptClientFake:
@@ -95,6 +103,7 @@ def test_strategy_generator_uses_the_larger_strategy_token_budget(
             system_prompt="JSON으로 답해.",
             user_prompt="전략을 세워.",
         ),
+        model_name=settings.model,
         seed=0,
         response_schema={"type": "object"},
     )
@@ -102,3 +111,59 @@ def test_strategy_generator_uses_the_larger_strategy_token_budget(
     kwargs = captured["kwargs"]
     assert isinstance(kwargs, dict)
     assert kwargs["max_tokens"] == 1536
+
+
+def test_strategy_generator_applies_requested_model_to_actual_client(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    base_settings = OllamaSettings(
+        api_base="http://localhost:11434",
+        model="env-model",
+    )
+    created_models: list[str] = []
+
+    class ClientFake:
+        def __init__(self, settings: OllamaSettings) -> None:
+            self.settings = settings
+            created_models.append(settings.model)
+
+        def complete(self, *args: object, **kwargs: object) -> TextCompletion:
+            return TextCompletion("{}", CompletionMetrics())
+
+    monkeypatch.setattr(
+        OllamaSettings,
+        "from_env",
+        classmethod(lambda cls: base_settings),
+    )
+    monkeypatch.setattr(runtime_module, "LiteLLMClient", ClientFake)
+    generator = LiteLLMStrategyGenerator()
+
+    model_name = generator.resolve_model_name("requested-model")
+    generator.generate(
+        RenderedStrategyPrompt("system", "user"),
+        model_name=model_name,
+        seed=0,
+        response_schema={"type": "object"},
+    )
+    generator.generate(
+        RenderedStrategyPrompt("system", "user"),
+        model_name=model_name,
+        seed=1,
+        response_schema={"type": "object"},
+    )
+
+    assert model_name == "requested-model"
+    assert created_models == ["requested-model"]
+
+
+def test_strategy_generator_rejects_injected_client_model_mismatch() -> None:
+    settings = OllamaSettings(
+        api_base="http://localhost:11434",
+        model="bound-model",
+    )
+    generator = LiteLLMStrategyGenerator(
+        LiteLLMClient(settings, model=cast(Any, object()))
+    )
+
+    with pytest.raises(PromptConfigurationError, match="model mismatch"):
+        generator.resolve_model_name("different-model")

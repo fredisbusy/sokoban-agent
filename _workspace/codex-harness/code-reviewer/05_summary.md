@@ -65,3 +65,12 @@ production provider 조립이 여러 파일에 흩어져 있다.
 5. current/historical architecture 문서 분리와 import boundary 검사
 
 추가 검증으로 graph 관련 표적 테스트 17개가 통과했다.
+
+## 2026-07-24 구현 후 정정
+
+위의 “세 graph family”는 구현 전 스냅샷의 표현이다. legacy Studio graph는
+`47f2c8b`에서 제거되었고, 현재 실행 graph family는 구조화 agentic과 원시
+행동 baseline 두 개다. 이번 변경에서 composition root, graph inventory,
+effective model provenance, 초기 terminal routing과 experiment-scoped runner를
+반영했다. manifest 경로·크기 방어와 planning port/adapter 파일 분리는 별도
+후속 범위로 남긴다.

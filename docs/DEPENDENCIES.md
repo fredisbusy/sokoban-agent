@@ -48,11 +48,13 @@ LangSmith tracing을 우선 사용한다.
 
 `studio` 그룹은 로컬 시각화와 디버깅에만 필요하다. `langgraph dev`가
 `langgraph.json`이 가리키는 구조화 `StateGraph`를 로컬 Agent Server로
-띄운다. CLI·평가·Studio는 모두 `graph/agentic/builder.py`의 같은 graph
-factory를 사용한다. 원격 LangSmith 추적은 실행 환경의 데이터 정책에 따라
-명시적으로 켜거나 끈다. 활성화할 때는 LangGraph node와 `ChatLiteLLM`
-호출을 하나의 trace로 관리하고 민감한 입력에는 LangSmith masking을
-적용한다.
+띄운다. `graph/agentic/builder.py`는 topology를 정의하고,
+`graph/agentic/composition.py`는 production provider를 조립한다.
+Agent Server·Studio는 composition root의 전역 graph를, CLI·평가는 같은
+factory로 local compile한 graph를 사용한다. 원격 LangSmith 추적은 실행
+환경의 데이터 정책에 따라 명시적으로 켜거나 끈다. 활성화할 때는 LangGraph
+node와 `ChatLiteLLM` 호출을 하나의 trace로 관리하고 민감한 입력에는
+LangSmith masking을 적용한다.
 
 ### prompt 관리
 
