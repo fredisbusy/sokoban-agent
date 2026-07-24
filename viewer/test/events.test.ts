@@ -64,6 +64,33 @@ test("baseline board and summaries remain supported", () => {
   assert.equal(event.strategy.risk, "안전");
 });
 
+test("nested baseline proposal and metrics remain visible", () => {
+  const event = normalizeEvent({
+    id: "evt",
+    threadId: "thread",
+    node: "execute",
+    state: {
+      observation: [[1, 1, 1], [1, 4, 1], [1, 2, 1]],
+      action_history: ["DOWN"],
+      proposal: {
+        goal: "상자를 목표로 이동",
+        risk: "벽 모서리를 피한다",
+      },
+      metrics: {
+        episode: { push_count: 1 },
+        llm: { calls: 2, prompt_tokens: 30, output_tokens: 8 },
+        algorithm: { expanded_states: 12 },
+      },
+    },
+  });
+
+  assert.equal(event.strategy.hypothesis, "상자를 목표로 이동");
+  assert.equal(event.strategy.risk, "벽 모서리를 피한다");
+  assert.equal(event.pushCount, 1);
+  assert.equal(event.metrics.llmCalls, 2);
+  assert.equal(event.metrics.expandedStates, 12);
+});
+
 test("terminal and error states map to distinct phases", () => {
   const makeEvent = (state: Record<string, unknown>) => normalizeEvent({
     id: "evt",

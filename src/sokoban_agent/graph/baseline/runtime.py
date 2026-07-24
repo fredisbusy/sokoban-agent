@@ -1,4 +1,4 @@
-"""LangGraph-first Sokoban episode runtime."""
+"""LangGraph-first Sokoban baseline with checkpoint-owned execution state."""
 
 from __future__ import annotations
 
@@ -7,20 +7,25 @@ from time import perf_counter
 from typing import Any, Literal, cast
 from uuid import uuid4
 
+import numpy as np
 from langgraph.checkpoint.memory import InMemorySaver
 from langgraph.graph import END, START, StateGraph
 
 from sokoban_agent.env import Action, SokobanEnv
+from sokoban_agent.env.model import MoveResult
 from sokoban_agent.env.rules import (
     apply_action,
     decode_observation,
     has_static_corner_deadlock,
     is_success,
+    observation_for,
 )
 from sokoban_agent.graph.baseline.metrics import (
     execution_research_update,
+    initial_baseline_metrics,
     observation_key,
     planning_research_update,
+    validation_research_update,
 )
 from sokoban_agent.graph.baseline.state import SokobanGraphState
 from sokoban_agent.planning import Observation, Planner, PlanningContext
@@ -79,7 +84,7 @@ class SokobanGraph:
             step_observer(observation.copy(), None, info)
 
         run_id = thread_id or (
-            f"{self.name}:{initial['level_id']}:{seed}:{uuid4().hex}"
+            f"baseline-v2:{self.name}:{initial['level_id']}:{seed}:{uuid4().hex}"
         )
         config = {
             "configurable": {"thread_id": run_id},
@@ -117,11 +122,14 @@ class SokobanGraph:
         return builder.compile(checkpointer=self.checkpointer)
 
     def _plan(self, state: SokobanGraphState) -> dict[str, object]:
+        observation = _observation(state)
         context = PlanningContext(
-            observation=state["observation"],
+            observation=observation,
             info=state["info"],
-            action_history=state["action_history"],
-            feedback=state["feedback"],
+            action_history=tuple(
+                Action[action_name] for action_name in state["action_history"]
+            ),
+            feedback=tuple(state["feedback"]),
             seed=state["seed"],
         )
         started_at = perf_counter()
@@ -132,86 +140,43 @@ class SokobanGraph:
         if not outcome.actions and error is None:
             error = "플래너가 행동 계획을 반환하지 않았습니다"
         exhausted = error is not None and attempts >= self.max_planning_attempts
+        retry = error is not None and not exhausted
         feedback = state["feedback"]
         if error is not None:
-            feedback = (*feedback, error)
+            feedback = [*feedback, error]
+        proposed = outcome.proposed_actions or outcome.actions
+        used_llm_actions = outcome.llm_calls > 0 and (
+            outcome.guard_disposition is None
+            or outcome.guard_disposition == "accepted"
+        )
         return {
-            "plan": outcome.actions,
-            "proposed_plan": outcome.proposed_actions or outcome.actions,
-            "planner_goal": outcome.goal,
-            "decision_summary": outcome.decision_summary,
-            "risk": outcome.risk,
-            "guard_summary": outcome.guard_summary,
-            "validation_summary": None,
+            "plan": [action.name for action in outcome.actions],
+            "proposal": {
+                "proposed_actions": [action.name for action in proposed],
+                "goal": outcome.goal,
+                "risk": outcome.risk,
+                "guard_summary": outcome.guard_summary,
+                "used_llm_actions": used_llm_actions,
+            },
             "feedback": feedback,
             "planning_attempts": attempts,
             "failure_reason": error if exhausted else None,
-            "planning_calls": state["planning_calls"] + 1,
-            "planning_retries": state["planning_retries"]
-            + int(error is not None and not exhausted),
-            "planning_errors": state["planning_errors"] + int(error is not None),
-            "planning_elapsed_seconds": (
-                state["planning_elapsed_seconds"] + elapsed
+            **planning_research_update(
+                state,
+                observation,
+                outcome,
+                elapsed_seconds=elapsed,
+                error=error is not None,
+                retry=retry,
             ),
-            "algorithm_calls": (
-                state["algorithm_calls"] + outcome.algorithm_calls
-            ),
-            "algorithm_requests": (
-                state["algorithm_requests"] + outcome.algorithm_requests
-            ),
-            "algorithm_cache_hits": (
-                state["algorithm_cache_hits"] + outcome.algorithm_cache_hits
-            ),
-            "algorithm_failures": (
-                state["algorithm_failures"] + outcome.algorithm_failures
-            ),
-            "algorithm_fallbacks": (
-                state["algorithm_fallbacks"] + outcome.algorithm_fallbacks
-            ),
-            "algorithm_expanded_states": (
-                state["algorithm_expanded_states"]
-                + outcome.algorithm_expanded_states
-            ),
-            "algorithm_elapsed_seconds": (
-                state["algorithm_elapsed_seconds"]
-                + outcome.algorithm_elapsed_seconds
-            ),
-            **planning_research_update(state, outcome),
-            "llm_calls": state["llm_calls"] + outcome.llm_calls,
-            "llm_client_errors": (
-                state["llm_client_errors"] + outcome.llm_client_errors
-            ),
-            "llm_format_errors": (
-                state["llm_format_errors"] + outcome.llm_format_errors
-            ),
-            "llm_elapsed_seconds": (
-                state["llm_elapsed_seconds"]
-                + outcome.llm_elapsed_seconds
-            ),
-            "llm_load_seconds": (
-                state["llm_load_seconds"] + outcome.llm_load_seconds
-            ),
-            "llm_prompt_eval_seconds": (
-                state["llm_prompt_eval_seconds"]
-                + outcome.llm_prompt_eval_seconds
-            ),
-            "llm_eval_seconds": (
-                state["llm_eval_seconds"] + outcome.llm_eval_seconds
-            ),
-            "llm_prompt_tokens": (
-                state["llm_prompt_tokens"] + outcome.llm_prompt_tokens
-            ),
-            "llm_output_tokens": (
-                state["llm_output_tokens"] + outcome.llm_output_tokens
-            ),
-            "last_proposal_used_llm": outcome.llm_calls > 0,
         }
 
     def _validate(self, state: SokobanGraphState) -> dict[str, object]:
-        level, board = decode_observation(state["observation"])
-        validated: list[Action] = []
+        level, board = decode_observation(_observation(state))
+        validated: list[str] = []
         message: str | None = None
-        for index, action in enumerate(state["plan"]):
+        for index, action_name in enumerate(state["plan"]):
+            action = Action[action_name]
             move = apply_action(level, board, action)
             if move.invalid_move:
                 message = (
@@ -220,7 +185,7 @@ class SokobanGraph:
                 )
                 break
             board = move.state
-            validated.append(action)
+            validated.append(action_name)
             if has_static_corner_deadlock(level, board):
                 message = (
                     f"계획의 {index + 1}번째 행동 "
@@ -228,55 +193,59 @@ class SokobanGraph:
                 )
                 break
             if is_success(level, board):
-                return {
-                    "plan": tuple(validated),
-                    "validation_summary": (
-                        "전체 계획이 유효하며 실행 중 퍼즐을 해결합니다"
-                    ),
-                }
+                return {"plan": validated}
 
         if message is None:
-            return {"validation_summary": "전체 계획이 유효합니다"}
-        exhausted = (
-            state["planning_attempts"] >= self.max_planning_attempts
-        )
+            return {}
+        exhausted = state["planning_attempts"] >= self.max_planning_attempts
+        retry = not exhausted
         return {
-            "plan": (),
-            "feedback": (*state["feedback"], message),
-            "invalid_moves": state["invalid_moves"] + 1,
-            "planning_retries": state["planning_retries"] + int(not exhausted),
+            "plan": [],
+            "feedback": [*state["feedback"], message],
             "failure_reason": message if exhausted else None,
-            "validation_summary": message,
-            "llm_invalid_actions": state["llm_invalid_actions"]
-            + int(state["last_proposal_used_llm"]),
+            "metrics": validation_research_update(state, retry=retry),
         }
 
     def _execute(self, state: SokobanGraphState) -> dict[str, object]:
-        action = state["plan"][0]
-        observation, reward, _, truncated, raw_info = self.env.step(action)
-        info = dict(raw_info)
+        observation = _observation(state)
+        level, board = decode_observation(observation)
+        action = Action[state["plan"][0]]
+        move = apply_action(level, board, action)
+        if move.invalid_move:
+            raise RuntimeError("validated plan became invalid before execution")
+
+        success = is_success(level, move.state)
+        deadlock = not success and has_static_corner_deadlock(level, move.state)
+        steps = _step_count(state) + 1
+        truncated = steps >= self.env.max_steps and not success and not deadlock
+        reward = _reward(self.env, move, success=success, deadlock=deadlock)
+        next_observation = observation_for(level, move.state)
+        info = {
+            **state["info"],
+            "steps": steps,
+            "invalid_move": False,
+            "pushed": move.pushed,
+            "boxes_on_targets": len(move.state.boxes & level.targets),
+            "success": success,
+            "deadlock": deadlock,
+        }
         if self._observer is not None:
-            self._observer(observation.copy(), action, info)
+            self._observer(next_observation.copy(), action, info)
         return {
-            "observation": observation,
+            "observation": next_observation.tolist(),
             "info": info,
             "plan": state["plan"][1:],
-            "action_history": (*state["action_history"], action),
-            "feedback": (),
+            "action_history": [*state["action_history"], action.name],
+            "feedback": [],
             "planning_attempts": 0,
-            "action_count": state["action_count"] + 1,
             **execution_research_update(
                 state,
-                observation,
-                pushed=bool(info["pushed"]),
+                next_observation,
+                pushed=move.pushed,
+                reward=reward,
             ),
-            "total_reward": state["total_reward"] + reward,
             "truncated": truncated,
             "failure_reason": None,
-            "execution_summary": (
-                f"{action.name} 행동을 실행했습니다. "
-                f"남은 계획은 {len(state['plan']) - 1}개입니다"
-            ),
         }
 
     def _route_after_plan(self, state: SokobanGraphState) -> Route:
@@ -311,66 +280,49 @@ class SokobanGraph:
         info: dict[str, object],
         seed: int | None,
     ) -> SokobanGraphState:
-        initial_key = observation_key(observation)
         return {
-            "observation": observation,
+            "observation": observation.tolist(),
             "info": info,
             "seed": seed,
             "level_id": str(info["level_id"]),
-            "plan": (),
-            "proposed_plan": (),
-            "planner_goal": None,
-            "decision_summary": None,
-            "risk": None,
-            "guard_summary": None,
-            "validation_summary": None,
-            "execution_summary": None,
-            "action_history": (),
-            "visited_state_keys": (initial_key,),
-            "seen_plan_keys": (),
-            "feedback": (),
+            "plan": [],
+            "proposal": None,
+            "action_history": [],
+            "visited_state_keys": [observation_key(observation)],
+            "seen_plan_keys": [],
+            "feedback": [],
             "planning_attempts": 0,
-            "action_count": 0,
-            "push_count": 0,
-            "revisited_states": 0,
-            "repeated_plans": 0,
-            "invalid_moves": 0,
-            "total_reward": 0.0,
             "truncated": False,
             "failure_reason": None,
-            "planning_calls": 0,
-            "planning_retries": 0,
-            "planning_errors": 0,
-            "planning_elapsed_seconds": 0.0,
-            "algorithm_calls": 0,
-            "algorithm_requests": 0,
-            "algorithm_cache_hits": 0,
-            "algorithm_failures": 0,
-            "algorithm_fallbacks": 0,
-            "algorithm_expanded_states": 0,
-            "algorithm_elapsed_seconds": 0.0,
-            "guard_accepted": 0,
-            "guard_suffix_added": 0,
-            "guard_replaced": 0,
-            "guard_failed": 0,
-            "guard_proposed_actions": 0,
-            "guard_legal_prefix_actions": 0,
-            "guard_adopted_actions": 0,
-            "guard_suffix_expanded_states": 0,
-            "guard_reference_calls": 0,
-            "guard_reference_action_count": 0,
-            "guard_reference_expanded_states": 0,
-            "guard_reference_elapsed_seconds": 0.0,
-            "guard_expansions_saved": 0,
-            "llm_calls": 0,
-            "llm_client_errors": 0,
-            "llm_format_errors": 0,
-            "llm_invalid_actions": 0,
-            "llm_elapsed_seconds": 0.0,
-            "llm_load_seconds": 0.0,
-            "llm_prompt_eval_seconds": 0.0,
-            "llm_eval_seconds": 0.0,
-            "llm_prompt_tokens": 0,
-            "llm_output_tokens": 0,
-            "last_proposal_used_llm": False,
+            "metrics": initial_baseline_metrics(),
         }
+
+
+def _observation(state: SokobanGraphState) -> Observation:
+    return cast(Observation, np.asarray(state["observation"], dtype=np.uint8))
+
+
+def _step_count(state: SokobanGraphState) -> int:
+    steps = state["info"].get("steps")
+    if not isinstance(steps, int):
+        raise TypeError("graph info steps must be an integer")
+    return steps
+
+
+def _reward(
+    env: SokobanEnv,
+    move: MoveResult,
+    *,
+    success: bool,
+    deadlock: bool,
+) -> float:
+    reward = env.reward_config.step
+    if move.pushed and move.box_left_target:
+        reward += env.reward_config.box_off_target
+    if move.pushed and move.box_entered_target:
+        reward += env.reward_config.box_on_target
+    if success:
+        reward += env.reward_config.completion
+    elif deadlock:
+        reward += env.reward_config.deadlock
+    return reward

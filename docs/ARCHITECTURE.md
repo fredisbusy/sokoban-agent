@@ -29,9 +29,18 @@ flowchart TD
     X -->|"성공 · 데드락 · 제한"| E
 ```
 
-`SokobanGraphState`에는 관찰, 환경 정보, 남은 계획, 행동 이력, 거절 피드백,
-계획 시도 횟수와 평가 지표가 들어간다. `InMemorySaver`는 에피소드
-`thread_id`별로 각 노드 이후 상태를 체크포인트한다.
+baseline v2의 `SokobanGraphState`는 JSON-safe 관찰·행동 이름, 환경 정보,
+남은 계획, 최신 proposal provenance, 행동 이력, 거절 피드백과 계획 시도
+횟수를 top-level 실행 채널로 둔다. 평가 지표는 `episode`, `planning`,
+`algorithm`, `guard`, `llm` 하위 채널을 가진 `metrics`로 묶는다.
+`action_count`는 별도 저장하지 않고 canonical `action_history` 길이에서
+파생한다.
+
+`execute` node는 `SokobanEnv`의 숨은 mutable state를 이어서 사용하지 않고
+checkpoint의 observation에 순수 규칙을 적용한다. 따라서 저장된 행동은
+문자열, 관찰은 중첩 정수 list로 strict msgpack에서 안전하게 왕복한다.
+`InMemorySaver`는 `baseline-v2` thread ID별로 각 node 이후 상태를
+체크포인트하며, v1 checkpoint와의 재개 호환은 제공하지 않는다.
 
 ## Planner 경계
 
@@ -49,7 +58,9 @@ flowchart TD
 그래프는 Planner 종류를 알 필요가 없다. 알고리즘 Planner가 여러 행동을
 반환하면 그래프가 전체 계획의 막힌 이동과 중간 데드락을 먼저 검사하고
 순서대로 실행한다. LLM의 형식 오류나 거절된 계획은 상태의 feedback에
-기록되고 `plan` 노드로 되돌아간다.
+기록되고 `plan` node로 되돌아간다. validation 실패의 LLM 귀속은 단순히
+LLM 호출 여부를 사용하지 않고 latest proposal에 실제 LLM 행동이 남았는지
+기준으로 판정한다.
 
 현재 `Planner` Interface는 원시 `actions`를 중심으로 설계되어 있다.
 `goal`, `decision_summary`, `risk`는 실행 불변 조건이 아니라 표시와 진단을

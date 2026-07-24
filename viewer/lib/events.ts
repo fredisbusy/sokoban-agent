@@ -40,6 +40,12 @@ export function normalizeEvent({
   const reflection = objectOrEmpty(state.reflection_result);
   const hypothesis = objectOrEmpty(state.strategy_hypothesis);
   const subgoal = objectOrEmpty(state.active_subgoal);
+  const proposal = objectOrEmpty(state.proposal);
+  const metrics = objectOrEmpty(state.metrics);
+  const episodeMetrics = objectOrEmpty(metrics.episode);
+  const llmMetrics = objectOrEmpty(metrics.llm);
+  const searchMetrics = objectOrEmpty(metrics.local_search);
+  const algorithmMetrics = objectOrEmpty(metrics.algorithm);
   const actions = arrayOrEmpty(execution.actions_executed);
   const history = arrayOrEmpty(state.action_history);
   const status = String(state.status ?? "running");
@@ -57,19 +63,33 @@ export function normalizeEvent({
     board,
     action: stringOrNull(actions.at(-1) ?? history.at(-1)),
     actionCount: integer(state.action_count, history.length) ?? history.length,
-    pushCount: integer(state.push_count, integer(execution.push_count, null)),
+    pushCount: integer(
+      state.push_count,
+      integer(episodeMetrics.push_count, integer(execution.push_count, null)),
+    ),
     status,
     success: Boolean(state.success ?? info.success),
     deadlock: Boolean(state.deadlock ?? info.deadlock),
     truncated: Boolean(state.truncated ?? execution.truncated),
     strategy: {
-      hypothesis: displayValue(hypothesis.summary ?? hypothesis.hypothesis ?? state.planner_goal),
+      hypothesis: displayValue(
+        hypothesis.summary
+          ?? hypothesis.hypothesis
+          ?? proposal.goal
+          ?? state.planner_goal,
+      ),
       assignment: displayAssignments(
         hypothesis.assignments ?? hypothesis.assignment ?? hypothesis.box_goal_assignment,
       ),
       subgoal: displayValue(subgoal.summary ?? subgoal.description ?? subgoal),
       protectedCells: arrayOrEmpty(state.protected_constraints).map(displayValue),
-      risk: displayValue(hypothesis.risk ?? state.risk ?? state.guard_summary),
+      risk: displayValue(
+        hypothesis.risk
+          ?? proposal.risk
+          ?? proposal.guard_summary
+          ?? state.risk
+          ?? state.guard_summary,
+      ),
     },
     effect: {
       expected: displayValue(state.expected_effect),
@@ -77,11 +97,29 @@ export function normalizeEvent({
     },
     revision: displayValue(arrayOrEmpty(state.plan_revisions).at(-1)),
     metrics: {
-      llmCalls: integer(state.llm_calls, integer(state.planning_attempts, null)),
-      promptTokens: integer(state.llm_prompt_tokens, null),
-      outputTokens: integer(state.llm_output_tokens, null),
-      localSearchCalls: integer(state.local_search_calls, null),
-      expandedStates: integer(state.local_expanded_states, null),
+      llmCalls: integer(
+        state.llm_calls,
+        integer(llmMetrics.calls, integer(state.planning_attempts, null)),
+      ),
+      promptTokens: integer(
+        state.llm_prompt_tokens,
+        integer(llmMetrics.prompt_tokens, null),
+      ),
+      outputTokens: integer(
+        state.llm_output_tokens,
+        integer(llmMetrics.output_tokens, null),
+      ),
+      localSearchCalls: integer(
+        state.local_search_calls,
+        integer(searchMetrics.calls, null),
+      ),
+      expandedStates: integer(
+        state.local_expanded_states,
+        integer(
+          searchMetrics.expanded_states,
+          integer(algorithmMetrics.expanded_states, null),
+        ),
+      ),
     },
   };
 }

@@ -149,6 +149,7 @@ def test_graph_retries_format_and_blocked_llm_proposals() -> None:
     assert result.success
     assert result.llm_calls == 3
     assert result.planning_retries == 2
+    assert result.llm_retries == 2
     assert result.llm_format_errors == 1
     assert result.llm_invalid_actions == 1
     assert result.llm_prompt_tokens == 60
